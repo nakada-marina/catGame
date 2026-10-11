@@ -100,7 +100,22 @@ body {
 #talk .next { position: absolute; right: 2px; bottom: 0; color: var(--butter); animation: blink 0.9s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #talk .next { animation: none; } }
-#actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+#actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+#actions button { font-size: 13px; padding: 9px 2px; }
+#actions button.nyaimee { background: #e8b43a; color: #3a2a10; border-bottom-color: #a07a10; }
+#actions button.nyaimee small { color: #5a4010; }
+.nya-head { background: #f2c14e; color: #3a2a10; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.nya-head b { font-size: 22px; font-weight: normal; letter-spacing: 1px; }
+.nya-head span { font-size: 12px; }
+.nya-card { display: grid; grid-template-columns: 56px 1fr auto; gap: 2px 10px; align-items: center; background: #fffaf0; color: #3a2a10; border-radius: 10px; padding: 10px; }
+.nya-card canvas { grid-row: 1 / span 4; width: 56px; height: 50px; image-rendering: pixelated; background: #f2e8d4; border-radius: 6px; }
+.nya-card .nm { font-size: 17px; }
+.nya-card .st { color: #c88a10; font-size: 13px; }
+.nya-card .sk { font-size: 12px; display: inline-block; background: #3a7a5a; color: #fff; border-radius: 4px; padding: 1px 6px; justify-self: start; }
+.nya-card .tm { font-size: 12px; color: #6a5a40; }
+.nya-card button { grid-column: 3; grid-row: 1 / span 4; background: #e8b43a; color: #3a2a10; border-bottom-color: #a07a10; min-width: 84px; }
+.nya-card button small { color: #5a4010; }
+.nya-card.done { opacity: 0.55; }
 button {
   font-family: inherit;
   font-size: 14px;
@@ -245,6 +260,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
     <button type="button" id="btnStock">仕入れ<small id="stockInfo">ざいこ</small></button>
     <button type="button" id="btnShop">ショップ<small>家具など</small></button>
     <button type="button" id="btnCats">ねこ<small>ようす</small></button>
+    <button type="button" id="btnNyaimee" class="nyaimee">ニャイミー<small>のらねこ</small></button>
   </div>
   <div id="sub">
     <span>ふきだし＝注文／キッチンの設備＝調理／ねこ＝なでる</span>
@@ -478,12 +494,13 @@ function makeCatFine(L, P0, KS = CAT_K) {
   }
   // バンダナ
   if (L.scarf) {
+    const sc = typeof L.scarf === 'string' ? L.scarf : '#2e7a4e', scL = shade(sc, 1.35), scD = shade(sc, 0.7);
     const sy = P0.scarfY, cx = P0.closed ? hx - 2 : nx;
     each((fx, fy, x, y) => {
-      if (fy >= sy && fy < sy + 2.2 && Math.abs(fx - cx) < 7) buf[y][x] = '#2e7a4e';
-      if (!P0.closed && tri(fx, fy, [cx - 5, sy + 2], [cx + 5, sy + 2], [cx, sy + 7])) buf[y][x] = '#2e7a4e';
+      if (fy >= sy && fy < sy + 2.2 && Math.abs(fx - cx) < 7) buf[y][x] = sc;
+      if (!P0.closed && tri(fx, fy, [cx - 5, sy + 2], [cx + 5, sy + 2], [cx, sy + 7])) buf[y][x] = sc;
     });
-    line(cx - 6, sy, cx + 4, sy, '#5ab07a'); if (!P0.closed) { set(cx - 2, sy + 3, '#5ab07a'); set(cx - 1, sy + 3, '#5ab07a'); set(cx + 1, sy + 1, '#1e5a36'); }
+    line(cx - 6, sy, cx + 4, sy, scL); if (!P0.closed) { set(cx - 2, sy + 3, scL); set(cx - 1, sy + 3, scL); set(cx + 1, sy + 1, scD); }
   }
   // ふちどり（しあげ）
   const out = polish(buf, W, H, L.line);
@@ -509,6 +526,28 @@ function makeCatFine(L, P0, KS = CAT_K) {
     chest: [38, 31, 4, 3], bodyStripes: [[12, 13, 13, 24], [17, 13, 18, 25], [23, 18, 24, 29], [28, 19, 29, 29]], shadeY: 28, light: [16, 15, 7, 3], scarfY: 33,
   };
 }
+// ニャイミーで来てくれる 野良ねこたち（黄色いバンダナ）
+const STRAYS = [
+  { id: 'sabi', name: 'サビ', skill: 'clean', rating: 4.6, reviews: 18, rate: 800,
+    look: { base: '#3a2e2a', light: '#56443a', shade: '#2a201c', line: '#120c0a', white: '#3a2e2a', eye: '#d8a030', pupil: '#0a0a0a', ear: '#8a5a5a', nose: '#7a4a4a', patches: ['#b8642a', '#6a3a1e'] } },
+  { id: 'hachi', name: 'ハチ', skill: 'serve', rating: 4.9, reviews: 64, rate: 1000,
+    look: { base: '#2a2a32', light: '#44444e', shade: '#1a1a20', line: '#0a0a10', white: '#f8f8f8', eye: '#e8c030', pupil: '#0a0a0a', ear: '#c88a9a', nose: '#e8a0b0', chest: true, paws: true, muzzle: true } },
+  { id: 'gure', name: 'グレ', skill: 'heal', rating: 4.7, reviews: 29, rate: 900,
+    look: { base: '#8a92a0', light: '#a8b0bc', shade: '#6a7280', line: '#2a2e36', white: '#8a92a0', eye: '#7ac04a', pupil: '#121008', ear: '#c89aa8', nose: '#b08a98' } },
+  { id: 'milk', name: 'ミルク', skill: 'charm', rating: 4.8, reviews: 41, rate: 950,
+    look: { base: '#f2e2c4', light: '#fff4de', shade: '#d8c4a0', stripe: '#e0bc84', line: '#6a5030', white: '#fffaf0', eye: '#c88a3a', pupil: '#1a1008', ear: '#f2a8a8', nose: '#f0a0a0', tabby: true } },
+  { id: 'boss', name: 'ボス', skill: 'serve', rating: 4.4, reviews: 102, rate: 750,
+    look: { base: '#7a6a50', light: '#94826a', shade: '#5a4a38', stripe: '#2e2418', line: '#1a140c', white: '#7a6a50', eye: '#c8b030', pupil: '#0a0a0a', ear: '#a87a6a', nose: '#8a5a50', tabby: true, long: true } },
+  { id: 'kotetsu', name: 'コテツ', skill: 'clean', rating: 4.9, reviews: 37, rate: 950,
+    look: { base: '#e89048', light: '#f4b070', shade: '#c87a34', stripe: '#b45e1a', line: '#5a3010', white: '#fff2dc', eye: '#4f8a3a', pupil: '#121008', ear: '#f2a0a0', nose: '#e88a8a', tabby: true, long: true, chest: true, paws: true, muzzle: true } },
+];
+const SKILLS = {
+  serve: { name: '配膳がはやい', desc: '料理を すばやく はこぶ' },
+  clean: { name: '片付けじょうず', desc: 'お皿の片付けが はやい' },
+  charm: { name: '招きねこ', desc: 'いるあいだ お客さんが ふえる' },
+  heal: { name: 'いやし系', desc: 'お客さんの 満足度が あがる' },
+};
+for (const st of STRAYS) CAT_LOOK['stray_' + st.id] = { ...st.look, scarf: '#f2c14e' };
 const CAT_SPR = {};
 for (const pal in CAT_LOOK) {
   CAT_SPR[pal] = {};
@@ -1129,8 +1168,21 @@ function catThink(k) {
   if (r < 0.9) { k.state = 'walk'; k.tx = rnd(14, 210); k.ty = rnd(104, 288); return; }
   k.state = 'idle'; k.t = Math.floor(rnd(120, 300));
 }
+function endShift(k) {
+  if (k.dish) { k.dish.taker = null; k.dish = null; k.carryDish = false; }
+  if (k.clean) { k.clean.cleaner = null; k.clean = null; }
+  if (k.carry) k.carry = false;
+  k.visit = null; k.spot = null; k.act = null;
+  k.state = 'leaving'; k.tx = ENTRANCE.x; k.ty = ENTRANCE.y + 6;
+  addFx('text', k.x, k.y - 30, { text: 'おつかれさまでした〜', color: '#fff2a0', life: 70 });
+  toast(`${k.name}の 勤務が おわりました`);
+}
 function updateCat(k) {
-  k.hunger = clamp(k.hunger + 0.018, 0, 100);
+  if (k.temp) {
+    if (k.state !== 'leaving' && G.time >= k.until) endShift(k);
+    if (k.state === 'leaving') { k.anim++; if (moveTo(k, k.tx, k.ty, 0.6)) k.gone = true; return; }
+  }
+  k.hunger = clamp(k.hunger + (k.temp ? 0 : 0.018), 0, 100);
   if (k.hunger > 80) k.mood = clamp(k.mood - 0.012, 0, 100);
   if (k.petCool > 0) k.petCool--;
   const sp = 0.45;
@@ -1142,12 +1194,12 @@ function updateCat(k) {
     case 'toPickup':
       k.anim++;
       if (!jobs.includes(k.dish)) { k.dish = null; k.state = 'idle'; k.t = 20; break; }
-      if (moveTo(k, k.tx, k.ty, 0.75)) { k.carryDish = true; const s = k.dish.c.seat; k.state = 'toServe'; k.tx = s.catX; k.ty = s.catY; tone(1047, 0.05, 'triangle', 0.3); }
+      if (moveTo(k, k.tx, k.ty, k.skill === 'serve' ? 1.15 : 0.75)) { k.carryDish = true; const s = k.dish.c.seat; k.state = 'toServe'; k.tx = s.catX; k.ty = s.catY; tone(1047, 0.05, 'triangle', 0.3); }
       break;
     case 'toServe':
       k.anim++;
       if (!jobs.includes(k.dish)) { k.dish = null; k.carryDish = false; k.state = 'idle'; k.t = 20; break; }
-      if (moveTo(k, k.tx, k.ty, 0.75)) {
+      if (moveTo(k, k.tx, k.ty, k.skill === 'serve' ? 1.15 : 0.75)) {
         deliver(k.dish, true); tone(1175, 0.08, 'triangle', 0.4);
         addFx('heart', k.x, k.y - 24); k.mood = clamp(k.mood + 2, 0, 100);
         k.dish = null; k.carryDish = false; k.state = 'idle'; k.t = 60; event('catServe');
@@ -1156,7 +1208,7 @@ function updateCat(k) {
     case 'toClean':
       k.anim++;
       if (!k.clean.dirty) { k.clean.cleaner = null; k.clean = null; k.state = 'idle'; k.t = 30; break; }
-      if (moveTo(k, k.tx, k.ty, 0.55)) { k.state = 'pickup'; k.t = 45; k.face = -k.clean.side; }
+      if (moveTo(k, k.tx, k.ty, k.skill === 'clean' ? 0.95 : 0.55)) { k.state = 'pickup'; k.t = k.skill === 'clean' ? 15 : 45; k.face = -k.clean.side; }
       break;
     case 'pickup':
       if (!k.clean.dirty) { k.clean.cleaner = null; k.clean = null; k.state = 'idle'; k.t = 30; break; }
@@ -1184,7 +1236,7 @@ function updateCat(k) {
     case 'toVisit':
       k.anim++;
       if (!k.visit.cust) { k.visit = null; k.state = 'idle'; k.t = 30; break; }
-      if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'visit'; k.t = Math.floor(rnd(280, 460)); k.visit.cust.visits++; chat(k.visit.cust, ['かわいい…！', 'なでていい？', 'ふわふわ〜', 'こっち きた！', `${k.name}ちゃーん`], 0.7); k.face = -k.visit.side; addFx('heart', k.x, k.y - 22); }
+      if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'visit'; k.t = Math.floor(rnd(280, 460)); k.visit.cust.visits += k.skill === 'heal' ? 2 : 1; chat(k.visit.cust, ['かわいい…！', 'なでていい？', 'ふわふわ〜', 'こっち きた！', `${k.name}ちゃーん`], 0.7); k.face = -k.visit.side; addFx('heart', k.x, k.y - 22); }
       break;
     case 'visit':
       if (--k.t <= 0 || !k.visit.cust) { k.visit = null; k.state = 'idle'; k.t = 40; }
@@ -1225,7 +1277,9 @@ function startDay() {
   ponta = G.ponta ? makePonta() : null;
   seats.forEach(s => { s.cust = null; s.dirty = false; });
   weather = Math.random() < 0.25 ? 'rain' : 'sun';
-  dayLog = { served: 0, angry: 0, sales: 0, tips: 0, reviews: [], popStart: G.pop, cost: G.pendingCost || 0 };
+  dayLog = { served: 0, angry: 0, sales: 0, tips: 0, reviews: [], popStart: G.pop, cost: G.pendingCost || 0, nyaimee: 0 };
+  cats = cats.filter(k => !k.temp);
+  G.nyaimee = STRAYS.slice().sort(() => Math.random() - 0.5).slice(0, 3).map(st => ({ id: st.id, hours: 2 + Math.floor(Math.random() * 3), hired: false }));
   G.pendingCost = 0;
   dayFlags = {}; rushUntil = 0; vipNext = false;
   G.todayEvent = G.day >= 2 && Math.random() < 0.55 ? pick(['rush', 'vip', 'toy']) : null;
@@ -1241,11 +1295,13 @@ function endDay() {
   dayLog.cost += G.pendingCost || 0; G.pendingCost = 0;
   const lines = [['うりあげ', dayLog.sales, 'plus'], ['（そのうちチップ）', dayLog.tips, 'plus'], ['材料費', -dayLog.cost, 'minus'], ['家賃', -RENT, 'minus']];
   if (wage) lines.push(['アルバイト代', -wage, 'minus']);
-  const net = dayLog.sales - dayLog.cost - RENT - wage;
+  if (dayLog.nyaimee) lines.push(['ニャイミー', -dayLog.nyaimee, 'minus']);
+  const net = dayLog.sales - dayLog.cost - RENT - wage - dayLog.nyaimee;
   const waste = expireStock(G.day);
   if (waste.length) event('waste');
   const popDiff = Math.round(G.pop - dayLog.popStart);
   const revs = dayLog.reviews.slice().sort(() => Math.random() - 0.5).slice(0, 3).map(reviewText);
+  cats = cats.filter(k => !k.temp);
   G.cats = cats.map(k => ({ name: k.name, pal: k.pal, mood: Math.round(k.mood), hunger: Math.round(k.hunger) }));
   const finished = G.day;
   G.day++;
@@ -1291,7 +1347,7 @@ function update() {
   if (mode === 'open' && --spawnTimer <= 0) {
     spawnCustomer();
     const base = 560 - G.pop * 3.2 - (G.menu.length - 2) * 25 - decor() * 10;
-    spawnTimer = Math.round(clamp(base, 140, 620) * rnd(0.7, 1.3) * (weather === 'rain' ? 1.4 : 1) * (G.time < rushUntil ? 0.4 : 1));
+    spawnTimer = Math.round(clamp(base, 140, 620) * rnd(0.7, 1.3) * (weather === 'rain' ? 1.4 : 1) * (G.time < rushUntil ? 0.4 : 1) * (cats.some(k => k.temp && k.skill === 'charm' && k.state !== 'leaving') ? 0.7 : 1));
   }
   if (staffBusy > 0) staffBusy--;
   updateJobs(); updatePonta(); updateKitchenFx();
@@ -1299,6 +1355,7 @@ function update() {
   customers = customers.filter(c => !c.gone);
   for (const s of seats) if (s.dirty) { s.dirtyT++; if (G.staff && s.dirtyT > 160 && !staffBusy) { s.dirty = false; staffBusy = 30; } }
   cats.forEach(updateCat);
+  cats = cats.filter(k => !k.gone);
   for (const p of particles) { p.t++; p.y += p.vy; }
   for (const c of customers) if (c.say && ++c.say.t > 170) c.say = null;
   particles = particles.filter(p => p.t < p.life);
@@ -1587,7 +1644,7 @@ function drawZzz(x, y) {
 }
 function drawCat(k) {
   let pose = 'sit';
-  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink', 'toPickup', 'toServe'].includes(k.state)) { pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB'; k.act = null; }
+  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink', 'toPickup', 'toServe', 'leaving'].includes(k.state)) { pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB'; k.act = null; }
   else if (k.state === 'nap') pose = 'sleep';
   else if (k.state === 'idle' && k.act) pose = k.act === 'groom' ? ((tick >> 3) & 1 ? 'groomA' : 'groomB') : k.act;
   const img = catImg(k.pal, pose, k.face);
@@ -1597,6 +1654,13 @@ function drawCat(k) {
   drawAt(img, Math.round(k.x * 2 - img.width / 2), Y);
   if (k.carry) drawAt(PLATE2, k.x * 2 - 9, Y - 10 + ((tick >> 3) & 1) * 2);
   if (k.carryDish && k.dish) drawAt(ICON2[k.dish.item.id], k.x * 2 - 8, Y - 16 + ((tick >> 3) & 1) * 2);
+  if (k.temp && !k.carryDish && !k.carry) {
+    const tx = Math.round(k.x * 2), ty = Y - 15;
+    ctx.font = '11px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const w = Math.ceil(ctx.measureText(k.name).width) + 10;
+    P('#a07a10', tx - w / 2 - 1, ty, w + 2, 13); P('#f2c14e', tx - w / 2, ty + 1, w, 11); P('#ffe08a', tx - w / 2, ty + 1, w, 1);
+    ctx.fillStyle = '#3a2a10'; ctx.fillText(k.name, tx, ty + 1);
+  }
   if (k.state === 'pickup' && (tick >> 3) & 1) { P('#ffffff', k.x * 2 + k.face * 12, Y + 4, 2, 2); }
   if (k.state === 'nap' && (tick >> 5) % 3 === 0) drawZzz(k.x * 2 + 18, k.y * 2 - 18);
 }
@@ -2015,7 +2079,7 @@ function buy(id) {
   } else if (kind === 's') {
     if (G.money < STAFF.price || G.staff) return; G.money -= STAFF.price; G.staff = true; toast('アルバイトさんが来てくれました');
   }
-  sfx.buy(); G.cats = cats.map(k => ({ name: k.name, pal: k.pal, mood: Math.round(k.mood), hunger: Math.round(k.hunger) })); save(); updateHud();
+  sfx.buy(); G.cats = cats.filter(k => !k.temp).map(k => ({ name: k.name, pal: k.pal, mood: Math.round(k.mood), hunger: Math.round(k.hunger) })); save(); updateHud();
 }
 function openStock(fromReport = false) {
   const open = mode === 'open' || mode === 'closing';
@@ -2057,6 +2121,46 @@ function updateStockInfo() {
   const out = MENU.filter(m => G.menu.includes(m.id) && !canMake(m)).length;
   $('stockInfo').textContent = out ? `${out}品 切れ` : 'ざいこOK';
   $('stockInfo').style.color = out ? '#ffb0a0' : '';
+}
+function openNyaimee() {
+  event('nyaimee');
+  const open = mode === 'open';
+  const working = cats.filter(k => k.temp && k.state !== 'leaving');
+  const cards = (G.nyaimee || []).map(o => {
+    const st = STRAYS.find(x => x.id === o.id), end = Math.min(CLOSE, G.time + o.hours * 60), fee = st.rate * o.hours;
+    const label = o.hired ? '勤務中・済' : !open ? '営業中のみ' : G.time + 30 > CLOSE ? 'もう閉店' : G.money < fee ? 'おかね不足' : `¥${fee.toLocaleString()}<small>来てもらう</small>`;
+    const off = o.hired || !open || G.time + 30 > CLOSE || G.money < fee;
+    return `<div class="nya-card ${o.hired ? 'done' : ''}">
+      <canvas width="72" height="64" data-stray="${st.id}"></canvas>
+      <span class="nm">${st.name}</span>
+      <span class="st">★${st.rating.toFixed(1)}（${st.reviews}件）</span>
+      <span class="sk">${SKILLS[st.skill].name}</span>
+      <span class="tm">${o.hours}時間（〜${fmtTime(end)}）・${SKILLS[st.skill].desc}</span>
+      <button type="button" data-hire="${st.id}" ${off ? 'disabled' : ''}>${label}</button>
+    </div>`;
+  }).join('');
+  openModal(`
+    <div class="nya-head"><b>ニャイミー</b><span>スキマ時間に はたらきたい 野良ねこと お店を つなぐ</span></div>
+    ${working.length ? `<p class="sub">勤務中：${working.map(k => `${k.name}（〜${fmtTime(k.until)}）`).join('、')}</p>` : ''}
+    <p class="sub">きょう はたらける ねこ（報酬は 来てもらうときに 払います）</p>
+    <div class="list">${cards}</div>
+    <div class="actions-row"><button type="button" id="mClose">とじる</button></div>
+  `);
+  $('panel').querySelectorAll('[data-stray]').forEach(c => { const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(CAT_SPR['stray_' + c.dataset.stray].sit[0], 0, 0); });
+  $('panel').querySelectorAll('[data-hire]').forEach(b => { b.onclick = () => { hireStray(b.dataset.hire); openNyaimee(); }; });
+  $('mClose').onclick = closeModal;
+}
+function hireStray(id) {
+  const o = G.nyaimee.find(x => x.id === id), st = STRAYS.find(x => x.id === id), fee = st.rate * o.hours;
+  if (!o || o.hired || mode !== 'open' || G.money < fee) return;
+  G.money -= fee; dayLog.nyaimee += fee; o.hired = true;
+  const k = makeCat({ name: st.name, pal: 'stray_' + st.id, mood: 80, hunger: 0 }, ENTRANCE.x, ENTRANCE.y);
+  Object.assign(k, { temp: true, skill: st.skill, until: Math.min(CLOSE, G.time + o.hours * 60), state: 'walk', tx: rnd(60, 170), ty: rnd(140, 240) });
+  cats.push(k);
+  sfx.buy(); setTimeout(sfx.meow, 400);
+  addFx('text', ENTRANCE.x, ENTRANCE.y - 40, { text: 'よろしくにゃ！', color: '#fff2a0', life: 80 });
+  toast(`${st.name}が ${o.hours}時間 はたらきに来ました`);
+  save(); updateHud();
 }
 function openCats() {
   const pontaRow = `
@@ -2143,6 +2247,7 @@ $('btnFood').onclick = () => {
 $('btnStock').onclick = () => { initAudio(); if (G && mode !== 'report') openStock(); };
 $('btnShop').onclick = () => { initAudio(); if (G && mode !== 'report') openShop(); };
 $('btnCats').onclick = () => { initAudio(); if (G && mode !== 'report') openCats(); };
+$('btnNyaimee').onclick = () => { initAudio(); if (G && mode !== 'report') openNyaimee(); };
 $('btnSpeed').onclick = () => { speed = speed % 3 + 1; $('speedLabel').textContent = '×' + speed; };
 $('btnMute').onclick = () => {
   initAudio(); muted = !muted; $('btnMute').textContent = muted ? '音 OFF' : '音 ON';
@@ -2327,6 +2432,11 @@ const TALKS = {
   pontaWake: [
     ['surprise', 'にゃっ!? ね、ねてないよ！ ちょっと 目を とじてただけ！', 'ponta'],
     ['sad', '……まったく もう。'],
+  ],
+  nyaimee: [
+    ['surprise', 'ニャイミー、つかうの？'],
+    ['normal', 'スキマ時間に はたらきたい 野良ねこさんと お店を つなぐ アプリだにゃ。'],
+    ['happy', '数時間だけ 来てもらえるよ。いそがしい お昼や 夕方に たのむと べんりだにゃ。'],
   ],
   catServe: [['happy', 'おまたせしましたにゃ〜。ねこが 料理を はこんだよ！']],
   catClean: [
