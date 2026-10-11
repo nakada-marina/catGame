@@ -174,7 +174,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
 .row .desc { font-size: 12px; color: var(--chalk-dim); grid-column: 1; min-width: 0; }
 .row button { grid-row: 1 / span 2; grid-column: 2; min-width: 84px; }
 .catrow { grid-template-columns: 44px 1fr; }
-.catrow canvas { grid-row: 1 / span 5; width: 40px; height: 36px; image-rendering: pixelated; }
+.catrow canvas { grid-row: 1 / span 5; width: 44px; height: 40px; image-rendering: pixelated; }
 .catrow > :not(canvas) { grid-column: 2; }
 .stat { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 15px; font-variant-numeric: tabular-nums; }
 .stat .plus { color: var(--butter); text-align: right; }
@@ -279,105 +279,174 @@ function ellipse(cx, cy, rx, ry, col) {
   }
 }
 
-// ================= ドット絵：ねこ =================
-const CAT_ROWS = {
-  sit: [
-    '...........o.....o..',
-    '..........opo...opo.',
-    '..........obpbtbpbo.',
-    '..........obbtbtbbo.',
-    '..........obbbbbbbo.',
-    '..........obebbbebo.',
-    '..........obbwpwbbo.',
-    '......oooooobwwwbo..',
-    '.....obbtbbtbbwwbo..',
-    '....obbbtbbbtbbwwo..',
-    '....obbbbbbbbbbwwo..',
-    '...osbbbbbbbbbbwbo..',
-    '...osbbbbbbbbbbbbo..',
-    '..o.osbbbbbbbbbbbo..',
-    '.obo.ossbbbbbbsso...',
-    '.obbooossssssoowwo..',
-    '..obbbbbbbbbbbbbbo..',
-    '...ooooooooooooooo..',
-  ],
-  walkA: [
-    '..............o.....o.',
-    '.............opo...opo',
-    '.............obpbtbpbo',
-    '..o..........obbtbtbbo',
-    '.obo.........obbbbbbbo',
-    '.obo..oooooooobebbbebo',
-    '..oobbtbbtbbtobbwpwbbo',
-    '...obbbtbbbtbbbobwwwbo',
-    '...obbbbbbbbbbbbwwwo..',
-    '...osbbbbbbbbbbbbwwo..',
-    '....ossbbbbbbbbsso....',
-    '....obo..obo..obo.obo.',
-    '...obo...obo...obo.obo',
-    '...oo....oo....oo..oo.',
-  ],
-  walkB: [
-    '..............o.....o.',
-    '.............opo...opo',
-    '.............obpbtbpbo',
-    '..o..........obbtbtbbo',
-    '.obo.........obbbbbbbo',
-    '.obo..oooooooobebbbebo',
-    '..oobbtbbtbbtobbwpwbbo',
-    '...obbbtbbbtbbbobwwwbo',
-    '...obbbbbbbbbbbbwwwo..',
-    '...osbbbbbbbbbbbbwwo..',
-    '....ossbbbbbbbbsso....',
-    '.....obobo......obobo.',
-    '.....obobo......obobo.',
-    '.....oo.oo......oo.oo.',
-  ],
-  sleep: [
-    '............o...o...',
-    '...........opo.opo..',
-    '...oobbtbbtobbbbbbo.',
-    '..obbbtbbbtobbbbbbbo',
-    '.obbbbbbbbbbbsbbbsbo',
-    '.obbbbbbbbbbbbbwpwbo',
-    'oobbbbbbbbbbbbbwwwo.',
-    'obbsbbbbbbbbbbbbbbo.',
-    'obbbossssssssssssso.',
-    '.ooo.oooooooooooooo.',
-  ],
+// ================= 高解像度のねこ（2倍の細かさで描く） =================
+const CAT_LOOK = {
+  grio:   { base: '#8c765a', light: '#a68d6b', shade: '#6a5640', stripe: '#3e3024', line: '#241a12', white: '#f8f4ec', eye: '#b9bb4a', pupil: '#16140e', ear: '#e2a39c', nose: '#e7969c', chest: true, paws: true, muzzle: true, tabby: true },
+  ponta:  { base: '#6a5944', light: '#86735a', shade: '#4a3d2e', stripe: '#211912', line: '#17110b', white: '#e9e2d6', eye: '#a6cc4e', pupil: '#121008', ear: '#c9938c', nose: '#c4807a', chin: true, tabby: true, long: true, scarf: true },
+  mike:   { base: '#fbf6ee', light: '#ffffff', shade: '#ddd4c6', line: '#5a463a', white: '#ffffff', eye: '#c89a2a', pupil: '#1a1408', ear: '#f2a0b0', nose: '#f29bb0', patches: ['#e8944a', '#3a3030'] },
+  kuro:   { base: '#2e2e3a', light: '#4a4a5c', shade: '#1c1c24', line: '#0a0a10', white: '#2e2e3a', eye: '#e8c030', pupil: '#0a0a0a', ear: '#6a4a5a', nose: '#8a5a6a' },
+  shiro:  { base: '#fbfbfd', light: '#ffffff', shade: '#d9d9e3', line: '#8a8a98', white: '#ffffff', eye: '#5a9ae0', pupil: '#1a2030', ear: '#f5a0b8', nose: '#f5a0b8' },
+  chacha: { base: '#f0a050', light: '#f8c27a', shade: '#d4843a', stripe: '#c0661e', line: '#5a3010', white: '#fff2dc', eye: '#4f8a3a', pupil: '#121008', ear: '#f2a0a0', nose: '#e88a8a', chest: true, paws: true, muzzle: true, tabby: true },
 };
-const CAT_PALS = {
-  grio:   { o: '#2a2119', b: '#8a7458', t: '#43352a', s: '#6c5a44', w: '#f7f3ec', p: '#eaa0a6', e: '#a9ad3c' },
-  mike:   { o: '#5a463a', b: '#fbf6ee', t: '#e8944a', s: '#ddd4c6', w: '#ffffff', p: '#f29bb0', e: '#b8861a' },
-  ponta:  { o: '#17110b', b: '#6a5944', t: '#2a2018', s: '#54463a', w: '#a8947a', p: '#c4807a', e: '#a6cc4e' },
-  kuro:   { o: '#0c0c12', b: '#2e2e3a', t: '#24242e', s: '#1c1c24', w: '#44445a', p: '#c06a80', e: '#e8c030' },
-  shiro:  { o: '#8a8a98', b: '#fbfbfd', t: '#ececf3', s: '#d9d9e3', w: '#ffffff', p: '#f5a0b8', e: '#4a8ad0' },
-  chacha: { o: '#5a3010', b: '#f0a050', t: '#c86e24', s: '#d98a3c', w: '#fff2dc', p: '#f29bb0', e: '#3f7a32' },
+const CAT_POSE = {
+  // 座り（横向き・顔はこちら）
+  sit: {
+    W: 52, H: 47,
+    body: [[21, 33, 13, 11], [30, 29, 8, 11], [25, 37, 14, 8]], head: [33, 14, 10, 9], cheek: [33, 17, 11.5, 6],
+    ears: [[[24, 9], [25, 0], [31, 5]], [[35, 5], [41, 0], [42, 9]]], earsIn: [[[26, 7], [26, 3], [29, 5]], [[37, 5], [40, 3], [40, 7]]],
+    legs: [[28, 30, 4, 14], [32, 31, 4, 13]], paws: [[30, 44, 2.6, 1.6], [34, 44, 2.6, 1.6], [13, 44, 4, 1.8]],
+    tail: [[9, 34], [5, 39], [9, 44], [20, 45.5], [30, 45.5]], eyes: [[29, 14], [37, 14]], nose: [33, 18],
+    chest: [31, 29, 4.5, 8], bodyStripes: [[11, 25, 13, 35], [15, 23, 17, 34], [19, 22, 21, 33], [23, 23, 24, 31]], shadeY: 38, light: [19, 26, 8, 4], scarfY: 22,
+  },
+  walkA: {
+    W: 56, H: 39,
+    body: [[24, 22, 16, 8], [37, 19, 6, 7]], head: [43, 13, 9, 8.5], cheek: [43, 16, 10, 5.5],
+    ears: [[[35, 8], [36, 0], [41, 4]], [[45, 4], [50, 0], [52, 9]]], earsIn: [[[37, 6], [37, 3], [39, 5]], [[47, 5], [49, 3], [50, 7]]],
+    legs: [[9, 26, 4, 11], [19, 27, 4, 10], [30, 26, 4, 11], [39, 27, 4, 10]], paws: [[11, 37, 2.6, 1.5], [21, 37, 2.6, 1.5], [32, 37, 2.6, 1.5], [41, 37, 2.6, 1.5]],
+    tail: [[9, 18], [4, 14], [3, 8], [6, 3]], eyes: [[39, 13], [47, 13]], nose: [43, 17],
+    chest: [37, 23, 4, 5], bodyStripes: [[12, 15, 13, 26], [17, 14, 18, 27], [22, 14, 23, 28], [27, 15, 28, 27]], shadeY: 26, light: [22, 17, 10, 3], scarfY: 20,
+  },
+  walkB: {
+    W: 56, H: 39,
+    body: [[24, 22, 16, 8], [37, 19, 6, 7]], head: [43, 13, 9, 8.5], cheek: [43, 16, 10, 5.5],
+    ears: [[[35, 8], [36, 0], [41, 4]], [[45, 4], [50, 0], [52, 9]]], earsIn: [[[37, 6], [37, 3], [39, 5]], [[47, 5], [49, 3], [50, 7]]],
+    legs: [[13, 26, 4, 11], [16, 27, 4, 10], [33, 26, 4, 11], [36, 27, 4, 10]], paws: [[15, 37, 2.6, 1.5], [18, 37, 2.6, 1.5], [35, 37, 2.6, 1.5], [38, 37, 2.6, 1.5]],
+    tail: [[9, 18], [3, 15], [1, 9], [3, 4]], eyes: [[39, 13], [47, 13]], nose: [43, 17],
+    chest: [37, 23, 4, 5], bodyStripes: [[12, 15, 13, 26], [17, 14, 18, 27], [22, 14, 23, 28], [27, 15, 28, 27]], shadeY: 26, light: [22, 17, 10, 3], scarfY: 20,
+  },
+  // まるくなって寝る
+  sleep: {
+    W: 52, H: 28,
+    body: [[23, 18, 19, 9]], head: [39, 15, 9, 7.5], cheek: [39, 17, 10, 5],
+    ears: [[[31, 11], [32, 3], [37, 7]], [[41, 7], [46, 3], [47, 11]]], earsIn: [[[33, 9], [33, 6], [35, 8]], [[43, 8], [45, 6], [45, 9]]],
+    legs: [], paws: [[45, 24, 3, 1.6]], tail: [[5, 20], [8, 25], [22, 26.5], [36, 26]], eyes: [[35, 15], [43, 15]], nose: [39, 18], closed: true,
+    chest: null, bodyStripes: [[10, 11, 12, 20], [15, 10, 16, 21], [20, 9, 21, 21], [25, 10, 26, 20]], shadeY: 22, light: [20, 12, 10, 3], scarfY: 21,
+  },
 };
-// 長毛ねこ用：りんかくに ふさふさの毛を足す
-function fluffy(rows) {
-  const w = Math.max(...rows.map(r => r.length)) + 2;
-  let g = ['.'.repeat(w), ...rows.map(r => '.' + r.padEnd(w - 2, '.') + '.')].map(r => r.split(''));
-  for (const salt of [0, 2]) {
-    const H = g.length, out = g.map(r => r.slice());
-    for (let y = 4; y < H - 1; y++) for (let x = 0; x < w; x++) {
-      if (g[y][x] !== '.' || (x * 7 + y * 3 + salt) % 4 !== 0) continue;
-      const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => g[y + dy] && g[y + dy][x + dx] === 'o');
-      if (!nb.length) continue;
-      out[y][x] = 'o';
-      for (const [dx, dy] of nb) { const far = g[y + 2 * dy] && g[y + 2 * dy][x + 2 * dx]; if (far && far !== '.' && far !== 'o') out[y + dy][x + dx] = (x + y) % 3 ? 'b' : 's'; }
+function makeCatFine(L, P0) {
+  const W = P0.W, H = P0.H, buf = Array.from({ length: H }, () => Array(W).fill(null));
+  const set = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < W && y < H) buf[y][x] = c; };
+  const ell = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+  const tri = (x, y, a, b, c) => {
+    const sg = (p, q, r) => (p[0] - r[0]) * (q[1] - r[1]) - (q[0] - r[0]) * (p[1] - r[1]);
+    const d1 = sg([x, y], a, b), d2 = sg([x, y], b, c), d3 = sg([x, y], c, a);
+    return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+  };
+  const each = fn => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) fn(x + 0.5, y + 0.5, x, y); };
+  const thick = (pts, r, colFn) => {
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2);
+      for (let k = 0; k <= n; k++) {
+        const x = x0 + (x1 - x0) * k / n, y = y0 + (y1 - y0) * k / n;
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + 0.5) set(x + dx, y + dy, colFn(i, k / n));
+      }
     }
-    g = out;
+  };
+  const line = (x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2; for (let i = 0; i <= n; i++) set(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, c); };
+  const inBody = (fx, fy) => P0.body.some(([cx, cy, rx, ry]) => ell(fx, fy, cx, cy, rx, ry));
+  const inHead = (fx, fy) => ell(fx, fy, ...P0.head) || ell(fx, fy, ...P0.cheek);
+  // しっぽ
+  thick(P0.tail, L.long ? 2.4 : 1.6, (i, f) => (L.tabby && ((i * 7 + Math.round(f * 6)) % 4 === 0)) ? L.stripe : (L.patches && i >= P0.tail.length - 2 ? L.patches[1] : L.base));
+  // 足
+  for (const [x, y, w, h] of P0.legs) for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) set(xx, yy, yy > y + h - 3 && L.paws ? L.white : (xx === x ? L.shade : L.base));
+  // 体と頭
+  each((fx, fy, x, y) => {
+    if (inBody(fx, fy)) buf[y][x] = fy > P0.shadeY ? L.shade : ell(fx, fy, ...P0.light) ? L.light : L.base;
+    if (inHead(fx, fy)) buf[y][x] = fy < P0.head[1] - 4 && (x + y) % 3 === 0 ? L.light : L.base;
+  });
+  for (const [cx, cy, rx, ry] of P0.paws) each((fx, fy, x, y) => { if (ell(fx, fy, cx, cy, rx, ry)) buf[y][x] = L.paws ? L.white : L.base; });
+  // 耳
+  each((fx, fy, x, y) => {
+    if (P0.ears.some(t => tri(fx, fy, ...t))) buf[y][x] = L.base;
+    if (P0.earsIn.some(t => tri(fx, fy, ...t))) buf[y][x] = L.ear;
+  });
+  // もよう
+  if (L.tabby) {
+    for (const [x0, y0, x1, y1] of P0.bodyStripes) for (let i = 0; i <= 12; i++) { const x = x0 + (x1 - x0) * i / 12, y = y0 + (y1 - y0) * i / 12; if (inBody(x + 0.5, y + 0.5)) set(x, y, L.stripe); }
+    const [hx, hy] = P0.head;
+    [[-2, -8, -2, -4], [0, -9, 0, -5], [2, -8, 2, -4]].forEach(([a, b, c, d]) => line(hx + a, hy + b, hx + c, hy + d, L.stripe));
+    [[-10, 1, -7, 0], [-10, 3, -7, 2], [10, 1, 7, 0], [10, 3, 7, 2]].forEach(([a, b, c, d]) => line(hx + a, hy + b, hx + c, hy + d, L.stripe));
   }
-  return g.map(r => r.join(''));
+  if (L.patches) {
+    const [hx, hy] = P0.head, [bx, by] = P0.body[0];
+    each((fx, fy, x, y) => {
+      if (!buf[y][x]) return;
+      if (ell(fx, fy, hx - 5, hy - 5, 5, 4) || ell(fx, fy, bx - 5, by - 3, 6, 5)) buf[y][x] = L.patches[0];
+      if (ell(fx, fy, hx + 5, hy - 6, 4, 3) || ell(fx, fy, bx + 3, by + 2, 5, 3)) buf[y][x] = L.patches[1];
+    });
+  }
+  // 白い胸・口元
+  if (L.chest && P0.chest) each((fx, fy, x, y) => { if (buf[y][x] && ell(fx, fy, ...P0.chest)) buf[y][x] = L.white; });
+  const [hx, hy] = P0.head, [nx, ny] = P0.nose;
+  if (L.muzzle) each((fx, fy, x, y) => { if (ell(fx, fy, nx, ny + 1.6, 4.6, 2.6)) buf[y][x] = L.white; });
+  if (L.chin) each((fx, fy, x, y) => { if (ell(fx, fy, nx, ny + 3.2, 2.6, 1.4)) buf[y][x] = L.white; });
+  // 目・鼻・口
+  for (const [ex, ey] of P0.eyes) {
+    if (P0.closed) { line(ex - 2, ey, ex + 2, ey, L.line); set(ex - 2, ey - 1, L.line); set(ex + 2, ey - 1, L.line); continue; }
+    each((fx, fy, x, y) => {
+      if (ell(fx, fy, ex, ey, 2.4, 2.8)) buf[y][x] = L.line;
+      if (ell(fx, fy, ex, ey, 1.7, 2.1)) buf[y][x] = L.eye;
+      if (ell(fx, fy, ex + 0.2, ey, 0.6, 1.9)) buf[y][x] = L.pupil;
+    });
+    set(ex - 1, ey - 1, '#ffffff');
+  }
+  set(nx - 1, ny, L.nose); set(nx, ny, L.nose); set(nx + 1, ny, L.nose); set(nx, ny + 1, L.nose);
+  set(nx, ny + 2, L.line); set(nx - 1, ny + 3, L.line); set(nx + 1, ny + 3, L.line);
+  // 長毛：りんかくを ふさふさに
+  if (L.long) {
+    for (const salt of [0, 2]) {
+      const add = [];
+      for (let y = 6; y < H - 2; y++) for (let x = 0; x < W; x++) {
+        if (buf[y][x] || (x * 5 + y * 3 + salt) % 4 !== 0) continue;
+        if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => buf[y + dy] && buf[y + dy][x + dx])) add.push([x, y]);
+      }
+      add.forEach(([x, y]) => { buf[y][x] = (x + y) % 3 ? L.base : L.shade; });
+    }
+  }
+  // バンダナ
+  if (L.scarf) {
+    const sy = P0.scarfY, cx = P0.closed ? hx - 2 : nx;
+    each((fx, fy, x, y) => {
+      if (fy >= sy && fy < sy + 2.2 && Math.abs(fx - cx) < 7) buf[y][x] = '#2e7a4e';
+      if (!P0.closed && tri(fx, fy, [cx - 5, sy + 2], [cx + 5, sy + 2], [cx, sy + 7])) buf[y][x] = '#2e7a4e';
+    });
+    line(cx - 6, sy, cx + 4, sy, '#5ab07a'); if (!P0.closed) { set(cx - 2, sy + 3, '#5ab07a'); set(cx - 1, sy + 3, '#5ab07a'); set(cx + 1, sy + 1, '#1e5a36'); }
+  }
+  // ふちどり
+  const out = buf.map(r => r.slice());
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (buf[y][x]) continue;
+    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => buf[y + dy] && buf[y + dy][x + dx])) out[y][x] = L.line;
+  }
+  // ひげ
+  if (!P0.closed) [[-5, 2, -10, 1], [-5, 3, -10, 4], [5, 2, 10, 1], [5, 3, 10, 4]].forEach(([a, b, c, d]) => {
+    for (let i = 0; i <= 5; i++) { const x = Math.round(nx + a + (c - a) * i / 5), y = Math.round(ny + b + (d - b) * i / 5); if (x >= 0 && x < W && y >= 0 && y < H && !buf[y][x]) out[y][x] = 'rgba(255,255,255,0.75)'; }
+  });
+  const c = mk(W, H), g = c.getContext('2d');
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (out[y][x]) { g.fillStyle = out[y][x]; g.fillRect(x, y, 1, 1); }
+  return c;
 }
 const CAT_SPR = {};
-for (const pal in CAT_PALS) {
+for (const pal in CAT_LOOK) {
   CAT_SPR[pal] = {};
-  for (const pose in CAT_ROWS) {
-    const rows = pal === 'ponta' ? fluffy(CAT_ROWS[pose]) : CAT_ROWS[pose];
-    const s = sprite(rows, CAT_PALS[pal]); CAT_SPR[pal][pose] = [s, flipH(s)];
+  for (const pose in CAT_POSE) { const s = makeCatFine(CAT_LOOK[pal], CAT_POSE[pose]); CAT_SPR[pal][pose] = [s, flipH(s)]; }
+}
+// 2倍の細かさの絵を、論理座標で描く
+function drawFine(img, x, y) { ctx.drawImage(img, Math.round(x * 2) / 2, Math.round(y * 2) / 2, img.width / 2, img.height / 2); }
+// Scale2x：ドット絵の輪郭をなめらかに2倍にする
+function scale2x(src) {
+  const w = src.width, h = src.height, d = src.getContext('2d').getImageData(0, 0, w, h).data;
+  const out = mk(w * 2, h * 2), og = out.getContext('2d'), od = og.createImageData(w * 2, h * 2);
+  const px = (x, y) => { x = clamp(x, 0, w - 1); y = clamp(y, 0, h - 1); const i = (y * w + x) * 4; return (d[i] << 24 | d[i + 1] << 16 | d[i + 2] << 8 | d[i + 3]) >>> 0; };
+  const put = (x, y, v) => { const i = (y * w * 2 + x) * 4; od.data[i] = v >>> 24; od.data[i + 1] = (v >> 16) & 255; od.data[i + 2] = (v >> 8) & 255; od.data[i + 3] = v & 255; };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const E = px(x, y), B = px(x, y - 1), D = px(x - 1, y), F = px(x + 1, y), Hh = px(x, y + 1);
+    let e0 = E, e1 = E, e2 = E, e3 = E;
+    if (B !== Hh && D !== F) { e0 = D === B ? D : E; e1 = B === F ? F : E; e2 = D === Hh ? D : E; e3 = Hh === F ? F : E; }
+    put(x * 2, y * 2, e0); put(x * 2 + 1, y * 2, e1); put(x * 2, y * 2 + 1, e2); put(x * 2 + 1, y * 2 + 1, e3);
   }
+  og.putImageData(od, 0, 0);
+  return out;
 }
 
 // ================= ドット絵：お客さん =================
@@ -407,7 +476,7 @@ function shade(hex, f) {
 function makePerson(look) {
   const pal = { o: '#2a2220', h: look.hair, k: look.skin, e: '#2a2a2a', r: '#e8a0a0', s: look.shirt, d: shade(look.shirt, 0.75), p: look.pants, f: '#3a2a20' };
   const top = look.long ? PERSON_TOP_LONG : PERSON_TOP_SHORT;
-  return { a: sprite(top.concat(LEGS_A), pal), b: sprite(top.concat(LEGS_B), pal), sit: sprite(top, pal) };
+  return { a: scale2x(sprite(top.concat(LEGS_A), pal)), b: scale2x(sprite(top.concat(LEGS_B), pal)), sit: scale2x(sprite(top, pal)) };
 }
 function randomLook() {
   return { hair: pick(LOOKS.hair), skin: pick(LOOKS.skin), shirt: pick(LOOKS.shirt), pants: pick(LOOKS.pants), long: Math.random() < 0.45 };
@@ -415,7 +484,7 @@ function randomLook() {
 const STAFF_SPR = (() => {
   const pal = { o: '#2a2220', h: '#3a2a20', k: '#f8dcc0', e: '#2a2a2a', r: '#e8a0a0', s: '#f4f0e8', d: '#c86a4a', p: '#3a3a44', f: '#3a2a20' };
   const top = PERSON_TOP_SHORT.slice(0, 11).concat(['okddddddddko', 'okddddddddko', '.oddddddddo.']);
-  return sprite(top.concat(LEGS_A), pal);
+  return scale2x(sprite(top.concat(LEGS_A), pal));
 })();
 
 // ================= ドット絵：メニューと小物 =================
@@ -1033,7 +1102,7 @@ function drawRoom() {
   // カウンター
   P('#3a2616', 152, 56, 72, 40);
   drawAppliances();
-  if (G.staff) ctx.drawImage(STAFF_SPR, 172, 38 + ((tick >> 5) & 1));
+  if (G.staff) drawFine(STAFF_SPR, 172, 38 + ((tick >> 5) & 1));
   P('#c08858', 154, 56, 70, 8); P('#d8a070', 154, 56, 70, 2);
   P('#8a5a34', 154, 64, 70, 30);
   for (let x = 162; x < VW; x += 18) P('#74482a', x, 66, 1, 26);
@@ -1134,14 +1203,8 @@ function drawPonta() {
   const p = ponta, spr = CAT_SPR.ponta, moving = p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
   const pose = p.state === 'nap' ? 'sleep' : moving ? ((p.anim >> 3) & 1 ? 'walkA' : 'walkB') : 'sit';
   const right = p.face > 0, img = spr[pose][right ? 0 : 1];
-  const x0 = Math.round(p.x - img.width / 2), y0 = Math.round(p.y - img.height) + (p.state === 'slack' && (tick >> 4) & 1 ? 1 : 0);
-  ctx.drawImage(img, x0, y0);
-  // 緑のバンダナ（従業員のしるし）
-  if (pose !== 'sleep') {
-    const col = pose === 'sit' ? 13 : 15, row = 9, w = img.width;
-    const bx = right ? x0 + col : x0 + w - col - 5;
-    P('#2e7a4e', bx, y0 + row, 5, 1); P('#5ab07a', bx + 1, y0 + row, 2, 1); P('#2e7a4e', bx + 1, y0 + row + 1, 2, 1);
-  }
+  const x0 = Math.round(p.x - img.width / 4), y0 = Math.round(p.y - img.height / 2) + (p.state === 'slack' && (tick >> 4) & 1 ? 1 : 0);
+  drawFine(img, x0, y0);
   if (p.carry) ctx.drawImage(ICON[p.carry.item.id], Math.round(p.x - 4), y0 - 9 + ((tick >> 3) & 1));
   else {
     // 名札
@@ -1167,10 +1230,10 @@ function drawCat(k) {
   if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink'].includes(k.state)) pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB';
   else if (k.state === 'nap') pose = 'sleep';
   const img = spr[pose][k.face > 0 ? 0 : 1];
-  let y = Math.round(k.y - img.height);
+  let y = Math.round(k.y - img.height / 2);
   if (k.state === 'eat' && (k.t >> 4) & 1) y += 1;
   if (k.jump > 0) y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 6);
-  ctx.drawImage(img, Math.round(k.x - img.width / 2), y);
+  drawFine(img, Math.round(k.x - img.width / 4), y);
   if (k.carry) ctx.drawImage(PLATE, Math.round(k.x - 4), y - 5 + ((tick >> 3) & 1));
   if (k.state === 'pickup' && (tick >> 3) & 1) P('#ffffff', Math.round(k.x + k.face * 6), y + 2, 1, 1);
   if (k.state === 'nap' && (tick >> 5) % 3 === 0) { ctx.font = '7px "DotGothic16", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#5a6aa0'; ctx.fillText('z', k.x + 9, k.y - 10); }
@@ -1178,10 +1241,10 @@ function drawCat(k) {
 function drawCustomer(c) {
   if (c.state === 'enter' || c.state === 'leave') {
     const img = (c.anim >> 3) & 1 ? c.spr.a : c.spr.b;
-    ctx.drawImage(img, Math.round(c.x - 6), Math.round(c.y - img.height));
-    if (c.vip) drawCrown(Math.round(c.x), Math.round(c.y - img.height) - 5);
+    drawFine(img, c.x - 6, c.y - img.height / 2);
+    if (c.vip) drawCrown(Math.round(c.x), Math.round(c.y - img.height / 2) - 5);
   } else {
-    ctx.drawImage(c.spr.sit, Math.round(c.seat.x - 6), Math.round(c.seat.y - 19));
+    drawFine(c.spr.sit, c.seat.x - 6, c.seat.y - 19);
     if (c.vip && c.state !== 'order') drawCrown(c.seat.x, c.seat.y - 24);
   }
 }
@@ -1433,14 +1496,14 @@ function updateStockInfo() {
 function openCats() {
   const pontaRow = `
     <div class="row catrow">
-      <canvas width="20" height="18" data-cat="ponta"></canvas>
+      <canvas width="52" height="47" data-cat="ponta"></canvas>
       <span class="name">ぽんた（従業員・ぐりおの弟）</span>
       <span class="desc">できた料理を はこんでくれる。よく寝る。寝ていたらタップで起こそう</span>
       <span class="desc">いまのようす：${!ponta ? '-' : ponta.state === 'nap' ? 'ねてる（サボり中）' : ponta.state === 'slack' ? '毛づくろい（サボり中）' : ponta.carry ? 'はこんでる' : 'まじめに待機'}</span>
     </div>`;
   const list = pontaRow + cats.map(k => `
     <div class="row catrow">
-      <canvas width="20" height="18" data-cat="${k.pal}"></canvas>
+      <canvas width="52" height="47" data-cat="${k.pal}"></canvas>
       <span class="name">${k.name}${k.pal === 'grio' ? '（店長）' : ''}</span>
       <span class="desc">ごきげん</span><div class="bar"><i style="width:${Math.round(k.mood)}%"></i></div>
       <span class="desc">おなか（へると元気がなくなる）</span><div class="bar hunger"><i style="width:${Math.round(100 - k.hunger)}%"></i></div>
@@ -1471,7 +1534,7 @@ function openTitle() {
   tg.fillStyle = '#e9dcc0'; tg.fillRect(0, 0, 160, 80);
   tg.fillStyle = '#c99a68'; tg.fillRect(0, 64, 160, 16); tg.fillStyle = '#8a5e3a'; tg.fillRect(0, 60, 160, 4);
   tg.drawImage(FACES.grio.happy, 34, 2); tg.drawImage(FACES.ponta.sleep, 82, 6);
-  tg.drawImage(CAT_SPR.mike.sit[0], 4, 47); tg.drawImage(CAT_SPR.kuro.sleep[1], 138, 55);
+  tg.drawImage(CAT_SPR.mike.sit[0], 0, 34, 26, 23.5); tg.drawImage(CAT_SPR.kuro.sleep[1], 132, 50, 26, 14);
   tg.drawImage(ICON.coffee, 24, 57); tg.drawImage(ICON.cake, 148, 45);
   const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) { event('intro'); G.flags.pontaJoin = true; } else event('pontaJoin'); };
   if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, kitchen: { ...base.kitchen, ...(saved.kitchen || {}) }, market: saved.market || base.market, flags: saved.flags || {} }, false); };
@@ -1496,10 +1559,10 @@ cv.addEventListener('pointerdown', e => {
     if (s.dirty && Math.abs(x - (s.tx + s.side * 5)) < 12 && y > s.ty - 26 && y < s.ty - 4) { s.dirty = false; sfx.clean(); addFx('spark', s.tx + s.side * 5, s.ty - 18); return; }
   }
   if (x >= 150 && y < 40) { openStock(); return; }
-  if (ponta) { const py = ponta.state === 'nap' ? ponta.y - 5 : ponta.y - 9; if (Math.hypot(x - ponta.x, y - py) < 14) { wakePonta(); return; } }
+  if (ponta) { const py = ponta.state === 'nap' ? ponta.y - 7 : ponta.y - 11; if (Math.hypot(x - ponta.x, y - py) < 15) { wakePonta(); return; } }
   let best = null, bd = 18;
   for (const k of cats) {
-    const ky = k.spot === TOWER && k.state === 'nap' ? k.y - 5 : k.state === 'nap' ? k.y - 5 : k.y - 9;
+    const ky = k.state === 'nap' ? k.y - 7 : k.y - 11;
     const d = Math.hypot(x - k.x, y - ky);
     if (d < bd) { bd = d; best = k; }
   }
