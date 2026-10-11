@@ -280,6 +280,61 @@ function ellipse(cx, cy, rx, ry, col) {
   }
 }
 
+// ================= ドットのしあげ（なめらかなふち・立体感） =================
+function mixHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const m = sh => Math.round(((pa >> sh) & 255) * (1 - t) + ((pb >> sh) & 255) * t);
+  return '#' + [16, 8, 0].map(sh => m(sh).toString(16).padStart(2, '0')).join('');
+}
+const isHex = c => typeof c === 'string' && c[0] === '#' && c.length === 7;
+function polish(buf, W, H, line, { rim = true, despeckle = true } = {}) {
+  const at = (x, y) => (y >= 0 && y < H && x >= 0 && x < W) ? buf[y][x] : null;
+  const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  // 1. 1マスの穴をうめる
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (buf[y][x]) continue;
+    const nb = N4.map(([dx, dy]) => at(x + dx, y + dy)).filter(Boolean);
+    if (nb.length >= 3) buf[y][x] = nb[0];
+  }
+  // 2. まわりと違う色の 1点ノイズをならす
+  if (despeckle) {
+    const src = buf.map(r => r.slice());
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const c = src[y][x]; if (!c) continue;
+      const nb = N4.map(([dx, dy]) => src[y + dy][x + dx]);
+      if (nb.every(v => v && v === nb[0]) && nb[0] !== c) buf[y][x] = nb[0];
+    }
+  }
+  // 3. 立体感：上と左のふちは少し明るく、下と右のふちは少し暗く
+  if (rim) {
+    const src = buf.map(r => r.slice());
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const c = src[y][x]; if (!isHex(c)) continue;
+      const empty = (dx, dy) => { const v = (y + dy >= 0 && y + dy < H && x + dx >= 0 && x + dx < W) ? src[y + dy][x + dx] : null; return !v; };
+      if (empty(0, 1) || empty(1, 0)) buf[y][x] = shade(c, 0.84);
+      else if (empty(0, -1) || empty(-1, 0)) buf[y][x] = shade(c, 1.07);
+    }
+  }
+  // 4. ふちどり：となりの色を暗くした色で（下側ほど濃く）
+  const out = buf.map(r => r.slice()), isLine = Array.from({ length: H }, () => Array(W).fill(false));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (buf[y][x]) continue;
+    let c = null, below = false;
+    for (const [dx, dy] of N4) { const v = at(x + dx, y + dy); if (isHex(v)) { c = v; if (dy === -1) below = true; break; } }
+    if (!c) { if (N4.some(([dx, dy]) => at(x + dx, y + dy))) { out[y][x] = line; isLine[y][x] = true; } continue; }
+    out[y][x] = mixHex(shade(c, 0.45), line, below ? 0.75 : 0.5); isLine[y][x] = true;
+  }
+  // 5. ふちのL字の余分な点を消す（ピクセルパーフェクト）
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!isLine[y][x]) continue;
+    const L = (dx, dy) => y + dy >= 0 && y + dy < H && x + dx >= 0 && x + dx < W && isLine[y + dy][x + dx];
+    const touchesFill = N4.some(([dx, dy]) => at(x + dx, y + dy));
+    if (touchesFill) continue;
+    if ((L(-1, 0) || L(1, 0)) && (L(0, -1) || L(0, 1))) { out[y][x] = null; isLine[y][x] = false; }
+  }
+  return out;
+}
+
 // ================= 高解像度のねこ（2倍の細かさで描く） =================
 const CAT_LOOK = {
   grio:   { base: '#8c765a', light: '#a68d6b', shade: '#6a5640', stripe: '#3e3024', line: '#241a12', white: '#f8f4ec', eye: '#b9bb4a', pupil: '#16140e', ear: '#e2a39c', nose: '#e7969c', chest: true, paws: true, muzzle: true, tabby: true },
@@ -358,7 +413,7 @@ function makeCatFine(L, P0, KS = CAT_K) {
   }
   // 体と頭
   each((fx, fy, x, y) => {
-    if (inBody(fx, fy)) buf[y][x] = fy > P0.shadeY ? L.shade : ell(fx, fy, ...P0.light) ? L.light : L.base;
+    if (inBody(fx, fy)) buf[y][x] = fy > P0.shadeY ? L.shade : fy > P0.shadeY - 2.2 ? mixHex(L.base, L.shade, 0.5) : ell(fx, fy, ...P0.light) ? L.light : L.base;
     if (inHead(fx, fy)) buf[y][x] = fy < P0.head[1] - 4 && (x + y) % 3 === 0 ? L.light : L.base;
   });
   if (P0.body.length > 2 && P0.legs.length > 2) for (const [cx, cy, rx, ry] of P0.body.slice(2)) each((fx, fy, x, y) => { if (ell(fx, fy, cx, cy, rx, ry) && !ell(fx, fy, cx - 1, cy, rx, ry - 0.5) && fy > cy) buf[y][x] = L.shade; });
@@ -430,12 +485,8 @@ function makeCatFine(L, P0, KS = CAT_K) {
     });
     line(cx - 6, sy, cx + 4, sy, '#5ab07a'); if (!P0.closed) { set(cx - 2, sy + 3, '#5ab07a'); set(cx - 1, sy + 3, '#5ab07a'); set(cx + 1, sy + 1, '#1e5a36'); }
   }
-  // ふちどり
-  const out = buf.map(r => r.slice());
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    if (buf[y][x]) continue;
-    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => buf[y + dy] && buf[y + dy][x + dx])) out[y][x] = L.line;
-  }
+  // ふちどり（しあげ）
+  const out = polish(buf, W, H, L.line);
   // ひげ
   if (!P0.closed) [[-5, 2, -10, 1], [-5, 3, -10, 4], [5, 2, 10, 1], [5, 3, 10, 4]].forEach(([a, b, c, d]) => {
     for (let i = 0; i <= 7; i++) { const x = Math.round((nx + a + (c - a) * i / 7) * KS), y = Math.round((ny + b + (d - b) * i / 7) * KS); if (x >= 0 && x < W && y >= 0 && y < H && !buf[y][x]) out[y][x] = 'rgba(255,255,255,0.75)'; }
@@ -536,12 +587,8 @@ function makePersonFine(look, frame, apron, KS = PERSON_K) {
   rect(6, 14, 2, 1, '#f0a0a0'); rect(16, 14, 2, 1, '#f0a0a0');
   rect(11, 15, 2, 1, '#b8605a');
   }
-  // ふちどり
-  const out = buf.map(r => r.slice());
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    if (buf[y][x]) continue;
-    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => buf[y + dy] && buf[y + dy][x + dx])) out[y][x] = '#2a2220';
-  }
+  // ふちどり（しあげ）
+  const out = polish(buf, W, H, '#2a2220');
   const c = mk(W, H), g = c.getContext('2d');
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (out[y][x]) { g.fillStyle = out[y][x]; g.fillRect(x, y, 1, 1); }
   return c;
@@ -651,12 +698,8 @@ function makeFoodIcon(id) {
     fillE(9.5, 1.5, 1.4, 1.4, '#e02040'); set(9, 1, '#ff8a9a');
     line(4, 0, 5, 3, '#e0b060');
   }
-  // ふちどり
-  const out = buf.map(r => r.slice());
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    if (buf[y][x]) continue;
-    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => buf[y + dy] && buf[y + dy][x + dx])) out[y][x] = '#3a2a20';
-  }
+  // ふちどり（しあげ）
+  const out = polish(buf, N, N, '#3a2a20', { despeckle: false });
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) buf[y][x] = out[y][x];
   after.forEach(f => f());
   const c = mk(N, N), g = c.getContext('2d');
@@ -2204,12 +2247,8 @@ function makePortrait(expr, who = 'grio') {
     each((fx, fy, x, y) => { if (fy > 55 && buf[y][x] && buf[y][x] !== C.white && x % 4 === (y >> 1) % 4) buf[y][x] = C.furL; });
     set(6, 1, C.furD); set(6, 2, C.furD); set(5, 0, C.furD); set(58, 1, C.furD); set(58, 2, C.furD); set(59, 0, C.furD);
   }
-  // ふちどり
-  const out = buf.map(r => r.slice());
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    if (buf[y][x]) continue;
-    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => buf[y + dy] && buf[y + dy][x + dx])) out[y][x] = C.line;
-  }
+  // ふちどり（しあげ）
+  const out = polish(buf, N, N, C.line, { rim: true, despeckle: true });
   // ひげ
   [[20, 47, 3, 44], [20, 49, 2, 50], [21, 51, 5, 55], [43, 47, 60, 44], [43, 49, 61, 50], [42, 51, 58, 55]].forEach(([x0, y0, x1, y1]) => {
     const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
