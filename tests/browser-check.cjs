@@ -128,7 +128,12 @@ fs.mkdirSync(artifacts, {recursive:true});
           if(moving.face!==-1||catImg(who,'walk0',moving.face,moving)!==CHAR_SPR[who].walk0[1])issues.push(who+' left movement reversed');
         }
         if(charPose({pal:who,state:'takeOrder',t:50},'sit0')!=='idle')issues.push(who+' bows throughout order');
-        if(charPose({pal:who,state:'takeOrder',t:12},'sit0')!=='bow')issues.push(who+' missing final bow');
+        if(charPose({pal:who,state:'takeOrder',t:9},'sit0')!=='idle')issues.push(who+' bow swaps standing artwork');
+        const bow=t=>catBowAngle({state:'takeOrder',t,face:1});
+        if(bow(18)!==0||bow(0)!==0||Math.abs(bow(9)-Math.PI/30)>1e-9)issues.push(who+' bow endpoints/peak');
+        if(Math.abs(bow(3)-bow(15))>1e-9)issues.push(who+' asymmetric bow easing');
+        if(catBowAngle({state:'takeOrder',t:9,face:-1})!==-bow(9))issues.push(who+' bow facing wrong way');
+        if(catBowAngle({state:'idle',t:9,face:1})!==0)issues.push(who+' bow continues in idle');
         if(charPose({pal:who,state:'idle',t:60},'sit0')!=='idle')issues.push(who+' bow does not return to idle');
         if(charPose({pal:who,state:'idle'},'stretch')==='bow')issues.push(who+' stretch uses deep bow');
       }
@@ -137,6 +142,24 @@ fs.mkdirSync(artifacts, {recursive:true});
       return {issues,walk,portraitCount:Object.keys(frames.grio).filter(k=>k.startsWith('f_')).length};
     });
     assert.deepEqual(spriteChecks.issues,[]);assert.deepEqual(spriteChecks.walk,['walk0','walk1','walk2','walk3']);assert.equal(spriteChecks.portraitCount,8);
+    const bowSheet=await p.evaluate(()=>{
+      const sheet=document.createElement('canvas');sheet.width=720;sheet.height=520;
+      const g=sheet.getContext('2d'),keep=ctx;ctx=g;
+      try {
+        for(const [row,who,face] of [[0,'grio',1],[1,'grio',-1],[2,'ponta',1],[3,'ponta',-1]]) {
+          for(const [col,t] of [[0,18],[1,12],[2,9],[3,0]]) {
+            g.save();g.translate(col*180,row*130);
+            g.fillStyle='#fff4df';g.fillRect(0,0,180,130);
+            const im=CHAR_SPR[who].idle[face>0?0:1],size=catDisplaySize(who,im);
+            drawCatArtwork(im,90-size.width/2,115-size.height,size,{state:'takeOrder',t,face});
+            g.fillStyle='#8a5a32';g.fillRect(0,115,180,1);
+            g.restore();
+          }
+        }
+      } finally {ctx=keep;}
+      return sheet.toDataURL('image/png').split(',')[1];
+    });
+    fs.writeFileSync(path.join(artifacts,'bow-motion.png'),Buffer.from(bowSheet,'base64'));
     await p.locator('#mNew').click();
     // Exercise the live simulation, including ordering, kitchen, and delivery.
     const simulation=await p.evaluate(()=>{

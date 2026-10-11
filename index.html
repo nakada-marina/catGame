@@ -306,8 +306,8 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-detail.js?v=20261011-direction-bow"></script>
-<script src="./character-art.js?v=20261011-direction-bow"></script>
+<script src="./character-detail.js?v=20261011-gentle-bow"></script>
+<script src="./character-art.js?v=20261011-gentle-bow"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -1959,7 +1959,7 @@ function charPose(k, pose) {
   if (pose.startsWith('walk')) return 'walk' + (Math.floor(Math.max(0, k ? k.anim : tick) / 9) % 4);
   if (k && (k.carryDish || k.carry)) return k.pal === 'ponta' ? 'cake' : 'serve';
   // Acknowledge at the end, rather than crouching throughout the order.
-  if (k && k.state === 'takeOrder') return k.t > 0 && k.t <= 12 ? 'bow' : 'idle';
+  if (k && k.state === 'takeOrder') return 'idle';
   if (k && k.state === 'pickup') return 'clean';
   if (pose.startsWith('yawn')) return 'surprise';
   if (pose.startsWith('stretch')) return 'sit';
@@ -1984,9 +1984,22 @@ function catDisplaySize(pal, img) {
   const scale = pal === 'grio' ? (img.width===128 ? .70 : 1.35) : pal === 'ponta' ? (img.width===128 ? .66 : 1.25) : 1;
   return { width: Math.round(img.width * scale), height: Math.round(img.height * scale) };
 }
-function drawCatArtwork(img, x, y, size) {
+// A shallow bow uses the standing artwork throughout: ease in and out
+// around the foot anchor. No curled pose, face replacement, or stretching.
+function catBowAngle(k) {
+  if (!k || k.state !== 'takeOrder' || k.t <= 0 || k.t >= 18) return 0;
+  const progress = (18 - k.t) / 18;
+  return Math.sin(Math.PI * progress) ** 2 * (Math.PI / 30) * (k.face > 0 ? 1 : -1);
+}
+function drawCatArtwork(img, x, y, size, actor) {
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, Math.round(x), Math.round(y), size.width, size.height);
+  const angle = catBowAngle(actor);
+  if (!angle) { ctx.drawImage(img, Math.round(x), Math.round(y), size.width, size.height); return; }
+  ctx.save();
+  ctx.translate(Math.round(x + size.width / 2), Math.round(y + size.height));
+  ctx.rotate(angle);
+  ctx.drawImage(img, -size.width / 2, -size.height, size.width, size.height);
+  ctx.restore();
 }
 // 歩行の足元は固定。
 function catMotionOffset(k, pose) {
@@ -2039,7 +2052,7 @@ function drawPonta() {
   const size = catDisplaySize('ponta', img);
   const X = Math.round(p.x * 2 - size.width / 2), Y = Math.round(p.y * 2 - size.height + catMotionOffset(p, pose));
   floorShadow(p.x * 2, p.y * 2 - 1, (CHAR_SPR['ponta'] ? 16 : Math.round(img.width * 0.32)), 3, 0.18);
-  drawCatArtwork(img, X, Y, size);
+  drawCatArtwork(img, X, Y, size, p);
   if (p.carry) drawAt(ICON2[p.carry.item.id], p.x * 2 - 8, Y - 18 + ((tick >> 3) & 1) * 2);
   else {
     const tx = Math.round(clamp(p.x * 2, 22, FW - 22)), ty = Math.max(1, Y - 15);
@@ -2068,7 +2081,7 @@ function drawCat(k) {
   if (k.state === 'eat' && (k.t >> 4) & 1) Y += 2;
   if (k.jump > 0) Y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 12);
   if (!(k.spot === TOWER && k.state === 'nap') && k.spot !== BOX) floorShadow(k.x * 2, k.y * 2 - 1, CHAR_SPR[k.pal] ? 18 : Math.round(img.width * 0.32), 3, 0.18);
-  drawCatArtwork(img, k.x * 2 - size.width / 2, Y, size);
+  drawCatArtwork(img, k.x * 2 - size.width / 2, Y, size, k);
   if (k.carry) drawAt(PLATE2, k.x * 2 - 9, Y - 10 + ((tick >> 3) & 1) * 2);
   if (k.carryDish && k.dish) drawAt(ICON2[k.dish.item.id], k.x * 2 - 8, Y - 16 + ((tick >> 3) & 1) * 2);
   if (k.temp && !k.carryDish && !k.carry) {
@@ -2077,7 +2090,7 @@ function drawCat(k) {
     P('#a07a10', tx - w / 2 - 1, ty, w + 2, 13); P('#f2c14e', tx - w / 2, ty + 1, w, 11); P('#ffe08a', tx - w / 2, ty + 1, w, 1);
     ctx.fillStyle = '#3a2a10'; ctx.fillText(k.name, tx, ty + 1);
   }
-  if (k.state === 'takeOrder' && k.t > 12) {
+  if (k.state === 'takeOrder' && k.t > 18) {
     const mx = Math.round(k.x * 2 + k.face * 6 - 6), my = Y - 18 - ((tick >> 3) & 1);
     P('#3a2a20', mx - 1, my - 1, 14, 17); P('#fffaf0', mx, my, 12, 15); P('#e86a6a', mx, my, 12, 2);
     for (let i = 0; i < 3; i++) P('#8a8a98', mx + 2, my + 5 + i * 3, ((tick >> 2) + i) % 4 === 0 ? 5 : 8, 1);
