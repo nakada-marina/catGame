@@ -35,6 +35,8 @@
     if (!ready || !['front', 'back'].includes(facing)) return null;
     if (pal === 'grio' || pal === 'ponta') return window.CatMotions.frame(pal,
       facing + 'Walk' + (((frame % 4) + 4) % 4), source.width, source.height);
+    if (pal.startsWith('stray_')) return window.StrayArt?.frame(pal,
+      facing + 'Walk' + (((frame % 4) + 4) % 4), source.width, source.height) || null;
     if (!catRows[pal]) return null;
     const [image, meta, first] = catRows[pal], row = first + (facing === 'back' ? 1 : 0);
     const f = ((frame % 4) + 4) % 4;

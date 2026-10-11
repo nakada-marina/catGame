@@ -41,7 +41,8 @@
   // Keep the smaller display sizes across all body motions.
   function displaySize(pal, image) {
     const scale = pal === 'grio' ? (image.width === 128 ? .55 : 1.05) :
-      pal === 'ponta' ? (image.width === 128 ? .52 : .98) : .78;
+      pal === 'ponta' ? (image.width === 128 ? .52 : .98) :
+      pal.startsWith('stray_') && image.width === 128 ? .52 : .78;
     return { width: Math.round(image.width * scale), height: Math.round(image.height * scale) };
   }
   window.CatArtwork = { meta, width: WIDTH, height: HEIGHT, load, displaySize };

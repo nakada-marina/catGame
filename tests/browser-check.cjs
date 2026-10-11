@@ -128,6 +128,51 @@ fs.mkdirSync(artifacts, {recursive:true});
     assert.equal(await guided.evaluate(()=>firstGuide),null,'completed guide does not repeat');
     await guided.close();
     console.log('PASS guided first customer with real cafe/kitchen taps, held perfect timing, normal resume and save reload');
+
+    const straysPage=await browser.newPage({viewport:{width:393,height:852}});
+    straysPage.on('pageerror',e=>errors.push(e.message));
+    await straysPage.goto(base);await straysPage.evaluate(()=>artworkReady);
+    await straysPage.locator('#mNew').click();
+    const fees=await straysPage.evaluate(()=>{
+      finishFirstGuide(true);talking=null;talkQ.length=0;$('talk').hidden=true;
+      G.money=40000;G.time=OPEN;mode='open';
+      G.nyaimee=STRAYS.map(st=>({id:st.id,hours:2,hired:false}));
+      return STRAYS.reduce((n,st)=>n+st.rate*2,0);
+    });
+    await straysPage.locator('#btnNyaimee').click();
+    assert.equal(await straysPage.locator('[data-stray]').count(),6);
+    const thumbs=await straysPage.evaluate(()=>[...$('panel').querySelectorAll('[data-stray]')].map(cv=>({
+      id:cv.dataset.stray,width:cv.width,height:cv.height,
+      visible:cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data.some((v,i)=>i%4===3&&v>16)
+    })));
+    for(const t of thumbs){assert.equal(t.width,112);assert.equal(t.height,126);assert(t.visible,t.id+' thumbnail');}
+    for(const id of ['sabi','hachi','gure','milk','boss','kotetsu'])await straysPage.locator('[data-hire="'+id+'"]').click();
+    const hired=await straysPage.evaluate(()=>({
+      money:G.money,fee:dayLog.nyaimee,pals:cats.filter(k=>k.temp).map(k=>k.pal),stored:loadSave().nyaimee.every(o=>o.hired),
+      frames:Object.keys(StrayArt.meta).map(pal=>({pal,poses:Object.keys(StrayArt.meta[pal]).map(pose=>{
+        const im=StrayArt.frame(pal,pose),pixels=im.getContext('2d').getImageData(0,0,128,144).data;
+        return pixels.some((v,i)=>i%4===3&&v>16);
+      })}))
+    }));
+    assert.equal(hired.money,40000-fees);assert.equal(hired.fee,fees);assert.equal(hired.pals.length,6);assert(hired.stored);
+    for(const actor of hired.frames)assert(actor.poses.every(Boolean),actor.pal+' all cells visible');
+    await straysPage.evaluate(()=>{
+      closeModal();talking=null;talkQ.length=0;$('talk').hidden=true;mode='report';
+      cats.filter(k=>k.temp).forEach((k,i)=>{k.x=38+i*34;k.y=210;k.state='idle';k.act=null;});render();
+    });
+    await straysPage.screenshot({path:path.join(artifacts,'nyaimee-workers.png')});
+    await straysPage.goto(new URL('stray-preview.html',base).href);
+    await straysPage.waitForFunction(()=>document.querySelectorAll('#cats article').length===6);
+    for(const pose of ['idle','frontWalk','backWalk','walk','leftWalk','sit','serve','clean','sleepbag','groom','yawn','stretch','joy','surprise']){
+      await straysPage.locator('#pose').selectOption(pose);
+      assert(await straysPage.evaluate(()=>[...document.querySelectorAll('#cats canvas')].every(cv=>
+        cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data.some((v,i)=>i%4===3&&v>16)
+      )),pose+' visible for all six cats');
+    }
+    await straysPage.locator('#pose').selectOption('frontWalk');
+    await straysPage.screenshot({path:path.join(artifacts,'nyaimee-gallery.png'),fullPage:true});
+    await straysPage.close();
+    console.log('PASS six Nyaimee cards, real hiring, payment/save, all96 visible sprites and preview motions');
     const p=await browser.newPage({viewport:{width:393,height:852}});p.on('pageerror',e=>errors.push(e.message));
     await p.goto(base);await p.evaluate(()=>artworkReady);
     const spriteChecks=await p.evaluate(async()=>{

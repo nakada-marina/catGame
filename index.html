@@ -110,7 +110,7 @@ body {
 .nya-head b { font-size: 22px; font-weight: normal; letter-spacing: 1px; }
 .nya-head span { font-size: 12px; }
 .nya-card { display: grid; grid-template-columns: 56px 1fr auto; gap: 2px 10px; align-items: center; background: #fffaf0; color: #3a2a10; border-radius: 10px; padding: 10px; }
-.nya-card canvas { grid-row: 1 / span 4; width: 56px; height: 50px; image-rendering: pixelated; background: #f2e8d4; border-radius: 6px; }
+.nya-card canvas { grid-row: 1 / span 4; width: 56px; height: 63px; image-rendering: pixelated; background: #f2e8d4; border-radius: 6px; }
 .nya-card .nm { font-size: 17px; }
 .nya-card .st { color: #c88a10; font-size: 13px; }
 .nya-card .sk { font-size: 12px; display: inline-block; background: #3a7a5a; color: #fff; border-radius: 4px; padding: 1px 6px; justify-self: start; }
@@ -312,10 +312,10 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
-<script src="./cat-motions.js?v=20261011-ponta-brown"></script><script src="./rear-walk.js?v=20261011-uniform"></script>
+<script src="./cat-motions.js?v=20261011-ponta-brown"></script><script src="./stray-art.js?v=20261011-nyaimee"></script><script src="./rear-walk.js?v=20261011-nyaimee"></script>
 <script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-art.js?v=20261011-uniform"></script>
+<script src="./character-art.js?v=20261011-nyaimee"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -1919,10 +1919,11 @@ function drawLighting() {
 // ぐりお と ぽんた は キャラクター設定画の 絵を つかう（chars.webp）
 
 const CHAR_SPR = {}, CHAR_PENDING = mk(81, 64);
-const artworkReady = Promise.all([CatArtwork.load(), GuestArt.load, RearWalk.load]).then(([originals]) => {
-  for (const who of ['grio', 'ponta']) {
+const artworkReady = Promise.all([CatArtwork.load(), GuestArt.load, RearWalk.load, StrayArt.load]).then(([originals, , , strays]) => {
+  const bodies = { ...originals, ...strays };
+  for (const who of Object.keys(bodies)) {
     CHAR_SPR[who] = {};
-    for (const [pose, frame] of Object.entries(originals[who])) CHAR_SPR[who][pose] = [frame, flipH(frame)];
+    for (const [pose, frame] of Object.entries(bodies[who])) CHAR_SPR[who][pose] = [frame, flipH(frame)];
   }
   const FMAP = { normal: 'f_normal', happy: 'f_happy', sad: 'f_sleepy', surprise: 'f_surprise', sleep: 'f_sleepy' };
   for (const who of ['grio', 'ponta']) for (const e in FMAP) FACES[who][e] = originals[who][FMAP[e]];
@@ -1944,8 +1945,8 @@ function charPose(k, pose) {
   // Acknowledge at the end, rather than crouching throughout the order.
   if (k && k.state === 'takeOrder') return 'idle';
   if (k && ['pickup', 'clean'].includes(k.state)) return 'clean';
-  if (pose.startsWith('yawn')) return 'surprise';
-  if (pose.startsWith('stretch')) return 'sit';
+  if (pose.startsWith('yawn')) return k?.pal?.startsWith('stray_') ? 'yawn' : 'surprise';
+  if (pose.startsWith('stretch')) return k?.pal?.startsWith('stray_') ? 'stretch' : 'sit';
   if (pose.startsWith('groom')) return 'groom';
   if (k && ['eat','visit','slack'].includes(k.state)) return 'sit';
   if (pose.startsWith('sit')) return 'idle';
@@ -2009,7 +2010,7 @@ function drawCatThumb(c, pal) {
 // あとで使うコマを すこしずつ 先に描いておく（カクつきを ふせぐ）
 const warmQ = [], warmed = new Set();
 function warmSprites() {
-  const pals = [...new Set([...cats.map(k => k.pal), ...(ponta ? ['ponta'] : [])])].filter(p => CAT_SPR[p]);
+  const pals = [...new Set([...cats.map(k => k.pal), ...(ponta ? ['ponta'] : [])])].filter(p => CAT_SPR[p] && !CHAR_SPR[p]);
   for (const pal of pals) if (!warmed.has(pal)) { warmed.add(pal); for (const ps in CAT_POSE) if (!/^walk[AB]$|^sit$/.test(ps)) warmQ.push([pal, ps]); }
   if (tick % 3) return;
   for (const c of customers) for (const f of PERSON_FRAMES) if (!Object.prototype.hasOwnProperty.call(c.spr, f)) { c.spr[f]; return; }
@@ -2606,7 +2607,7 @@ function openNyaimee() {
     const label = o.hired ? '勤務中・済' : !open ? '営業中のみ' : G.time + 30 > CLOSE ? 'もう閉店' : G.money < fee ? 'おかね不足' : `¥${fee.toLocaleString()}<small>来てもらう</small>`;
     const off = o.hired || !open || G.time + 30 > CLOSE || G.money < fee;
     return `<div class="nya-card ${o.hired ? 'done' : ''}">
-      <canvas width="72" height="64" data-stray="${st.id}"></canvas>
+      <canvas width="112" height="126" data-stray="${st.id}" aria-label="${st.name}"></canvas>
       <span class="nm">${st.name}</span>
       <span class="st">★${st.rating.toFixed(1)}（${st.reviews}件）</span>
       <span class="sk">${SKILLS[st.skill].name}</span>
@@ -2621,7 +2622,7 @@ function openNyaimee() {
     <div class="list">${cards}</div>
     <div class="actions-row"><button type="button" id="mClose">とじる</button></div>
   `);
-  $('panel').querySelectorAll('[data-stray]').forEach(c => { const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(CAT_SPR['stray_' + c.dataset.stray].sit[0], 0, 0); });
+  $('panel').querySelectorAll('[data-stray]').forEach(c => drawCatThumb(c, 'stray_' + c.dataset.stray));
   $('panel').querySelectorAll('[data-hire]').forEach(b => { b.onclick = () => { hireStray(b.dataset.hire); openNyaimee(); }; });
   $('mClose').onclick = closeModal;
 }
