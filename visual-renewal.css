@@ -63,3 +63,33 @@ button small {color:#775b47}
   #actions button {font-size:clamp(10px,2.9vw,12px)}
 }
 @media(prefers-reduced-motion:reduce) {button {transition:none}}
+
+/* Mobile readability and touch-target fixes */
+#wrap {width:min(100%,640px);gap:7px}
+#hud {position:relative;z-index:1;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;padding:8px 10px}
+#hud .day {overflow:hidden;text-overflow:ellipsis}
+#hud .money {font-size:clamp(13px,3.6vw,18px)}
+#hud .stars {font-size:clamp(11px,3vw,15px);letter-spacing:0}
+#talk {left:6px;right:6px;bottom:6px;gap:9px;padding:9px;align-items:flex-start}
+#face {width:clamp(68px,23%,108px);max-width:108px;aspect-ratio:1;object-fit:contain;flex-shrink:0}
+#talk .msg {gap:3px;padding-right:10px}
+#talk p {font-size:clamp(12px,3.5vw,16px);line-height:1.48;min-height:0;overflow-wrap:anywhere;word-break:normal;line-break:strict}
+#talk .who {font-size:clamp(12px,3.2vw,14px)}
+#talk .next {right:0;bottom:0}
+#actions {grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+#actions button {min-width:0;min-height:56px;padding:7px 1px;font-size:clamp(10px,2.75vw,13px);line-height:1.2;letter-spacing:-.4px;white-space:normal;overflow-wrap:anywhere}
+#actions button small {font-size:clamp(9px,2.4vw,11px);letter-spacing:-.4px;white-space:normal;overflow:visible;text-overflow:clip;margin-top:3px}
+#actions button.nyaimee {letter-spacing:-.7px}
+#sub {gap:5px;min-width:0}
+#sub > span:not(.tools) {font-size:11px}
+#sub .tools {gap:4px}
+#sub button {padding:6px 7px;font-size:clamp(10px,2.6vw,12px)}
+#kitchenCv {border-color:#a77956;border-radius:12px}
+@media(max-width:390px) {
+  body {padding-inline:7px}
+  #talk {padding:7px;gap:6px}
+  #face {width:22%}
+  #sub > span:not(.tools) {display:none}
+  #sub {justify-content:space-between}
+  #actions button {min-height:52px}
+}
