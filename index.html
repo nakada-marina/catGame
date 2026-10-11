@@ -271,7 +271,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .make .zero { color: var(--bad); }
 #sub button { padding: 4px 10px; font-size: 12px; border-bottom-width: 2px; white-space: nowrap; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261011-kitchen">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261011-bigfood">
 </head>
 <body>
 <div id="wrap">
@@ -305,11 +305,11 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
-<script src="./kitchen-art.js?v=20261011-kitchen"></script>
-<script src="./cafe-art.js?v=20261011-kitchen"></script>
+<script src="./kitchen-art.js?v=20261011-bigfood"></script>
+<script src="./cafe-art.js?v=20261011-bigfood"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-detail.js?v=20261011-kitchen"></script>
-<script src="./character-art.js?v=20261011-kitchen"></script>
+<script src="./character-detail.js?v=20261011-bigfood"></script>
+<script src="./character-art.js?v=20261011-bigfood"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -669,7 +669,7 @@ for (const pal in CAT_LOOK) {
 }
 // 2倍の細かさの絵を、論理座標で描く
 // 画面は 2倍の細かさ（論理座標 ×2）で描く
-function drawAt(img, X, Y) { if (img.foodIcon) ctx.drawImage(img, Math.round(X), Math.round(Y), 16, 16); else ctx.drawImage(img, Math.round(X), Math.round(Y)); }
+function drawAt(img, X, Y, foodSize = 16) { if (img.foodIcon) ctx.drawImage(img, Math.round(X), Math.round(Y), foodSize, foodSize); else ctx.drawImage(img, Math.round(X), Math.round(Y)); }
 // Scale2x：ドット絵の輪郭をなめらかに2倍にする
 function scale2x(src) {
   const w = src.width, h = src.height, d = src.getContext('2d').getImageData(0, 0, w, h).data;
@@ -1938,7 +1938,7 @@ function drawPonta() {
   const X = Math.round(p.x * 2 - size.width / 2), Y = Math.round(p.y * 2 - size.height + catMotionOffset(p, pose));
   floorShadow(p.x * 2, p.y * 2 - 1, (CHAR_SPR['ponta'] ? 16 : Math.round(img.width * 0.32)), 3, 0.18);
   drawCatArtwork(img, X, Y, size, p);
-  if (p.carry) drawAt(ICON2[p.carry.item.id], p.x * 2 - 8, Y - 18 + ((tick >> 3) & 1) * 2);
+  if (p.carry) drawAt(ICON2[p.carry.item.id], p.x * 2 - 12, Y - 26 + ((tick >> 3) & 1) * 2, 24);
   else {
     const tx = Math.round(clamp(p.x * 2, 22, FW - 22)), ty = Math.max(1, Y - 15);
     P('#1e5a36', tx - 21, ty, 42, 13); P('#2e7a4e', tx - 20, ty + 1, 40, 11); P('#5ab07a', tx - 20, ty + 1, 40, 1);
@@ -1968,7 +1968,7 @@ function drawCat(k) {
   if (!(k.spot === TOWER && k.state === 'nap') && k.spot !== BOX) floorShadow(k.x * 2, k.y * 2 - 1, CHAR_SPR[k.pal] ? 18 : Math.round(img.width * 0.32), 3, 0.18);
   drawCatArtwork(img, k.x * 2 - size.width / 2, Y, size, k);
   if (k.carry) drawAt(PLATE2, k.x * 2 - 9, Y - 10 + ((tick >> 3) & 1) * 2);
-  if (k.carryDish && k.dish) drawAt(ICON2[k.dish.item.id], k.x * 2 - 8, Y - 16 + ((tick >> 3) & 1) * 2);
+  if (k.carryDish && k.dish) drawAt(ICON2[k.dish.item.id], k.x * 2 - 12, Y - 24 + ((tick >> 3) & 1) * 2, 24);
   if (k.temp && !k.carryDish && !k.carry) {
     ctx.font = '11px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     const w = Math.ceil(ctx.measureText(k.name).width) + 10, tx = Math.round(clamp(k.x * 2, w / 2 + 2, FW - w / 2 - 2)), ty = Math.max(1, Y - 15);
@@ -2014,7 +2014,7 @@ function drawTableItems(s) {
     ellipse(x+12,y,3,2,s.cust.look ? shade(s.cust.look.skin,.86) : '#d6ac88');
   }
   const IX = s.itemX * 2 - 8, IY = s.itemY * 2 - 16;
-  if (s.cust && s.cust.state === 'eat') drawAt(ICON2[s.cust.order.id], IX, IY);
+  if (s.cust && s.cust.state === 'eat') drawAt(ICON2[s.cust.order.id], IX - 4, IY - 8, 24);
   if (s.dirty) { drawAt(PLATE2, IX - 1, IY + 6); if ((tick >> 4) & 1) { P('#ffffff', IX + 15, IY + 1, 1, 3); P('#ffffff', IX + 14, IY + 2, 3, 1); } }
 }
 function bubbleBox(X, Y, bg) {
@@ -2032,26 +2032,26 @@ function drawBubble(c) {
   const s = c.seat, X = s.x * 2 - 18, Y = s.y * 2 - (s.counter ? 102 : 110);
   if (c.state === 'wait' && c.job) { drawCookBubble(c, c.job, X, Y); return; }
   bubbleBox(X, Y, '#ffffff');
-  drawAt(ICON2[c.order.id], X + 10, Y + 4);
+  drawAt(ICON2[c.order.id], X + 6, Y + 1, 24);
   if (c.vip) drawCrown(X + 18, Y - 8);
   if (!canMake(c.order)) { ellipse(X + 30, Y + 5, 6, 6, '#ffffff'); ellipse(X + 30, Y + 5, 5, 5, '#e8483a'); for (let i = -2; i <= 2; i++) { P('#ffffff', X + 30 + i, Y + 5 + i, 1, 1); P('#ffffff', X + 30 + i, Y + 5 - i, 1, 1); } }
   const f = c.pat / c.maxPat;
-  gauge(X + 4, Y + 22, f, f > 0.5 ? '#5ac85a' : f > 0.25 ? '#f0c040' : '#e85a4a');
+  gauge(X + 4, Y + 26, f, f > 0.5 ? '#5ac85a' : f > 0.25 ? '#f0c040' : '#e85a4a');
   if (f < 0.25 && (tick >> 3) & 1) { P('#e85a4a', X + 36, Y - 6, 3, 9); P('#e85a4a', X + 36, Y + 5, 3, 3); }
 }
 function drawCookBubble(c, j, X, Y) {
   const ready = j.state === 'ready', blink = (tick >> 3) & 1;
   bubbleBox(X, Y, ready ? (blink ? '#fff2a8' : '#ffe070') : '#f4f0e8');
-  ctx.globalAlpha = j.state === 'queue' ? 0.45 : 1; drawAt(ICON2[j.item.id], X + 10, Y + 3); ctx.globalAlpha = 1;
+  ctx.globalAlpha = j.state === 'queue' ? 0.45 : 1; drawAt(ICON2[j.item.id], X + 6, Y + 1, 24); ctx.globalAlpha = 1;
   if (j.state === 'cook') {
-    gauge(X + 4, Y + 21, j.t / j.dur, '#e8702a', j.missed ? null : ZONE);
+    gauge(X + 4, Y + 26, j.t / j.dur, '#e8702a', j.missed ? null : ZONE);
     if ((tick >> 4) & 1) { ctx.globalAlpha = 0.8; P('#ffffff', X + 28, Y - 4, 1, 4); P('#ffffff', X + 32, Y - 6, 1, 4); ctx.globalAlpha = 1; }
   } else if (j.state === 'queue') {
     for (let i = 0; i < 3; i++) if ((tick >> 4) % 4 > i) ellipse(X + 12 + i * 6, Y + 24, 2, 2, '#8a8a8a');
   } else if (ready) {
     P('#e8483a', X + 31, Y - 6, 3, 9); P('#e8483a', X + 31, Y + 5, 3, 3);
     const cold = j.readyT / COLD_AFTER;
-    gauge(X + 4, Y + 22, cold, cold < 1 ? '#6aa0d8' : '#8a8aa0');
+    gauge(X + 4, Y + 26, cold, cold < 1 ? '#6aa0d8' : '#8a8aa0');
   }
   if (c.vip) drawCrown(X + 18, Y - 8);
 }
@@ -2284,7 +2284,7 @@ function drawOvenUnit(u, j) {
 }
 function passSlots() {
   const ready = jobs.filter(j => j.state === 'ready');
-  return ready.slice(0, 6).map((j, n) => ({ j, x: 380 + (n % 2) * 32, y: 50 + Math.floor(n / 2) * 22 }));
+  return ready.slice(0, 6).map((j, n) => ({ j, x: 380 + (n % 2) * 32, y: 32 + Math.floor(n / 2) * 32 }));
 }
 function renderKitchen() {
   kctx.setTransform(kcv.width / KW, 0, 0, kcv.height / KH, 0, 0); kctx.imageSmoothingEnabled = false;
@@ -2333,13 +2333,13 @@ function renderKitchen() {
   for (const u of kitchenUnits()) { const g = groups[u.st] || (groups[u.st] = [u.x, u.x + u.w]); g[0] = Math.min(g[0], u.x); g[1] = Math.max(g[1], u.x + u.w); }
   for (const st in groups) KT({ drink: 'コーヒーマシン', stove: 'フライパン', oven: 'オーブン' }[st], (groups[st][0] + groups[st][1]) / 2, 150, 11, '#efe9dc');
   // できあがり台
-  K('#5a3a22', 372, 40, 74, 72); K('#e8dcc4', 374, 42, 70, 68);
-  KT('できあがり', 409, 26, 10, '#3a3a44');
-  for (const by of [66, 88, 110]) { K('#a2724a', 372, by - 2, 74, 3); }
+  K('#5a3a22', 372, 16, 74, 96); K('#e8dcc4', 374, 18, 70, 92);
+  KT('できあがり', 409, 3, 10, '#3a3a44');
+  for (const by of [48, 80, 112]) { K('#a2724a', 372, by - 2, 74, 3); }
   for (const s of passSlots()) {
     const cold = s.j.readyT > COLD_AFTER && s.j.q !== 'perfect';
     KE(s.x + 14, s.y + 13, 12, 3, '#ffffff'); KE(s.x + 14, s.y + 13, 9, 2, '#e8e8f0');
-    kctx.globalAlpha = cold ? 0.6 : 1; kctx.drawImage(ICON2[s.j.item.id], s.x + 2, s.y - 8, 24, 24); kctx.globalAlpha = 1;
+    kctx.globalAlpha = cold ? 0.6 : 1; kctx.drawImage(ICON2[s.j.item.id], s.x - 2, s.y - 16, 32, 32); kctx.globalAlpha = 1;
     if (s.j.q === 'perfect') { K('#8affa0', s.x + 24, s.y - 4, 3, 3); }
     if (!cold && (tick >> 4) & 1) { K('#ffffff', s.x + 2, s.y, 1, 3); }
   }
@@ -2352,7 +2352,7 @@ kcv.addEventListener('pointerdown', e => {
   if (!G || isPaused() || (mode !== 'open' && mode !== 'closing')) return;
   const r = kcv.getBoundingClientRect(), b = 3;
   const x = (e.clientX - r.left - b) / (r.width - b * 2) * KW, y = (e.clientY - r.top - b) / (r.height - b * 2) * KH;
-  for (const s of passSlots()) if (x >= s.x - 2 && x <= s.x + 30 && y >= s.y - 6 && y <= s.y + 20) { deliver(s.j, false); return; }
+  for (const s of passSlots()) if (x >= s.x - 2 && x <= s.x + 30 && y >= s.y - 16 && y < s.y + 16) { deliver(s.j, false); return; }
   for (const u of kitchenUnits()) { const top = u.h > 40 ? u.y - 16 : u.y, bot = u.y + u.h >= 110 ? 124 : u.y + u.h; if (x >= u.x && x <= u.x + u.w && y >= top && y <= bot) { tapUnit(u); return; } }
 });
 
