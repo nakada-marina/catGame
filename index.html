@@ -232,6 +232,8 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .bar.hunger i { background: var(--butter); }
 .actions-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .actions-row button { flex: 1; min-width: 120px; }
+.kv-wrap { position: relative; border-radius: 8px; overflow: hidden; }
+.kv-logo { position: absolute; pointer-events: none; }
 .title-art { display: block; width: 100%; height: auto; aspect-ratio: 1672 / 941; border-radius: 8px; background: #3a2a1c; }
 #sub { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--chalk-dim); gap: 8px; }
 #sub > span:not(.tools) { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2554,10 +2556,73 @@ function openCats() {
   $('panel').querySelectorAll('[data-cat]').forEach(c => c.getContext('2d').drawImage(CAT_SPR[c.dataset.cat].sit[0], 0, 0));
   $('mClose').onclick = closeModal;
 }
+// ================= タイトルロゴを 動かす =================
+// キービジュアルから 切りだした 文字（kv-logo.webp）と、文字をけした 看板の 板。座標は 元の絵（1672×941）の ピクセル
+const KV_LOGO = {"px":530,"py":52,"pw":645,"ph":296,"g":[{"n":"ぐ","x":600,"y":62,"w":112,"h":144,"ax":0,"ay":298},{"n":"り","x":718,"y":90,"w":98,"h":116,"ax":114,"ay":298},{"n":"お","x":834,"y":60,"w":129,"h":146,"ax":214,"ay":298},{"n":"の","x":966,"y":134,"w":80,"h":70,"ax":345,"ay":298},{"n":"paw","x":1054,"y":94,"w":113,"h":110,"ax":427,"ay":298},{"n":"ね","x":563,"y":220,"w":131,"h":121,"ax":542,"ay":298},{"n":"こ","x":701,"y":226,"w":106,"h":114,"ax":675,"ay":298},{"n":"カ","x":827,"y":220,"w":120,"h":120,"ax":783,"ay":298},{"n":"フ","x":957,"y":226,"w":114,"h":113,"ax":905,"ay":298},{"n":"ェ","x":1072,"y":270,"w":80,"h":69,"ax":1021,"ay":298},{"n":"pp","x":538,"y":94,"w":56,"h":44,"ax":1103,"ay":298}]};
+const KV_IMG_W = 1672, KV_IMG_H = 941;
+function startLogoAnim(wrap) {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const L = KV_LOGO, cv = document.createElement('canvas');
+  cv.width = L.pw; cv.height = L.ph; cv.className = 'kv-logo';
+  Object.assign(cv.style, { left: `${L.px / KV_IMG_W * 100}%`, top: `${L.py / KV_IMG_H * 100}%`, width: `${L.pw / KV_IMG_W * 100}%`, height: `${L.ph / KV_IMG_H * 100}%` });
+  const atlas = new Image();
+  atlas.onload = () => {
+    wrap.appendChild(cv);
+    const g = cv.getContext('2d'), tmp = document.createElement('canvas'), tg = tmp.getContext('2d');
+    const t0 = performance.now(), PERIOD = 4.6;
+    const sparks = [[52, 18], [600, 34], [20, 150], [628, 200], [300, 6], [470, 280]];
+    const frame = () => {
+      if (!cv.isConnected || $('modal').hidden) return;
+      const t = (performance.now() - t0) / 1000 + PERIOD - 0.4, ph = t % PERIOD;
+      g.clearRect(0, 0, L.pw, L.ph);
+      // 1. 文字が じゅんばんに ぴょこんと はねる
+      if (ph < 1.6) {
+        g.drawImage(atlas, 0, 0, L.pw, L.ph, 0, 0, L.pw, L.ph);
+        L.g.forEach((q, i) => {
+          const p = clamp((ph - i * 0.09) / 0.5, 0, 1), hop = Math.sin(Math.PI * p);
+          const cx = q.x - L.px + q.w / 2, by = q.y - L.py + q.h;
+          const sq = p > 0 && p < 1 ? 1 + 0.07 * Math.sin(Math.PI * 2 * p) : 1;
+          g.save(); g.translate(cx, by - hop * 16);
+          if (q.n === 'paw' || q.n === 'pp') g.rotate(Math.sin(p * Math.PI * 3) * 0.22 * hop);
+          g.scale(1 / sq, sq);
+          g.drawImage(atlas, q.ax, q.ay, q.w, q.h, -q.w / 2, -q.h, q.w, q.h);
+          g.restore();
+        });
+      }
+      // 2. キラッと 光が 通りすぎる
+      else if (ph > 1.9 && ph < 2.9) {
+        const k = (ph - 1.9) / 1.0, bx = -120 + k * (L.pw + 240);
+        for (const q of L.g) {
+          const x = q.x - L.px, y = q.y - L.py;
+          if (bx + 60 < x - 40 || bx - 60 > x + q.w + 40) continue;
+          tmp.width = q.w; tmp.height = q.h;
+          tg.drawImage(atlas, q.ax, q.ay, q.w, q.h, 0, 0, q.w, q.h);
+          tg.globalCompositeOperation = 'source-in';
+          const gr = tg.createLinearGradient(bx - x - 50, 0, bx - x + 50, q.h);
+          gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.4, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,240,0.85)'); gr.addColorStop(0.6, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+          tg.fillStyle = gr; tg.fillRect(0, 0, q.w, q.h);
+          tg.globalCompositeOperation = 'source-over';
+          g.globalCompositeOperation = 'overlay'; g.drawImage(tmp, x, y); g.globalCompositeOperation = 'source-over';
+        }
+      }
+      // 3. まわりで ちいさな 星が またたく
+      sparks.forEach(([x, y], i) => {
+        const a = Math.sin(t * 2.2 + i * 1.7); if (a < 0.35) return;
+        const r = Math.round(3 + (a - 0.35) * 9);
+        g.fillStyle = `rgba(255,248,200,${(0.5 + a * 0.5).toFixed(2)})`;
+        g.fillRect(x - 2, y - r, 4, r * 2); g.fillRect(x - r, y - 2, r * 2, 4);
+        g.fillStyle = '#ffffff'; g.fillRect(x - 2, y - 2, 4, 4);
+      });
+      requestAnimationFrame(frame);
+    };
+    frame();
+  };
+  atlas.src = 'kv-logo.webp';
+}
 function openTitle() {
   const saved = loadSave();
   openModal(`
-    <img id="titleArt" class="title-art" src="keyvisual.webp" width="1672" height="941" alt="ぐりおのねこカフェ">
+    <div class="kv-wrap" id="kvWrap"><img id="titleArt" class="title-art" src="keyvisual.webp" width="1672" height="941" alt="ぐりおのねこカフェ"></div>
     <p>店長ねこ「ぐりお」といっしょに、小さなねこカフェを人気のお店にしよう。</p>
     <p class="sub">・ふきだしをタップ → 注文をうける<br>・下のキッチンで設備をタップ → 調理。ちょうどいいときにもう一度タップでパーフェクト<br>・できあがり台の料理をタップ → はこぶ<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう<br>・料理の材料は「仕入れ」で。閉店後に買うとやすい</p>
     <p class="sub">目標：ひょうばん ★5 と もちきん ¥100,000</p>
@@ -2566,6 +2631,7 @@ function openTitle() {
       <button type="button" id="mNew">はじめから</button>
     </div>
   `);
+  startLogoAnim($('kvWrap'));
   const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) event('intro'); };
   if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, kitchen: { ...base.kitchen, ...(saved.kitchen || {}) }, market: saved.market || base.market, sns: saved.sns || base.sns, flags: saved.flags || {} }, false); };
   $('mNew').onclick = () => go(newSave(), true);
