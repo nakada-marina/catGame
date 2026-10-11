@@ -1950,18 +1950,23 @@ const CHAR_SPR = {};
 }
 // ゲームの ポーズ名 → 設定画の 絵
 function charPose(k, pose) {
+  // 設定画のポーズを状態に対応させる。歩行は4コマを順送りし、
+  // 立ち止まったら必ず idle に戻して途中コマで固まらないようにする。
   if (k && k.surpriseUntil > tick) return 'surprise';
   if (k && k.joyUntil > tick) return 'jump';
-  if (pose.startsWith('walk')) return 'walk' + ((k ? k.anim >> 3 : tick >> 3) & 3);
   if (pose.startsWith('sleep')) return k && k.pal === 'ponta' && k.spot === BOX ? 'box' : 'sleepbag';
+  if (pose.startsWith('walk')) return 'walk' + (Math.floor(Math.max(0, k ? k.anim : tick) / 6) % 4);
   if (k) {
     if (k.state === 'takeOrder') return 'bow';
-    if (k.state === 'pickup') return 'clean';
+    if (k.state === 'pickup' || k.state === 'toClean') return 'clean';
+    if (k.carryDish || k.carry) return k.pal === 'ponta' ? 'cake' : 'serve';
     if (k.state === 'eat' || k.state === 'visit') return 'sit';
     if (k.state === 'slack') return 'sit';
   }
-  if (pose.startsWith('groom') || pose.startsWith('yawn')) return 'sit';
+  if (pose.startsWith('groom')) return 'sit';
+  if (pose.startsWith('yawn')) return 'surprise';
   if (pose.startsWith('stretch')) return 'bow';
+  if (pose.startsWith('sit')) return 'idle';
   return 'idle';
 }
 function catImg(pal, pose, face, k) {
