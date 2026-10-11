@@ -244,6 +244,25 @@ fs.mkdirSync(artifacts, {recursive:true});
       render();renderKitchen();
     });
     await p.screenshot({path:path.join(artifacts,'renewed-cafe.png')});
+    const kitchenArt = await p.evaluate(() => {
+      for (const m of MENU) { const im=KitchenArt.food(m.id); if(im.width!==32||im.height!==32||!im.getContext('2d').getImageData(0,0,32,32).data.some((v,i)=>i%4===3&&v)) throw Error('Missing food '+m.id); }
+      const sheet=document.createElement('canvas');sheet.width=448;sheet.height=168*4+64;const g=sheet.getContext('2d');g.imageSmoothingEnabled=false;
+      g.fillStyle='#f6edda';g.fillRect(0,0,448,64);MENU.forEach((m,i)=>g.drawImage(KitchenArt.food(m.id),i*64,0,64,64));
+      G.kitchen={drink:2,stove:2,oven:2};
+      for(let phase=0;phase<4;phase++){
+        jobs=[];
+        for(const [n,u] of kitchenUnits().entries()){
+          const items=MENU.filter(m=>m.st===u.st),item=items[u.i%items.length];
+          if(phase)jobs.push({id:n,c:{vip:false},item,st:u.st,unit:u.i,state:'cook',dur:item.time,t:item.time*[0,.3,.8,.99][phase],missed:phase===3});
+        }
+        MENU.slice(0,6).forEach((item,n)=>jobs.push({id:20+n,item,c:{vip:false},state:'ready',readyT:n===5?COLD_AFTER+1:0,q:n===0?'perfect':'normal'}));
+        renderKitchen();g.drawImage(kcv,0,64+phase*168,448,168);
+      }
+      jobs=[];
+      return sheet.toDataURL().split(',')[1];
+    });
+    fs.writeFileSync(path.join(artifacts,'kitchen-art.png'),Buffer.from(kitchenArt,'base64'));
+    console.log('PASS all seven food assets; doubled equipment at idle, cooking, timing zone and missed timing');
     await p.goto(new URL('animation-preview.html',base).href);await p.waitForFunction(()=>document.querySelectorAll('.card').length===49);await p.screenshot({path:path.join(artifacts,'gallery.png'),fullPage:true});
     assert.deepEqual(errors,[]);console.log('PASS all frames, carrying walk, ordering/cooking/delivery, save reload and UI panels; no runtime errors');
   } finally {await browser.close();if(server)server.close();}

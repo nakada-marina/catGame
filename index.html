@@ -271,7 +271,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .make .zero { color: var(--bad); }
 #sub button { padding: 4px 10px; font-size: 12px; border-bottom-width: 2px; white-space: nowrap; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261011-seated">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261011-kitchen">
 </head>
 <body>
 <div id="wrap">
@@ -305,10 +305,11 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
-<script src="./cafe-art.js?v=20261011-seated"></script>
+<script src="./kitchen-art.js?v=20261011-kitchen"></script>
+<script src="./cafe-art.js?v=20261011-kitchen"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-detail.js?v=20261011-seated"></script>
-<script src="./character-art.js?v=20261011-seated"></script>
+<script src="./character-detail.js?v=20261011-kitchen"></script>
+<script src="./character-art.js?v=20261011-kitchen"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -668,7 +669,7 @@ for (const pal in CAT_LOOK) {
 }
 // 2倍の細かさの絵を、論理座標で描く
 // 画面は 2倍の細かさ（論理座標 ×2）で描く
-function drawAt(img, X, Y) { ctx.drawImage(img, Math.round(X), Math.round(Y)); }
+function drawAt(img, X, Y) { if (img.foodIcon) ctx.drawImage(img, Math.round(X), Math.round(Y), 16, 16); else ctx.drawImage(img, Math.round(X), Math.round(Y)); }
 // Scale2x：ドット絵の輪郭をなめらかに2倍にする
 function scale2x(src) {
   const w = src.width, h = src.height, d = src.getContext('2d').getImageData(0, 0, w, h).data;
@@ -743,92 +744,9 @@ const HEART = sprite(['.oo.oo.', 'orrorro', 'orrrrro', '.orrro.', '..oro..', '..
 const FUR = sprite(['..o.o..', '.ogogo.', 'oggggg.', '.ogggo.', '..o.o..'], { o: '#9a9aa6', g: '#d6d6de' });
 const PLATE = sprite(['..ooooo..', '.owwwwwo.', 'owwcwwcwo', '.owwwwwo.', '..ooooo..'], { o: '#8a8a9a', w: '#f4f4f8', c: '#b88a5a' });
 
-// ================= 料理のアイコン（16×16で1品ずつ描く） =================
-function makeFoodIcon(id) {
-  const N = 16, buf = Array.from({ length: N }, () => Array(N).fill(null));
-  const set = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < N && y < N) buf[y][x] = c; };
-  const each = fn => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) fn(x + 0.5, y + 0.5, x, y); };
-  const ell = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
-  const fillE = (cx, cy, rx, ry, c) => each((fx, fy, x, y) => { if (ell(fx, fy, cx, cy, rx, ry)) buf[y][x] = c; });
-  const rect = (x, y, w, h, c) => { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) set(xx, yy, c); };
-  const tri = (x, y, a, b, c) => {
-    const sg = (p, q, r) => (p[0] - r[0]) * (q[1] - r[1]) - (q[0] - r[0]) * (p[1] - r[1]);
-    const d1 = sg([x, y], a, b), d2 = sg([x, y], b, c), d3 = sg([x, y], c, a);
-    return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
-  };
-  const line = (x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2; for (let i = 0; i <= n; i++) set(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, c); };
-  const after = [];
-  if (id === 'coffee') {
-    fillE(8, 14, 7.2, 1.6, '#cfcac2'); fillE(8, 13.6, 6, 1, '#ebe7e0');
-    each((fx, fy, x, y) => { if ((fx >= 3 && fx <= 13 && fy >= 7 && fy <= 12) || ell(fx, fy, 8, 12, 5, 1.8)) buf[y][x] = fx > 11.5 ? '#d6d2ca' : '#f6f4f0'; });
-    each((fx, fy, x, y) => { const d = Math.hypot(fx - 13.6, fy - 9.6); if (d >= 1.1 && d <= 2.4 && fx > 12.8) buf[y][x] = '#e8e4dc'; });
-    fillE(8, 7, 4.8, 1.4, '#e8cfa0');
-    [[7, 6], [9, 6], [7, 7], [8, 7], [9, 7]].forEach(([x, y]) => set(x, y, '#8a5030'));
-    rect(4, 9, 1, 3, '#ffffff');
-    after.push(() => [5, 8, 11].forEach((x0, i) => [[0, 4], [1, 3], [0, 2], [1, 1]].forEach(([dx, dy]) => set(x0 + dx + (i % 2), dy, 'rgba(220,220,230,0.85)'))));
-  } else if (id === 'cookie') {
-    each((fx, fy, x, y) => { if (ell(fx, fy, 8, 9, 6.2, 5.6) || tri(fx, fy, [2.5, 8], [3, 1.5], [7.5, 5]) || tri(fx, fy, [8.5, 5], [13, 1.5], [13.5, 8])) buf[y][x] = ell(fx, fy, 8, 8.4, 5.2, 4.6) ? '#dcaa60' : '#b8803e'; });
-    rect(4, 3, 1, 2, '#e8a0a0'); rect(12, 3, 1, 2, '#e8a0a0');
-    rect(5, 8, 2, 2, '#4a2a14'); rect(10, 8, 2, 2, '#4a2a14'); set(5, 8, '#8a5a30'); set(10, 8, '#8a5a30');
-    rect(7, 10, 2, 1, '#e07a80'); set(7, 11, '#4a2a14'); set(8, 11, '#4a2a14'); set(6, 12, '#4a2a14'); set(9, 12, '#4a2a14');
-    [[3, 10], [2, 11], [13, 10], [14, 11]].forEach(([x, y]) => set(x, y, '#fff4d8'));
-    [[4, 12], [11, 12], [9, 5]].forEach(([x, y]) => set(x, y, '#7a4a20'));
-  } else if (id === 'tea') {
-    each((fx, fy, x, y) => { if (fx >= 3.5 && fx <= 12.5 && fy >= 3.5 && fy <= 14.5 && !(fy > 13.5 && (fx < 4.5 || fx > 11.5))) buf[y][x] = '#dfeaf0'; });
-    each((fx, fy, x, y) => { if (fx >= 4.5 && fx <= 11.5 && fy >= 6 && fy <= 13.5) buf[y][x] = fy < 7 ? '#efe0c8' : '#d2a070'; });
-    rect(5, 8, 2, 2, '#f4f8fa'); rect(8, 10, 2, 2, '#f4f8fa'); set(6, 8, '#ffffff');
-    rect(5, 7, 1, 7, '#e2bc8e');
-    line(11, 0, 9, 7, '#e86a8a'); line(12, 0, 10, 7, '#f29ab0');
-    rect(4, 4, 8, 1, '#ffffff');
-  } else if (id === 'cake') {
-    fillE(8, 14.3, 7.6, 1.4, '#e4e4ec');
-    for (let x = 2; x <= 13; x++) {
-      const top = Math.round(11 - (x - 2) * 0.36);
-      for (let y = top; y <= 13; y++) {
-        let c = y === 13 || y === 12 ? '#f0c878' : y === 11 ? (x % 3 === 0 ? '#e8506a' : '#fffaf2') : y >= 9 ? '#f4d28c' : '#fffaf2';
-        if (y === top && y < 11) c = '#ffffff';
-        if (x === 13) c = shade(c, 0.88);
-        set(x, y, c);
-      }
-    }
-    fillE(11, 5, 2.3, 2.3, '#e02040'); set(10, 4, '#ff8a9a'); set(12, 6, '#a01030');
-    set(11, 2, '#3a9a3a'); set(10, 3, '#3a9a3a'); set(12, 3, '#3a9a3a');
-    fillE(6.5, 8, 1.6, 1, '#ffffff');
-  } else if (id === 'pancake') {
-    fillE(8, 14, 7.6, 1.5, '#e4e4ec');
-    for (const cy of [12.2, 10.2, 8.2]) { fillE(8, cy, 6.2, 2.1, '#b8783a'); fillE(8, cy - 0.6, 6, 1.7, '#eab868'); }
-    fillE(8, 7.4, 5.2, 1.2, '#f4cc80'); fillE(8, 7.4, 3, 0.8, '#c87a2a');
-    rect(7, 5, 3, 2, '#fff2a0'); set(9, 6, '#e8d070'); set(7, 5, '#ffffff');
-    rect(3, 8, 1, 3, '#a05a20'); rect(12, 9, 1, 2, '#a05a20'); set(3, 11, '#a05a20');
-  } else if (id === 'omurice') {
-    fillE(8, 12.2, 7.6, 3, '#d8d8e0'); fillE(8, 11.8, 7, 2.4, '#f8f8fc');
-    fillE(8, 9.8, 5.8, 3.6, '#e0a820'); fillE(8, 9.3, 5.4, 3.1, '#f8d448'); fillE(6.3, 8, 2.2, 0.8, '#fff0a0');
-    [[6, 7], [10, 7], [6, 9], [10, 9], [8, 10], [7, 11], [9, 11]].forEach(([x, y]) => set(x, y, '#d03030'));
-    set(13, 12, '#3a9a3a'); set(12, 12, '#5ab04a'); set(13, 11, '#3a9a3a');
-  } else if (id === 'parfait') {
-    rect(5, 14, 6, 1, '#b8c8d8'); rect(7, 12, 2, 2, '#c8d8e8');
-    for (let y = 4; y <= 11; y++) {
-      const hw = Math.round(4.6 - (y - 4) * 0.42);
-      for (let x = 8 - hw; x < 8 + hw; x++) {
-        const c = y >= 10 ? '#c08040' : y >= 8 ? '#f8a0b8' : y >= 6 ? '#fffaf2' : '#f8a0b8';
-        set(x, y, (x === 8 - hw) ? '#e8f0f6' : c);
-      }
-    }
-    set(9, 10, '#e8b060'); set(6, 7, '#e02040'); set(9, 6, '#e02040');
-    fillE(8, 3.2, 3.6, 1.6, '#fffaf2'); fillE(7.5, 2.6, 2, 0.8, '#ffffff');
-    fillE(9.5, 1.5, 1.4, 1.4, '#e02040'); set(9, 1, '#ff8a9a');
-    line(4, 0, 5, 3, '#e0b060');
-  }
-  // ふちどり（しあげ）
-  const out = polish(buf, N, N, '#3a2a20', { despeckle: false });
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) buf[y][x] = out[y][x];
-  after.forEach(f => f());
-  const c = mk(N, N), g = c.getContext('2d');
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (buf[y][x]) { g.fillStyle = buf[y][x]; g.fillRect(x, y, 1, 1); }
-  return c;
-}
+// ================= 料理のアイコン（32px原画、用途別の表示サイズ） =================
 const ICON2 = {};
-for (const k in ICON) ICON2[k] = makeFoodIcon(k);
+for (const k in ICON) { ICON2[k] = KitchenArt.food(k); ICON2[k].foodIcon = true; }
 const HEART2 = scale2x(HEART), FUR2 = scale2x(FUR), PLATE2 = scale2x(PLATE);
 
 // ================= データ =================
@@ -2294,11 +2212,13 @@ function tapHint(u) {
 }
 function drawCoffeeUnit(u, j) {
   const { x, y, w } = u, cx = x + w / 2;
-  K('#2e3a46', x + 4, y, w - 8, 60); K('#5a6a7a', x + 5, y + 1, w - 10, 58); K('#7a8a9a', x + 5, y + 1, w - 10, 4);
-  K('#8a9aaa', x + 9, y + 9, w - 18, 14); K('#24303a', x + 12, y + 12, 18, 8);
-  K(j ? ((tick >> 3) & 1 ? '#ff6a4a' : '#ffb04a') : '#4ac86a', x + w - 18, y + 13, 4, 4);
-  K('#3a3a44', cx - 10, y + 28, 20, 6); K('#2a2a30', cx - 3, y + 34, 6, 4); K('#2a2a30', cx + 8, y + 30, 14, 3);
-  K('#2a2a30', x + 8, y + 66, w - 16, 5); K('#4a4a54', x + 8, y + 66, w - 16, 1);
+  K('#425e55', x + 4, y, w - 8, 66); K('#80998a', x + 5, y + 1, w - 10, 62); K('#bbc9ad', x + 6, y + 2, w - 12, 3);
+  K('#d9d6b8', x + 9, y + 9, w - 18, 16); K('#6e8073', x + 10, y + 10, w - 20, 1);
+  KE(cx - 7, y + 17, 6, 5, '#846b47'); KE(cx - 7, y + 17, 4, 3, '#f8efd4'); K('#76563c', cx - 7, y + 14, 1, 4);
+  KE(cx + 12, y + 17, 3, 3, j ? '#dfae5e' : '#69875a'); K('#fff3ba', cx + 11, y + 15, 1, 1);
+  K('#344a43', x + 9, y + 29, w - 18, 35); K('#b7beb0', cx - 10, y + 28, 20, 6); K('#53645c', cx - 3, y + 34, 6, 4); K('#725039', cx + 8, y + 30, 14, 4);
+  K('#42554d', x + 8, y + 66, w - 16, 5); K('#c4c6ac', x + 8, y + 66, w - 16, 1);
+  for(let dx=11;dx<w-9;dx+=4) K('#97a398', x+dx, y+68, 2, 2);
   // カップ（またはパフェのグラス）
   const parfait = j && j.item.id === 'parfait';
   const cupX = cx - 9, cupY = y + 46, cupW = 18, cupH = 20;
@@ -2318,7 +2238,7 @@ function drawCoffeeUnit(u, j) {
 }
 function drawStoveUnit(u, j) {
   const { x, y, w } = u, cx = x + w / 2 - 6, cy = y + 34;
-  K('#2e2e36', x + 2, y + 38, w - 4, 14); K('#4a4a54', x + 3, y + 39, w - 6, 2);
+  K('#566d61', x + 2, y + 38, w - 4, 14); K('#d8ddc6', x + 3, y + 39, w - 6, 3); K('#a9b9a1', x + 3, y + 42, w - 6, 7); K('#3a5147', x + 6, y + 51, w - 12, 1);
   [x + 10, x + w - 14].forEach(kx => KE(kx, y + 46, 3, 3, '#1e1e24'));
   // 火
   if (j) for (let i = 0; i < 9; i++) { const fx = cx - 14 + i * 3.5, fh = 3 + ((tick >> 2) + i) % 4; K(i % 2 ? '#ffd040' : '#ff8a2a', fx, cy + 4 - fh, 2, fh); K('#5a8aff', fx, cy + 4, 2, 1); }
@@ -2342,7 +2262,7 @@ function drawStoveUnit(u, j) {
 }
 function drawOvenUnit(u, j) {
   const { x, y, w, h } = u;
-  K('#3a2e24', x, y, w, h); K('#7a6a5a', x + 1, y + 1, w - 2, h - 2); K('#8a7a6a', x + 1, y + 1, w - 2, 2);
+  K('#53685c', x, y, w, h); K('#94a58e', x + 1, y + 1, w - 2, h - 2); K('#d6dec1', x + 2, y + 2, w - 4, 3); K('#6c8170', x + 2, y + h - 4, w - 4, 3);
   const wx = x + 8, wy = y + 8, ww = w - 30, wh = h - 14;
   K('#2a2018', wx, wy, ww, wh);
   if (j) {
@@ -2369,9 +2289,13 @@ function passSlots() {
 function renderKitchen() {
   kctx.setTransform(kcv.width / KW, 0, 0, kcv.height / KH, 0, 0); kctx.imageSmoothingEnabled = false;
   // かべ（タイル）
-  K('#f2f4f0', 0, 0, KW, 112);
-  for (let y = 0; y < 112; y += 8) { K('#d8e0dc', 0, y + 7, KW, 1); for (let x = ((y / 8) % 2) * 8; x < KW; x += 16) K('#d8e0dc', x, y, 1, 7); }
-  K('#4a9a8a', 0, 34, KW, 3);
+  K('#f6edda', 0, 0, KW, 112);
+  for (let y = 0; y < 112; y += 16) { K('#d9cfb7', 0, y + 15, KW, 1); for (let x = ((y / 16) % 2) * 16; x < KW; x += 32) { K('#d9cfb7', x, y, 1, 15); K('#fff9e9', x + 2, y + 2, 28, 1); } }
+  K('#81998a', 0, 35, KW, 4); K('#b7c6a7', 0, 35, KW, 1);
+  // Walnut rail, hanging utensils and a small herb pot.
+  K('#8d6947', 139, 47, 125, 3); K('#d7b178', 139, 47, 125, 1);
+  for (const x of [150, 166, 252]) { K('#a6aba0', x, 50, 2, 14); KE(x+1, 67, 3, 5, '#76877b'); K('#d7dec8', x, 63, 1, 5); }
+  K('#a9714d', 112, 94, 15, 18); K('#cc9970', 111, 94, 17, 3); K('#55764e', 119, 76, 2, 19); KE(115, 83, 5, 3, '#7c9658'); KE(124, 78, 4, 3, '#597f50');
   // チケットレール
   K('#8a8a94', 4, 6, KW - 80, 3); K('#b8b8c4', 4, 6, KW - 80, 1);
   if (!G) return;
@@ -2381,13 +2305,13 @@ function renderKitchen() {
     const tx = 10 + n * 32, sway = Math.round(Math.sin((tick + n * 20) / 30));
     K('#c8c0b0', tx + 12 + sway, 9, 2, 3);
     K('#d8d0c0', tx + sway, 12, 26, 24); K('#fffaf0', tx + 1 + sway, 13, 24, 22); K(tagCol[j.st], tx + 1 + sway, 13, 24, 3);
-    kctx.drawImage(ICON2[j.item.id], tx + 5 + sway, 17);
+    kctx.drawImage(ICON2[j.item.id], tx + 5 + sway, 17, 16, 16);
     if (j.c.vip) K('#f2c14e', tx + 20 + sway, 30, 4, 4);
   });
   if (q.length > 11) KT(`+${q.length - 11}`, 365, 14, 11, '#3a3a44');
   // 調理台
-  K('#9aa4ae', 0, 112, KW, 8); K('#c8d0d8', 0, 112, KW, 2); K('#6a747e', 0, 119, KW, 1);
-  K('#7a5232', 0, 120, KW, 48);
+  K('#c8bba1', 0, 112, KW, 8); K('#fff1d4', 0, 112, KW, 3); K('#a38665', 0, 119, KW, 1);
+  K('#805c40', 0, 120, KW, 48); K('#b38a5f', 0, 121, KW, 2);
   for (let x = 4; x < KW; x += 56) { K('#6a4528', x, 126, 50, 36); K('#86603c', x, 126, 50, 1); K('#86603c', x, 126, 1, 36); K('#c8a070', x + 22, 140, 6, 2); }
   // 設備
   for (const u of kitchenUnits()) {
@@ -2396,6 +2320,13 @@ function renderKitchen() {
     else if (u.st === 'stove') drawStoveUnit(u, j);
     else drawOvenUnit(u, j);
     if (!j && queued(u.st).length) tapHint(u);
+    if (j) {
+      const f = Math.min(1, j.t / j.dur), bx = u.x + 3, by = u.st === 'oven' && u.i === 1 ? 38 : 128, bw = u.w - 6;
+      K('#493e2d', bx, by, bw, 7); K('#e2d3ad', bx + 1, by + 1, bw - 2, 5);
+      K('#92ad73', bx + 1 + Math.round((bw - 2) * ZONE[0]), by + 1, Math.max(2, Math.round((bw - 2) * (ZONE[1] - ZONE[0]))), 5);
+      K(j.missed ? '#b56542' : '#567961', bx + 1, by + 4, Math.round((bw - 2) * f), 2);
+      K('#fff9e0', bx + Math.min(bw - 2, Math.round((bw - 2) * f)), by, 2, 7);
+    }
   }
   // 設備の名前（設備ごとに1つ）
   const groups = {};
@@ -2408,7 +2339,7 @@ function renderKitchen() {
   for (const s of passSlots()) {
     const cold = s.j.readyT > COLD_AFTER && s.j.q !== 'perfect';
     KE(s.x + 14, s.y + 13, 12, 3, '#ffffff'); KE(s.x + 14, s.y + 13, 9, 2, '#e8e8f0');
-    kctx.globalAlpha = cold ? 0.6 : 1; kctx.drawImage(ICON2[s.j.item.id], s.x + 6, s.y - 2); kctx.globalAlpha = 1;
+    kctx.globalAlpha = cold ? 0.6 : 1; kctx.drawImage(ICON2[s.j.item.id], s.x + 2, s.y - 8, 24, 24); kctx.globalAlpha = 1;
     if (s.j.q === 'perfect') { K('#8affa0', s.x + 24, s.y - 4, 3, 3); }
     if (!cold && (tick >> 4) & 1) { K('#ffffff', s.x + 2, s.y, 1, 3); }
   }
