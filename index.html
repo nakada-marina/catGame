@@ -349,6 +349,7 @@ const CAT_ROWS = {
 const CAT_PALS = {
   grio:   { o: '#2a2119', b: '#8a7458', t: '#43352a', s: '#6c5a44', w: '#f7f3ec', p: '#eaa0a6', e: '#a9ad3c' },
   mike:   { o: '#5a463a', b: '#fbf6ee', t: '#e8944a', s: '#ddd4c6', w: '#ffffff', p: '#f29bb0', e: '#b8861a' },
+  ponta:  { o: '#17110b', b: '#6a5944', t: '#2a2018', s: '#54463a', w: '#a8947a', p: '#c4807a', e: '#a6cc4e' },
   kuro:   { o: '#0c0c12', b: '#2e2e3a', t: '#24242e', s: '#1c1c24', w: '#44445a', p: '#c06a80', e: '#e8c030' },
   shiro:  { o: '#8a8a98', b: '#fbfbfd', t: '#ececf3', s: '#d9d9e3', w: '#ffffff', p: '#f5a0b8', e: '#4a8ad0' },
   chacha: { o: '#5a3010', b: '#f0a050', t: '#c86e24', s: '#d98a3c', w: '#fff2dc', p: '#f29bb0', e: '#3f7a32' },
@@ -483,7 +484,9 @@ const SAVE_KEY = 'grio-cafe-v1';
 let G = null;            // セーブされる進行データ
 let seats = [], customers = [], cats = [], particles = [], furs = [];
 let tick = 0, speed = 1, mode = 'title', spawnTimer = 200, staffBusy = 0;
-let jobs = [], jobSeq = 0;
+let jobs = [], jobSeq = 0, ponta = null;
+const PONTA_HOME = { x: 140, y: 108 };
+const PICKUP_X = { drink: 162, oven: 194, stove: 213 };
 let dayLog = null, weather = 'sun', dayFlags = {}, rushUntil = 0, vipNext = false;
 
 function newSave() {
@@ -672,6 +675,48 @@ function deliver(job, byStaff) {
   addFx('spark', c.seat.x, c.seat.y - 24);
   if (!byStaff) sfx.serve();
 }
+function updatePonta() {
+  const p = ponta; if (!p) return;
+  if (p.state !== 'nap' && p.state !== 'slack' && p.napCool > 0) p.napCool--;
+  const sp = 0.8;
+  switch (p.state) {
+    case 'idle': {
+      const j = jobs.find(j => j.state === 'ready' && !j.taker);
+      if (j) { j.taker = p; p.job = j; p.state = 'toCounter'; break; }
+      if (moveTo(p, PONTA_HOME.x, PONTA_HOME.y, sp)) {
+        if (p.napCool <= 0 && Math.random() < 0.006) { p.state = 'nap'; p.t = Math.floor(rnd(700, 1300)); event('pontaNap'); }
+        else if (p.napCool <= 0 && Math.random() < 0.002) { p.state = 'slack'; p.t = 360; addFx('text', p.x, p.y - 26, { text: 'ペロペロ…', color: '#ffffff', life: 50 }); }
+      } else p.anim++;
+      break;
+    }
+    case 'toCounter':
+      p.anim++;
+      if (!jobs.includes(p.job)) { p.job = null; p.state = 'idle'; break; }
+      if (moveTo(p, PICKUP_X[p.job.st], 102, sp)) { p.carry = p.job; p.state = 'toTable'; }
+      break;
+    case 'toTable': {
+      p.anim++;
+      const j = p.carry;
+      if (!jobs.includes(j)) { p.carry = p.job = null; p.state = 'idle'; break; }
+      const s = j.c.seat;
+      if (moveTo(p, s.tx + s.side * 14, s.ty + 6, sp)) { deliver(j, true); tone(1175, 0.08, 'triangle', 0.4); p.carry = p.job = null; p.state = 'idle'; }
+      break;
+    }
+    case 'nap': case 'slack':
+      if (--p.t <= 0) { p.state = 'idle'; p.napCool = Math.floor(rnd(1200, 2200)); }
+      break;
+  }
+}
+function wakePonta() {
+  const p = ponta;
+  if (p.state === 'nap' || p.state === 'slack') {
+    p.state = 'idle'; p.napCool = Math.floor(rnd(1600, 2600));
+    addFx('text', p.x, p.y - 26, { text: 'はっ！', color: '#ffe680', life: 50 });
+    tone(880, 0.12, 'square', 0.25, 1400); event('pontaWake');
+  } else {
+    addFx('heart', p.x, p.y - 22); addFx('text', p.x, p.y - 30, { text: 'ぽんた', color: '#ffffff', life: 40 }); sfx.pet();
+  }
+}
 function updateJobs() {
   for (const st in STATIONS) {
     const busy = jobs.filter(j => j.st === st && j.state === 'cook').length;
@@ -683,7 +728,7 @@ function updateJobs() {
     else if (j.state === 'ready') j.readyT++;
   }
   if (G.staff && !staffBusy) {
-    const r = jobs.find(j => j.state === 'ready' && j.readyT > 90);
+    const r = jobs.find(j => j.state === 'ready' && j.readyT > 90 && !j.taker);
     if (r) { staffBusy = 40; deliver(r, true); }
   }
 }
@@ -805,6 +850,7 @@ function petCat(k) {
 function startDay() {
   mode = 'open'; tick = 0; G.time = OPEN; spawnTimer = 120; staffBusy = 0;
   customers = []; particles = []; furs = []; jobs = [];
+  ponta = { x: PONTA_HOME.x, y: PONTA_HOME.y, state: 'idle', t: 0, face: -1, anim: 0, job: null, carry: null, napCool: 900 };
   seats.forEach(s => { s.cust = null; s.dirty = false; });
   weather = Math.random() < 0.25 ? 'rain' : 'sun';
   dayLog = { served: 0, angry: 0, sales: 0, tips: 0, reviews: [], popStart: G.pop, cost: G.pendingCost || 0 };
@@ -876,7 +922,7 @@ function update() {
     spawnTimer = Math.round(clamp(base, 140, 620) * rnd(0.7, 1.3) * (weather === 'rain' ? 1.4 : 1) * (G.time < rushUntil ? 0.4 : 1));
   }
   if (staffBusy > 0) staffBusy--;
-  updateJobs();
+  updateJobs(); updatePonta();
   customers.forEach(updateCustomer);
   customers = customers.filter(c => !c.gone);
   for (const s of seats) if (s.dirty) { s.dirtyT++; if (G.staff && s.dirtyT > 160 && !staffBusy) { s.dirty = false; staffBusy = 30; } }
@@ -1032,6 +1078,26 @@ function drawBowl() {
   if (G.bowl > 0) { P('#c88a50', x - 3, y - 2, 2, 1); P('#c88a50', x + 2, y - 2, 2, 1); }
   P('#2e6aa8', x - 8, y, 17, 2);
 }
+function drawPonta() {
+  const p = ponta, spr = CAT_SPR.ponta, moving = p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
+  const pose = p.state === 'nap' ? 'sleep' : moving ? ((p.anim >> 3) & 1 ? 'walkA' : 'walkB') : 'sit';
+  const right = p.face > 0, img = spr[pose][right ? 0 : 1];
+  const x0 = Math.round(p.x - img.width / 2), y0 = Math.round(p.y - img.height) + (p.state === 'slack' && (tick >> 4) & 1 ? 1 : 0);
+  ctx.drawImage(img, x0, y0);
+  // 緑のバンダナ（従業員のしるし）
+  if (pose !== 'sleep') {
+    const col = pose === 'sit' ? 12 : 13, row = pose === 'sit' ? 7 : 7, w = img.width;
+    const bx = right ? x0 + col : x0 + w - col - 5;
+    P('#2e7a4e', bx, y0 + row, 5, 2); P('#2e7a4e', bx + 1, y0 + row + 2, 3, 1); P('#5ab07a', bx + 1, y0 + row, 2, 1);
+  } else {
+    P('#2e7a4e', right ? x0 + 14 : x0 + 2, y0 + 6, 4, 2);
+  }
+  if (p.carry) ctx.drawImage(ICON[p.carry.item.id], Math.round(p.x - 4), y0 - 9 + ((tick >> 3) & 1));
+  if (p.state === 'nap') {
+    ctx.font = '7px "DotGothic16", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#5a6aa0';
+    const k = (tick >> 4) % 3; ctx.fillText('z', p.x + 8, p.y - 10 - k * 2); if (k > 0) ctx.fillText('Z', p.x + 12, p.y - 15 - k);
+  }
+}
 function drawCat(k) {
   const spr = CAT_SPR[k.pal];
   let pose = 'sit';
@@ -1127,6 +1193,7 @@ function render() {
     list.push({ y, d: () => { drawTable(x, y); seats.filter(s => s.ti === i).forEach(drawTableItems); } });
   }
   for (const c of customers) list.push({ y: c.state === 'enter' || c.state === 'leave' ? c.y : c.seat.y - 0.2, d: () => drawCustomer(c) });
+  if (ponta) list.push({ y: ponta.y, d: drawPonta });
   for (const k of cats) list.push({ y: k.spot === TOWER && k.state === 'nap' ? TOWER.base + 1 : k.y, d: () => drawCat(k) });
   list.sort((a, b) => a.y - b.y).forEach(o => o.d());
   for (const c of customers) if (c.state === 'order' || c.state === 'wait') drawBubble(c);
@@ -1299,7 +1366,14 @@ function updateStockInfo() {
   $('stockInfo').style.color = out ? '#ffb0a0' : '';
 }
 function openCats() {
-  const list = cats.map(k => `
+  const pontaRow = `
+    <div class="row catrow">
+      <canvas width="20" height="18" data-cat="ponta"></canvas>
+      <span class="name">ぽんた（従業員・ぐりおの弟）</span>
+      <span class="desc">できた料理を はこんでくれる。よく寝る。寝ていたらタップで起こそう</span>
+      <span class="desc">いまのようす：${!ponta ? '-' : ponta.state === 'nap' ? 'ねてる（サボり中）' : ponta.state === 'slack' ? '毛づくろい（サボり中）' : ponta.carry ? 'はこんでる' : 'まじめに待機'}</span>
+    </div>`;
+  const list = pontaRow + cats.map(k => `
     <div class="row catrow">
       <canvas width="20" height="18" data-cat="${k.pal}"></canvas>
       <span class="name">${k.name}${k.pal === 'grio' ? '（店長）' : ''}</span>
@@ -1331,10 +1405,10 @@ function openTitle() {
   const tg = $('titleArt').getContext('2d'); tg.imageSmoothingEnabled = false;
   tg.fillStyle = '#e9dcc0'; tg.fillRect(0, 0, 160, 80);
   tg.fillStyle = '#c99a68'; tg.fillRect(0, 64, 160, 16); tg.fillStyle = '#8a5e3a'; tg.fillRect(0, 60, 160, 4);
-  tg.drawImage(FACES.happy, 48, 2);
-  tg.drawImage(CAT_SPR.mike.sit[0], 12, 47); tg.drawImage(CAT_SPR.kuro.sleep[1], 124, 55);
-  tg.drawImage(ICON.coffee, 34, 57); tg.drawImage(ICON.cake, 116, 57);
-  const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) event('intro'); };
+  tg.drawImage(FACES.grio.happy, 34, 2); tg.drawImage(FACES.ponta.sleep, 82, 6);
+  tg.drawImage(CAT_SPR.mike.sit[0], 4, 47); tg.drawImage(CAT_SPR.kuro.sleep[1], 138, 55);
+  tg.drawImage(ICON.coffee, 24, 57); tg.drawImage(ICON.cake, 148, 45);
+  const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) { event('intro'); G.flags.pontaJoin = true; } else event('pontaJoin'); };
   if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, kitchen: { ...base.kitchen, ...(saved.kitchen || {}) }, market: saved.market || base.market, flags: saved.flags || {} }, false); };
   $('mNew').onclick = () => go(newSave(), true);
 }
@@ -1357,6 +1431,7 @@ cv.addEventListener('pointerdown', e => {
     if (s.dirty && Math.abs(x - (s.tx + s.side * 5)) < 12 && y > s.ty - 26 && y < s.ty - 4) { s.dirty = false; sfx.clean(); addFx('spark', s.tx + s.side * 5, s.ty - 18); return; }
   }
   if (x >= 150 && y < 40) { openStock(); return; }
+  if (ponta) { const py = ponta.state === 'nap' ? ponta.y - 5 : ponta.y - 9; if (Math.hypot(x - ponta.x, y - py) < 14) { wakePonta(); return; } }
   let best = null, bd = 18;
   for (const k of cats) {
     const ky = k.spot === TOWER && k.state === 'nap' ? k.y - 5 : k.state === 'nap' ? k.y - 5 : k.y - 9;
@@ -1387,8 +1462,13 @@ const FACE_C = {
   fur: '#8c765a', furL: '#a68d6b', furD: '#6a5640', stripe: '#3e3024', line: '#241a12', white: '#f8f4ec', whiteS: '#ddd5c9',
   earIn: '#e2a39c', earInD: '#c07e7a', eye: '#b9bb4a', eyeD: '#7f8b2c', pupil: '#16140e', nose: '#e7969c', noseD: '#b86870', blush: '#efb0a8',
 };
-function makePortrait(expr) {
-  const N = 64, C = FACE_C, buf = Array.from({ length: N }, () => Array(N).fill(null));
+const PONTA_C = {
+  fur: '#6a5944', furL: '#86735a', furD: '#4a3d2e', stripe: '#211912', line: '#17110b', white: '#e9e2d6', whiteS: '#cfc6b8', muzzle: '#9a8466',
+  earIn: '#c9938c', earInD: '#a07068', eye: '#a6cc4e', eyeD: '#6a9230', pupil: '#121008', nose: '#c4807a', noseD: '#9a5c58', blush: '#d8a098',
+};
+function makePortrait(expr, who = 'grio') {
+  const pon = who === 'ponta';
+  const N = 64, C = pon ? PONTA_C : FACE_C, buf = Array.from({ length: N }, () => Array(N).fill(null));
   const set = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < N && y < N) buf[y][x] = c; };
   const ell = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
   const tri = (x, y, a, b, c) => {
@@ -1400,7 +1480,7 @@ function makePortrait(expr) {
   const each = fn => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) fn(x + 0.5, y + 0.5, x, y); };
   const furAt = (x, y) => ((x * 7 + y * 13) % 17 === 0 ? C.furL : (x * 5 + y * 11) % 19 === 0 ? C.furD : C.fur);
   // 体と白い胸
-  each((fx, fy, x, y) => { if (ell(fx, fy, 32, 76, 29, 22)) buf[y][x] = ell(fx, fy, 32, 70, 12, 16) ? C.white : furAt(x, y); });
+  each((fx, fy, x, y) => { if (ell(fx, fy, 32, 76, 29, 22)) buf[y][x] = ell(fx, fy, 32, 70, pon ? 5 : 12, pon ? 7 : 16) ? C.white : furAt(x, y); });
   // 耳
   const earL = [[6, 3], [27, 17], [12, 32]], earR = [[58, 3], [37, 17], [52, 32]];
   const earLi = [[9, 8], [23, 18], [14, 28]], earRi = [[55, 8], [41, 18], [50, 28]];
@@ -1417,28 +1497,43 @@ function makePortrait(expr) {
       buf[y][x] = c;
     }
   });
+  // ぽんたの ふわふわ（ほっぺと耳の毛）
+  if (pon) {
+    for (let i = 0; i < 6; i++) {
+      const y = 38 + i * 2, d = i % 2;
+      set(5 - d, y, C.fur); set(4 - d, y + 1, C.furL); set(58 + d, y, C.fur); set(59 + d, y + 1, C.furL);
+    }
+    [[13, 22, 17, 17], [15, 24, 19, 19], [51, 22, 47, 17], [49, 24, 45, 19]].forEach(a => line(...a, '#d8c8b0'));
+  }
   // しま模様（おでこの M と ほっぺ）
   [[29, 18, 28, 29], [32, 17, 32, 28], [35, 18, 36, 29], [25, 21, 23, 28], [39, 21, 41, 28]].forEach(a => line(...a, C.stripe));
   [[6, 37, 15, 35], [6, 42, 15, 40], [58, 37, 49, 35], [58, 42, 49, 40], [15, 40, 11, 45], [49, 40, 53, 45]].forEach(a => line(...a, C.stripe));
   line(12, 29, 9, 34, C.stripe); line(52, 29, 55, 34, C.stripe);
-  // 白いマズル
+  // マズル（ぐりおは白、ぽんたは茶色で あごだけ白）
   each((fx, fy, x, y) => {
-    if (ell(fx, fy, 27.5, 47.5, 7, 5) || ell(fx, fy, 36.5, 47.5, 7, 5) || ell(fx, fy, 32, 51, 9, 5)) buf[y][x] = fy > 53 ? C.whiteS : C.white;
+    if (ell(fx, fy, 27.5, 47.5, 7, 5) || ell(fx, fy, 36.5, 47.5, 7, 5) || ell(fx, fy, 32, 51, 9, 5)) {
+      if (pon) buf[y][x] = ell(fx, fy, 32, 53, 6, 3) ? C.white : (x * 3 + y * 7) % 11 === 0 ? C.fur : C.muzzle;
+      else buf[y][x] = fy > 53 ? C.whiteS : C.white;
+    }
   });
   // 目
   for (const cx of [21.5, 42.5]) {
     const cy = 36;
+    if (expr === 'sleep') {
+      line(cx - 5, cy + 1, cx + 5, cy + 1, C.line); set(cx + (cx < 32 ? -5 : 5), cy, C.line);
+      continue;
+    }
     if (expr === 'happy') {
       for (let dx = -5; dx <= 5; dx++) { const dy = Math.round(Math.sqrt(1 - (dx / 5.5) ** 2) * 3); set(cx + dx, cy + 1 - dy, C.line); set(cx + dx, cy + 2 - dy, C.line); }
       for (let dx = -2; dx <= 2; dx++) set(cx + dx, cy + 6, C.blush);
       continue;
     }
-    const big = expr === 'surprise', rx = big ? 6.2 : 5.6, ry = big ? 5.4 : 4.4;
+    const big = expr === 'surprise' || pon, rx = big ? 6.2 : 5.6, ry = big ? 5.4 : 4.4;
     each((fx, fy, x, y) => {
       if (ell(fx, fy, cx, cy, rx + 1, ry + 1) && !ell(fx, fy, cx, cy, rx, ry)) buf[y][x] = C.line;
       else if (ell(fx, fy, cx, cy, rx, ry)) {
         buf[y][x] = fy < cy - 1 ? C.eyeD : C.eye;
-        if (ell(fx, fy, cx + 0.5, cy + 0.3, big ? 1.8 : 1.6, big ? 1.8 : 3.4)) buf[y][x] = C.pupil;
+        if (ell(fx, fy, cx + 0.5, cy + 0.3, expr === 'surprise' ? 1.8 : pon ? 2.6 : 1.6, expr === 'surprise' ? 1.8 : pon ? 3.8 : 3.4)) buf[y][x] = C.pupil;
       }
     });
     set(cx - 2, cy - 2, '#ffffff'); set(cx - 1, cy - 2, '#ffffff'); set(cx - 2, cy - 1, '#ffffff'); set(cx + 2, cy + 2, '#fffbe0');
@@ -1471,8 +1566,9 @@ function makePortrait(expr) {
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (out[y][x]) { g.fillStyle = out[y][x]; g.fillRect(x, y, 1, 1); }
   return c;
 }
-const FACES = {};
-['normal', 'happy', 'sad', 'surprise'].forEach(e => { FACES[e] = makePortrait(e); });
+const FACES = { grio: {}, ponta: {} };
+for (const who of ['grio', 'ponta']) ['normal', 'happy', 'sad', 'surprise', 'sleep'].forEach(e => { FACES[who][e] = makePortrait(e, who); });
+const NAMES = { grio: 'ぐりお', ponta: 'ぽんた' };
 
 // ================= 会話 =================
 const TALKS = {
@@ -1485,6 +1581,11 @@ const TALKS = {
     ['normal', '注文は キッチンで 調理するにゃ。できたら もういちど タップして はこんでね。'],
     ['normal', 'たべおわった おさらも タップして かたづけてね。'],
     ['happy', 'それから…… ぼくたちを なでてくれると、げんきが でるにゃ〜'],
+    ['normal', 'あ、しょうかいするね。こっちは 弟の ぽんた。いちおう 従業員だにゃ。'],
+    ['sleep', '……むにゃ。……ぽんた です……', 'ponta'],
+    ['normal', 'できた料理を テーブルまで はこんでくれるんだけど……'],
+    ['sad', 'よく ねちゃうし、すぐ サボるんだ。ねてたら タップして おこしてあげて。'],
+    ['happy', 'がんばるにゃ〜…… ふあぁ', 'ponta'],
     ['surprise', 'そうそう、料理には 材料が いるにゃ。'],
     ['normal', 'コーヒーには コーヒー豆、クッキーには 小麦粉。なくなったら「仕入れ」で 買ってね。'],
     ['normal', '営業中に 買うと おいそぎ便で たかいから、閉店後に まとめて 買うのが おトクだにゃ。'],
@@ -1514,6 +1615,21 @@ const TALKS = {
     ['sad', 'でも はやすぎると しっぱい。ふつうの 出来に なっちゃう。'],
     ['normal', 'できた料理は ほうっておくと さめちゃうから、はやめに はこんでね。下の「キッチン」からも タップできるよ。'],
   ],
+  pontaJoin: [
+    ['happy', 'オーナーさん、しょうかいするね。弟の ぽんた だにゃ。'],
+    ['normal', 'きょうから 従業員として、できた料理を はこんでくれるよ。', 'grio'],
+    ['sleep', '……むにゃ。よろしく…… おねがいします……', 'ponta'],
+    ['sad', 'よく ねちゃうから、ねてたら タップして おこしてあげてね。'],
+  ],
+  pontaNap: [
+    ['surprise', 'あっ！ ぽんたが また ねてる……！'],
+    ['sleep', 'むにゃ…… あと5分……', 'ponta'],
+    ['normal', 'ぽんたを タップして おこしてあげて。ねてる間は 料理を はこんでくれないにゃ。'],
+  ],
+  pontaWake: [
+    ['surprise', 'にゃっ!? ね、ねてないよ！ ちょっと 目を とじてただけ！', 'ponta'],
+    ['sad', '……まったく もう。'],
+  ],
   toy: [['happy', 'ねこじゃらしを みつけたにゃ！'], ['happy', 'みんなで あそんで、ごきげんに なったよ〜']],
 };
 const talkQ = [];
@@ -1525,8 +1641,9 @@ function startTalk() {
   $('talk').hidden = false; showLine();
 }
 function showLine() {
-  const [face, text] = talking.lines[talking.i];
-  const g = $('face').getContext('2d'); g.clearRect(0, 0, 64, 64); g.drawImage(FACES[face], 0, 0);
+  const [face, text, who = 'grio'] = talking.lines[talking.i];
+  const g = $('face').getContext('2d'); g.clearRect(0, 0, 64, 64); g.drawImage(FACES[who][face], 0, 0);
+  document.querySelector('#talk .who').textContent = NAMES[who];
   talking.text = text; talking.shown = 0; $('talkNext').hidden = true;
   clearInterval(typeTimer);
   typeTimer = setInterval(() => {
