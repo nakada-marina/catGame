@@ -41,7 +41,7 @@ body {
   overflow-x: hidden;
 }
 #wrap {
-  width: min(100%, 640px, calc((100dvh - 150px) * 320 / 400));
+  width: min(100%, 640px, calc((100dvh - 150px) * 224 / 300));
   min-width: min(100%, 300px);
   display: flex;
   flex-direction: column;
@@ -63,7 +63,7 @@ body {
   display: block;
   width: 100%;
   max-width: 100%;
-  aspect-ratio: 320 / 400;
+  aspect-ratio: 224 / 300;
   image-rendering: pixelated;
   border: 3px solid #0f1814;
   border-radius: 6px;
@@ -223,7 +223,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
 <script>
 'use strict';
 // ================= 画面 =================
-const VW = 320, VH = 400, S = 3;
+const VW = 224, VH = 300, S = 4;
 const cv = document.getElementById('cafe');
 cv.width = VW * S; cv.height = VH * S;
 const ctx = cv.getContext('2d');
@@ -416,12 +416,12 @@ const ADOPT = [
 const STAFF = { price: 10000, wage: 2000, star: 2 };
 const RENT = 1000, FOOD_PRICE = 500, FOOD_AMOUNT = 8;
 const OPEN = 600, CLOSE = 1140; // 10:00〜19:00
-const TABLE_POS = [[84, 168], [160, 168], [84, 248], [160, 248], [250, 196], [254, 290]];
-const CUSHION_POS = [[36, 352], [70, 376], [248, 376], [288, 356]];
-const PLANT_POS = [[98, 74], [184, 74], [306, 392]];
-const TOWER = { x: 24, base: 122, top: 62 };
-const BOWL = { x: 226, y: 108 };
-const ENTRANCE = { x: 176, y: 412 };
+const TABLE_POS = [[54, 140], [114, 140], [54, 206], [114, 206], [184, 156], [186, 230]];
+const CUSHION_POS = [[22, 270], [50, 288], [176, 288], [204, 270]];
+const PLANT_POS = [[70, 74], [124, 74], [214, 296]];
+const TOWER = { x: 12, base: 116, top: 58 };
+const BOWL = { x: 150, y: 104 };
+const ENTRANCE = { x: 112, y: 312 };
 const SAVE_KEY = 'grio-cafe-v1';
 
 // ================= 状態 =================
@@ -458,7 +458,7 @@ function buildSeats() {
 function makeCat(c, x, y) {
   return { ...c, x, y, state: 'idle', t: Math.floor(rnd(30, 200)), face: 1, tx: 0, ty: 0, petCool: 0, anim: 0, visit: null, spot: null, jump: 0 };
 }
-function spawnCats() { cats = G.cats.map((c, i) => makeCat(c, 150 + i * 24, 330)); }
+function spawnCats() { cats = G.cats.map((c, i) => makeCat(c, 90 + i * 20, 250)); }
 
 // ================= 音 =================
 let actx = null, master = null, muted = false;
@@ -592,7 +592,7 @@ function catThink(k) {
   const freeCush = CUSHION_POS.slice(0, G.furniture.cushion).filter(p => !cats.some(o => o.spot === p));
   if (freeCush.length && r < 0.55) { const p = pick(freeCush); k.spot = p; k.state = 'toSpot'; k.tx = p[0]; k.ty = p[1] - 1; return; }
   if (G.furniture.tower && r < 0.68 && !cats.some(o => o.spot === TOWER)) { k.spot = TOWER; k.state = 'toSpot'; k.tx = TOWER.x + 10; k.ty = TOWER.base + 2; return; }
-  if (r < 0.9) { k.state = 'walk'; k.tx = rnd(16, 304); k.ty = rnd(104, 388); return; }
+  if (r < 0.9) { k.state = 'walk'; k.tx = rnd(14, 210); k.ty = rnd(104, 288); return; }
   k.state = 'idle'; k.t = Math.floor(rnd(120, 300));
 }
 function updateCat(k) {
@@ -737,7 +737,7 @@ function drawWallAndFloor(time) {
   P('#8a5e3a', 0, 54, VW, 12); P('#a2724a', 0, 54, VW, 2); P('#6e4628', 0, 64, VW, 2);
   for (let x = 8; x < VW; x += 20) P('#7a5232', x, 57, 1, 7);
   const sky = skyColor(time);
-  for (const wx of [38, 196]) {
+  for (const wx of [12]) {
     P('#5a3a22', wx - 2, 8, 52, 38); P(sky, wx, 10, 48, 34);
     if (weather === 'sun' && time < OPEN + 320) { P('#ffffff', wx + 6, 16, 10, 3); P('#ffffff', wx + 8, 14, 6, 2); P('#ffffff', wx + 30, 24, 8, 2); }
     if (weather === 'rain') for (let i = 0; i < 7; i++) { const rx = wx + ((i * 13 + tick * 2) % 46), ry = 10 + ((i * 7 + tick * 3) % 30); P('#dfe8f8', rx, ry, 1, 3); }
@@ -755,28 +755,28 @@ function drawWallAndFloor(time) {
 function drawRoom() {
   drawWallAndFloor(G.time);
   // 黒板メニュー
-  P('#5a3a22', 116, 8, 56, 40); P('#2a3a32', 118, 10, 52, 36);
-  MENU.filter(m => G.menu.includes(m.id)).forEach((m, i) => ctx.drawImage(ICON[m.id], 121 + (i % 4) * 12, 14 + Math.floor(i / 4) * 14));
-  P('#efe9dc', 122, 42, 20, 1); P('#efe9dc', 146, 42, 12, 1);
+  P('#5a3a22', 74, 8, 52, 40); P('#2a3a32', 76, 10, 48, 36);
+  MENU.filter(m => G.menu.includes(m.id)).forEach((m, i) => ctx.drawImage(ICON[m.id], 78 + (i % 4) * 11, 14 + Math.floor(i / 4) * 14));
+  P('#efe9dc', 80, 42, 18, 1); P('#efe9dc', 102, 42, 12, 1);
   if (G.furniture.shelf) {
-    P('#5a3a22', 92, 14, 18, 40); P('#7a5232', 93, 15, 16, 38);
+    P('#5a3a22', 131, 14, 18, 40); P('#7a5232', 132, 15, 16, 38);
     const bc = ['#c85a5a', '#5a8ac8', '#e8c060', '#6aa86a', '#9a6ac8', '#e89a5a'];
-    for (let r = 0; r < 3; r++) { P('#5a3a22', 93, 27 + r * 12, 16, 1); for (let b = 0; b < 5; b++) P(bc[(b + r * 2) % 6], 94 + b * 3, 18 + r * 12, 2, 9 - (b % 2)); }
+    for (let r = 0; r < 3; r++) { P('#5a3a22', 132, 27 + r * 12, 16, 1); for (let b = 0; b < 5; b++) P(bc[(b + r * 2) % 6], 133 + b * 3, 18 + r * 12, 2, 9 - (b % 2)); }
   }
-  P('#6a8a6a', 156, 390, 40, 10); P('#7aa07a', 158, 392, 36, 6);
-  if (G.furniture.rug) { ellipse(160, 334, 50, 17, '#b05a6a'); ellipse(160, 334, 46, 14, '#e8c8a0'); ellipse(160, 334, 33, 9, '#d8a8a0'); }
+  P('#6a8a6a', 92, 290, 40, 10); P('#7aa07a', 94, 292, 36, 6);
+  if (G.furniture.rug) { ellipse(112, 262, 40, 13, '#b05a6a'); ellipse(112, 262, 36, 10, '#e8c8a0'); ellipse(112, 262, 25, 7, '#d8a8a0'); }
   // カウンター
-  P('#3a2616', 236, 56, 84, 40);
-  P('#6a7a8a', 252, 40, 16, 17); P('#8a9aaa', 254, 42, 12, 6); P('#2a2a2a', 258, 50, 4, 4);
-  P('#cfe8f0', 284, 42, 26, 15); P('#ffffff', 285, 43, 24, 1);
-  ctx.drawImage(ICON.cake, 286, 47); ctx.drawImage(ICON.cookie, 298, 47);
-  if (G.staff) ctx.drawImage(STAFF_SPR, 300, 38 + ((tick >> 5) & 1));
-  P('#c08858', 238, 56, 82, 8); P('#d8a070', 238, 56, 82, 2);
-  P('#8a5a34', 238, 64, 82, 30);
-  for (let x = 246; x < 320; x += 18) P('#74482a', x, 66, 1, 26);
+  P('#3a2616', 152, 56, 72, 40);
+  P('#6a7a8a', 160, 40, 16, 17); P('#8a9aaa', 162, 42, 12, 6); P('#2a2a2a', 166, 50, 4, 4);
+  P('#cfe8f0', 186, 42, 26, 15); P('#ffffff', 187, 43, 24, 1);
+  ctx.drawImage(ICON.cake, 188, 47); ctx.drawImage(ICON.cookie, 200, 47);
+  if (G.staff) ctx.drawImage(STAFF_SPR, 210, 38 + ((tick >> 5) & 1));
+  P('#c08858', 154, 56, 70, 8); P('#d8a070', 154, 56, 70, 2);
+  P('#8a5a34', 154, 64, 70, 30);
+  for (let x = 162; x < VW; x += 18) P('#74482a', x, 66, 1, 26);
   if (G.furniture.lamp) {
     const evening = G.time > OPEN + 330;
-    for (const lx of [66, 130, 206, 270]) {
+    for (const lx of [69, 128]) {
       P('#3a2a20', lx, 0, 1, 14); ellipse(lx, 17, 6, 3, '#2e5a4a'); P('#2e5a4a', lx - 6, 17, 13, 2);
       P(evening ? '#fff2a0' : '#f0e0a0', lx - 2, 19, 5, 2);
     }
@@ -960,7 +960,7 @@ function buy(id) {
     const a = ADOPT.find(x => x.pal === key); if (G.money < a.price || cats.some(c => c.pal === key)) return;
     G.money -= a.price;
     const k = { name: a.name, pal: a.pal, mood: 60, hunger: 30 };
-    G.cats.push(k); cats.push(makeCat(k, ENTRANCE.x, 380));
+    G.cats.push(k); cats.push(makeCat(k, ENTRANCE.x, 282));
     toast(`${a.name}がカフェのなかまになりました`); setTimeout(sfx.meow, 300);
     say([['happy', `${a.name}、ようこそ！ なかよく しようにゃ。`]]);
   } else if (kind === 's') {
