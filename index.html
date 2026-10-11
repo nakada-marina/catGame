@@ -943,8 +943,17 @@ function assignClean(k) {
   k.state = 'toClean'; k.tx = s.catX; k.ty = s.catY - 1;
   return true;
 }
+// できた料理を ねこが はこぶ
+function assignDeliver(k) {
+  const j = jobs.find(j => j.state === 'ready' && !j.taker);
+  if (!j) return false;
+  j.taker = k; k.dish = j; k.carry = false; k.spot = null; k.visit = null;
+  k.state = 'toPickup'; k.tx = PICKUP_X[j.st] + rnd(-3, 3); k.ty = 102;
+  return true;
+}
 function catThink(k) {
   const r = Math.random();
+  if (assignDeliver(k)) return;
   if (k.hunger > 60 && G.bowl > 0) { k.state = 'toBowl'; k.tx = BOWL.x + rnd(-6, 6); k.ty = BOWL.y + 6; return; }
   if (r < 0.65 && assignClean(k)) return;
   const guests = seats.filter(s => s.cust && (s.cust.state === 'order' || s.cust.state === 'eat') && !cats.some(o => o !== k && o.visit === s));
@@ -961,7 +970,21 @@ function updateCat(k) {
   if (k.petCool > 0) k.petCool--;
   const sp = 0.45;
   switch (k.state) {
-    case 'idle': if (--k.t <= 0 || (Math.random() < 0.01 && assignClean(k))) { if (k.state === 'idle') catThink(k); } break;
+    case 'idle': if (Math.random() < 0.06 && assignDeliver(k)) break; if (--k.t <= 0 || (Math.random() < 0.01 && assignClean(k))) { if (k.state === 'idle') catThink(k); } break;
+    case 'toPickup':
+      k.anim++;
+      if (!jobs.includes(k.dish)) { k.dish = null; k.state = 'idle'; k.t = 20; break; }
+      if (moveTo(k, k.tx, k.ty, 0.75)) { k.carryDish = true; const s = k.dish.c.seat; k.state = 'toServe'; k.tx = s.catX; k.ty = s.catY; tone(1047, 0.05, 'triangle', 0.3); }
+      break;
+    case 'toServe':
+      k.anim++;
+      if (!jobs.includes(k.dish)) { k.dish = null; k.carryDish = false; k.state = 'idle'; k.t = 20; break; }
+      if (moveTo(k, k.tx, k.ty, 0.75)) {
+        deliver(k.dish, true); tone(1175, 0.08, 'triangle', 0.4);
+        addFx('heart', k.x, k.y - 24); k.mood = clamp(k.mood + 2, 0, 100);
+        k.dish = null; k.carryDish = false; k.state = 'idle'; k.t = 60; event('catServe');
+      }
+      break;
     case 'toClean':
       k.anim++;
       if (!k.clean.dirty) { k.clean.cleaner = null; k.clean = null; k.state = 'idle'; k.t = 30; break; }
@@ -982,7 +1005,7 @@ function updateCat(k) {
         addFx('spark', k.x, k.y - 16); addFx('text', k.x, k.y - 28, { text: 'ピカピカ', color: '#ffffff', life: 40 }); sfx.clean();
       }
       break;
-    case 'walk': k.anim++; if (Math.random() < 0.006 && assignClean(k)) break; if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'idle'; k.t = Math.floor(rnd(90, 260)); } break;
+    case 'walk': k.anim++; if (Math.random() < 0.06 && assignDeliver(k)) break; if (Math.random() < 0.006 && assignClean(k)) break; if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'idle'; k.t = Math.floor(rnd(90, 260)); } break;
     case 'toBowl':
       k.anim++;
       if (moveTo(k, k.tx, k.ty, sp)) {
@@ -1029,7 +1052,7 @@ function petCat(k) {
 function startDay() {
   mode = 'open'; tick = 0; G.time = OPEN; spawnTimer = 120; staffBusy = 0;
   customers = []; particles = []; furs = []; jobs = [];
-  cats.forEach(k => { if (k.clean || k.carry) { k.clean = null; k.carry = false; k.state = 'idle'; k.t = 30; } });
+  cats.forEach(k => { if (k.clean || k.carry || k.dish) { k.clean = null; k.carry = false; k.dish = null; k.carryDish = false; k.state = 'idle'; k.t = 30; } });
   seats.forEach(s => { s.cleaner = null; });
   ponta = G.ponta ? makePonta() : null;
   seats.forEach(s => { s.cust = null; s.dirty = false; });
@@ -1395,7 +1418,7 @@ function drawZzz(x, y) {
 }
 function drawCat(k) {
   let pose = 'sit';
-  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink'].includes(k.state)) pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB';
+  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink', 'toPickup', 'toServe'].includes(k.state)) pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB';
   else if (k.state === 'nap') pose = 'sleep';
   const img = catImg(k.pal, pose, k.face);
   let Y = Math.round(k.y * 2 - img.height);
@@ -1403,6 +1426,7 @@ function drawCat(k) {
   if (k.jump > 0) Y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 12);
   drawAt(img, Math.round(k.x * 2 - img.width / 2), Y);
   if (k.carry) drawAt(PLATE2, k.x * 2 - 9, Y - 10 + ((tick >> 3) & 1) * 2);
+  if (k.carryDish && k.dish) drawAt(ICON2[k.dish.item.id], k.x * 2 - 8, Y - 16 + ((tick >> 3) & 1) * 2);
   if (k.state === 'pickup' && (tick >> 3) & 1) { P('#ffffff', k.x * 2 + k.face * 12, Y + 4, 2, 2); }
   if (k.state === 'nap' && (tick >> 5) % 3 === 0) drawZzz(k.x * 2 + 18, k.y * 2 - 18);
 }
@@ -2092,7 +2116,8 @@ const TALKS = {
     ['normal', 'コーヒーは カップの みどりの線まで たまったら タップ。フライパンは きつね色で キラキラしたら タップ。オーブンは ベルが 光ったら タップ！'],
     ['happy', 'うまく できたら「パーフェクト！」 チップも ふえるにゃ。'],
     ['sad', 'でも はやすぎると しっぱい。ふつうの 出来に なっちゃう。'],
-    ['normal', 'できた料理は「できあがり」の台に ならぶよ。タップして はこんでね。さめないうちに！'],
+    ['happy', 'できた料理は「できあがり」の台に ならんで、ぼくたち ねこが 席まで はこぶにゃ！'],
+    ['normal', 'いそぐときは、台の料理を タップすれば すぐ とどくよ。'],
   ],
   pontaJoin: [
     ['happy', 'オーナーさん、しょうかいするね。弟の ぽんた だにゃ。'],
@@ -2109,6 +2134,7 @@ const TALKS = {
     ['surprise', 'にゃっ!? ね、ねてないよ！ ちょっと 目を とじてただけ！', 'ponta'],
     ['sad', '……まったく もう。'],
   ],
+  catServe: [['happy', 'おまたせしましたにゃ〜。ねこが 料理を はこんだよ！']],
   catClean: [
     ['happy', 'ぼくたちも おさらの かたづけ、てつだうにゃ！'],
     ['normal', 'ねこが まにあわないときは、おさらを タップすれば すぐ かたづくよ。'],
