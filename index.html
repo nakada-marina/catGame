@@ -41,7 +41,7 @@ body {
   overflow-x: hidden;
 }
 #wrap {
-  width: min(100%, 640px, calc((100dvh - 150px) * 224 / 300));
+  width: min(100%, 640px, calc((100dvh - 230px) * 224 / 300));
   min-width: min(100%, 300px);
   display: flex;
   flex-direction: column;
@@ -190,6 +190,22 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
 .title-art { display: block; width: 100%; image-rendering: pixelated; border-radius: 6px; }
 #sub { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--chalk-dim); gap: 8px; }
 #sub span { min-width: 0; }
+#kitchen { display: flex; align-items: center; gap: 8px; min-height: 58px; background: #18241f; border-radius: 8px; padding: 6px 8px; }
+#kitchen .klabel { font-size: 11px; color: var(--chalk-dim); writing-mode: vertical-rl; letter-spacing: 2px; flex-shrink: 0; }
+#jobs { display: flex; gap: 6px; overflow-x: auto; min-width: 0; flex: 1; }
+#jobs:empty::before { content: '注文を受けると ここで調理します'; font-size: 12px; color: #6a7a72; align-self: center; }
+.job { flex: 0 0 60px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 4px 4px; background: #2e3f37; border-bottom-width: 2px; border-radius: 6px; }
+.job img { width: 24px; height: 24px; image-rendering: pixelated; }
+.job .gauge { position: relative; width: 50px; height: 7px; background: #46564e; border-radius: 3px; overflow: hidden; }
+.job .gauge .zone { position: absolute; top: 0; bottom: 0; background: #4fbf6a; opacity: 0.85; }
+.job .gauge .fill { position: absolute; left: 0; top: 0; bottom: 0; background: #f2c14e; }
+.job .gauge .fill.hot { background: #ff8a3a; }
+.job .lbl { font-size: 10px; line-height: 1; color: var(--chalk-dim); white-space: nowrap; }
+.job.ready { background: #f2c14e; color: #2a1e10; }
+.job.ready .lbl { color: #2a1e10; }
+.job.ready .gauge .fill { background: #6aa0d8; }
+.job.perfect { outline: 2px solid #8affa0; }
+.job.wait { opacity: 0.6; }
 .tools { display: flex; gap: 6px; flex-shrink: 0; }
 .ingr { display: grid; grid-template-columns: 28px 1fr auto auto; gap: 2px 8px; align-items: center; background: #24352e; border-radius: 8px; padding: 8px 10px; }
 .ingr img { width: 24px; height: 24px; image-rendering: pixelated; grid-column: 1; grid-row: 1 / span 2; }
@@ -222,6 +238,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
       <div class="msg"><span class="who">ぐりお</span><p id="talkText"></p><span class="next" id="talkNext">▼</span></div>
     </div>
   </div>
+  <div id="kitchen" aria-label="キッチン"><span class="klabel">キッチン</span><div id="jobs"></div></div>
   <div id="actions">
     <button type="button" id="btnFood">ごはん<small id="foodLeft">のこり 0</small></button>
     <button type="button" id="btnStock">仕入れ<small id="stockInfo">ざいこ</small></button>
@@ -229,7 +246,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
     <button type="button" id="btnCats">ねこ<small>ようす</small></button>
   </div>
   <div id="sub">
-    <span>ふきだし＝注文を出す・お皿＝かたづけ・ねこ＝なでる</span>
+    <span>ふきだし＝注文・調理・運ぶ／お皿＝かたづけ／ねこ＝なでる</span>
     <span class="tools"><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
   </div>
 </div>
@@ -405,13 +422,13 @@ const PLATE = sprite(['..ooooo..', '.owwwwwo.', 'owwcwwcwo', '.owwwwwo.', '..ooo
 
 // ================= データ =================
 const MENU = [
-  { id: 'coffee', name: 'コーヒー', price: 400, unlock: 0, need: { beans: 1 } },
-  { id: 'cookie', name: 'ねこクッキー', price: 300, unlock: 0, need: { flour: 1 } },
-  { id: 'tea', name: 'ミルクティー', price: 500, unlock: 3000, need: { leaf: 1, milk: 1 } },
-  { id: 'cake', name: 'いちごケーキ', price: 800, unlock: 6000, need: { flour: 1, egg: 1, berry: 1, cream: 1 } },
-  { id: 'pancake', name: 'パンケーキ', price: 900, unlock: 10000, need: { flour: 1, egg: 1, milk: 1 } },
-  { id: 'omurice', name: 'ねこオムライス', price: 1200, unlock: 16000, need: { rice: 1, egg: 2 } },
-  { id: 'parfait', name: 'にくきゅうパフェ', price: 1500, unlock: 24000, need: { berry: 1, cream: 1, milk: 1 } },
+  { id: 'coffee', name: 'コーヒー', price: 400, unlock: 0, st: 'drink', time: 150, need: { beans: 1 } },
+  { id: 'cookie', name: 'ねこクッキー', price: 300, unlock: 0, st: 'oven', time: 260, need: { flour: 1 } },
+  { id: 'tea', name: 'ミルクティー', price: 500, unlock: 3000, st: 'drink', time: 200, need: { leaf: 1, milk: 1 } },
+  { id: 'cake', name: 'いちごケーキ', price: 800, unlock: 6000, st: 'oven', time: 360, need: { flour: 1, egg: 1, berry: 1, cream: 1 } },
+  { id: 'pancake', name: 'パンケーキ', price: 900, unlock: 10000, st: 'stove', time: 400, need: { flour: 1, egg: 1, milk: 1 } },
+  { id: 'omurice', name: 'ねこオムライス', price: 1200, unlock: 16000, st: 'stove', time: 480, need: { rice: 1, egg: 2 } },
+  { id: 'parfait', name: 'にくきゅうパフェ', price: 1500, unlock: 24000, st: 'drink', time: 300, need: { berry: 1, cream: 1, milk: 1 } },
 ];
 // 材料（life: 日もち。0 は日もちする乾物）
 const INGR = [
@@ -427,6 +444,13 @@ const INGR = [
 const INGR_IMG = {};
 for (const it of INGR) INGR_IMG[it.id] = sprite(it.icon[0], it.icon[1]).toDataURL();
 const RUSH_RATE = 1.5;
+const STATIONS = {
+  drink: { name: 'コーヒーマシン', price: 6000 },
+  oven: { name: 'オーブン', price: 8000 },
+  stove: { name: 'コンロ', price: 8000 },
+};
+const ZONE = [0.68, 0.86];   // パーフェクトになるタイミング
+const COLD_AFTER = 420;      // できてから冷めるまで
 const FURNITURE = [
   { id: 'table', name: 'テーブル席', price: 5000, max: 6, desc: 'お客さんの席が2つふえる' },
   { id: 'cushion', name: 'ねこクッション', price: 1500, max: 4, desc: 'ねこがお昼寝できる。ごきげんUP' },
@@ -459,13 +483,14 @@ const SAVE_KEY = 'grio-cafe-v1';
 let G = null;            // セーブされる進行データ
 let seats = [], customers = [], cats = [], particles = [], furs = [];
 let tick = 0, speed = 1, mode = 'title', spawnTimer = 200, staffBusy = 0;
+let jobs = [], jobSeq = 0;
 let dayLog = null, weather = 'sun', dayFlags = {}, rushUntil = 0, vipNext = false;
 
 function newSave() {
   return {
     day: 1, money: 8000, pop: 10, bowl: 6, staff: false, served: 0, legend: false,
     furniture: { table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0, fridge: 0, rack: 0 },
-    stock: { beans: [{ n: 16, day: 1 }], flour: [{ n: 12, day: 1 }] }, market: rollMarket(), pendingCost: 0,
+    stock: { beans: [{ n: 16, day: 1 }], flour: [{ n: 12, day: 1 }] }, kitchen: { drink: 1, oven: 1, stove: 1 }, market: rollMarket(), pendingCost: 0,
     menu: ['coffee', 'cookie'], flags: {},
     cats: [{ name: 'ぐりお', pal: 'grio', mood: 70, hunger: 20 }],
   };
@@ -619,9 +644,48 @@ function serve(c, byStaff) {
     return false;
   }
   consume(c.order); updateStockInfo();
-  c.state = 'eat'; c.t = 0; c.patAtServe = c.pat;
+  const job = { id: ++jobSeq, c, item: c.order, st: c.order.st, state: 'queue', t: 0, dur: c.order.time, q: 'normal', missed: false, readyT: 0 };
+  jobs.push(job); c.job = job; c.state = 'wait'; c.patAtServe = c.pat;
+  addFx('text', c.seat.x, c.seat.y - 40, { text: '注文うけたよ', color: '#ffffff', life: 40 });
+  if (!byStaff) { tone(988, 0.08, 'triangle', 0.5); event('cook'); }
+  return true;
+}
+function cookTap(job) {
+  if (job.state === 'ready') { deliver(job, false); return; }
+  if (job.state !== 'cook' || job.missed) return;
+  const f = job.t / job.dur;
+  if (f >= ZONE[0] && f <= ZONE[1]) {
+    job.q = 'perfect'; job.state = 'ready'; job.readyT = 0;
+    addFx('text', job.c.seat.x, job.c.seat.y - 42, { text: 'パーフェクト！', color: '#8affa0', life: 60 });
+    [1047, 1319, 1568].forEach((f2, i) => tone(f2, 0.12, 'square', 0.25, null, i * 0.06));
+  } else {
+    job.missed = true;
+    addFx('text', job.c.seat.x, job.c.seat.y - 42, { text: 'はやすぎ…', color: '#ffb0a0', life: 50 });
+    tone(220, 0.15, 'triangle', 0.5);
+  }
+}
+function deliver(job, byStaff) {
+  const c = job.c;
+  jobs = jobs.filter(j => j !== job); c.job = null;
+  if (job.readyT > COLD_AFTER && job.q !== 'perfect') job.q = 'cold';
+  c.quality = job.q; c.state = 'eat'; c.t = 0;
   addFx('spark', c.seat.x, c.seat.y - 24);
   if (!byStaff) sfx.serve();
+}
+function updateJobs() {
+  for (const st in STATIONS) {
+    const busy = jobs.filter(j => j.st === st && j.state === 'cook').length;
+    let free = G.kitchen[st] - busy;
+    for (const j of jobs) if (free > 0 && j.st === st && j.state === 'queue') { j.state = 'cook'; free--; }
+  }
+  for (const j of jobs) {
+    if (j.state === 'cook' && ++j.t >= j.dur) { j.state = 'ready'; j.readyT = 0; tone(1568, 0.1, 'sine', 0.3); }
+    else if (j.state === 'ready') j.readyT++;
+  }
+  if (G.staff && !staffBusy) {
+    const r = jobs.find(j => j.state === 'ready' && j.readyT > 90);
+    if (r) { staffBusy = 40; deliver(r, true); }
+  }
 }
 function updateCustomer(c) {
   c.t++;
@@ -637,11 +701,10 @@ function updateCustomer(c) {
   } else if (c.state === 'order') {
     c.pat -= catNear(s) ? 0.5 : 1;
     if (G.staff && !staffBusy && c.t > 200 && canMake(c.order)) { staffBusy = 40; serve(c, true); }
-    else if (c.pat <= 0) {
-      c.state = 'leave'; s.cust = null; dayLog.angry++;
-      G.pop = clamp(G.pop - 2, 0, 100); sfx.angry(); addFx('anger', s.x, s.y - 26, { life: 70 });
-      dayLog.reviews.push({ sat: 10, item: c.order.name, cat: false });
-    }
+    else if (c.pat <= 0) leaveAngry(c);
+  } else if (c.state === 'wait') {
+    c.pat -= catNear(s) ? 0.2 : 0.4;
+    if (c.pat <= 0) leaveAngry(c);
   } else if (c.state === 'eat') {
     if (c.t > 420) pay(c);
   } else if (c.state === 'leave') {
@@ -649,18 +712,28 @@ function updateCustomer(c) {
     if (moveTo(c, ENTRANCE.x, ENTRANCE.y + 10, 0.8)) c.gone = true;
   }
 }
+function leaveAngry(c) {
+  const s = c.seat;
+  if (c.job) { jobs = jobs.filter(j => j !== c.job); c.job = null; }
+  c.state = 'leave'; s.cust = null; dayLog.angry++;
+  G.pop = clamp(G.pop - 2, 0, 100); sfx.angry(); addFx('anger', s.x, s.y - 26, { life: 70 });
+  dayLog.reviews.push({ sat: 10, item: c.order.name, cat: false });
+}
 function pay(c) {
   const s = c.seat, item = c.order;
   const wait = 1 - c.patAtServe / c.maxPat;
-  let sat = 52 + decor() * 2.5 + Math.min(3, c.visits) * 9 + (avgMood() - 50) * 0.25 - wait * 34 - furs.length * 2.5;
+  let sat = 52 + decor() * 2.5 + Math.min(3, c.visits) * 9 + (avgMood() - 50) * 0.25 - wait * 30 - furs.length * 2.5;
+  sat += c.quality === 'perfect' ? 14 : c.quality === 'cold' ? -14 : 0;
   sat = clamp(Math.round(sat + rnd(-6, 6)), 0, 100);
   let tip = sat > 62 ? Math.round(item.price * (sat - 62) / 100 / 10) * 10 : 0;
+  if (c.quality === 'perfect') tip = Math.round((tip + item.price * 0.15) / 10) * 10;
   if (c.vip && wait < 0.5) { tip = tip * 3 + 500; G.pop = clamp(G.pop + 3, 0, 100); }
   earn(item.price + tip, s.x, s.y - 26);
   dayLog.tips += tip;
   G.pop = clamp(G.pop + (sat - 58) / 22, 0, 100);
   G.served++; dayLog.served++;
-  dayLog.reviews.push({ sat, item: item.name, cat: c.visits > 0 });
+  dayLog.reviews.push({ sat, item: item.name, cat: c.visits > 0, q: c.quality });
+  if (c.quality === 'perfect') dayLog.perfect = (dayLog.perfect || 0) + 1;
   sfx.coin();
   if (sat >= 75) addFx('heart', s.x, s.y - 24);
   c.state = 'leave'; s.cust = null; s.dirty = true; s.dirtyT = 0;
@@ -731,7 +804,7 @@ function petCat(k) {
 // ================= 1日の流れ =================
 function startDay() {
   mode = 'open'; tick = 0; G.time = OPEN; spawnTimer = 120; staffBusy = 0;
-  customers = []; particles = []; furs = [];
+  customers = []; particles = []; furs = []; jobs = [];
   seats.forEach(s => { s.cust = null; s.dirty = false; });
   weather = Math.random() < 0.25 ? 'rain' : 'sun';
   dayLog = { served: 0, angry: 0, sales: 0, tips: 0, reviews: [], popStart: G.pop, cost: G.pendingCost || 0 };
@@ -765,7 +838,7 @@ function endDay() {
   const yen = v => `${v > 0 ? '+' : v < 0 ? '−' : ''}¥${Math.abs(v).toLocaleString()}`;
   openModal(`
     <h2>${finished}日目のけっか</h2>
-    <p class="sub">お客さん ${dayLog.served}人 ／ おこって帰った人 ${dayLog.angry}人 ／ ひょうばん ${popDiff >= 0 ? '+' : ''}${popDiff}</p>
+    <p class="sub">お客さん ${dayLog.served}人 ／ パーフェクト ${dayLog.perfect || 0}回 ／ おこって帰った人 ${dayLog.angry}人 ／ ひょうばん ${popDiff >= 0 ? '+' : ''}${popDiff}</p>
     <div class="stat">
       ${lines.map(([n, v, c]) => `<span>${n}</span><span class="${c}">${yen(v)}</span>`).join('')}
       <span class="total">きょうの利益</span><span class="total ${net >= 0 ? 'plus' : 'minus'}">${yen(net)}</span>
@@ -781,6 +854,8 @@ function endDay() {
   updateHud();
 }
 function reviewText(r) {
+  if (r.q === 'perfect' && Math.random() < 0.6) return `<div class="review"><span class="who">★★★★★</span><br>「${pick([`${r.item}がおいしすぎる！`, `${r.item}、できたてで さいこう`, 'ここの料理は ほんものだ…'])}」</div>`;
+  if (r.q === 'cold' && r.sat < 70) return `<div class="review"><span class="who">★★☆☆☆</span><br>「${r.item}が ちょっと さめてた…」</div>`;
   const good = [`${r.item}がおいしかった！`, `また来たいです。${r.item}さいこう`, 'ゆっくりできました', 'おしゃれで落ち着くお店'];
   const cat = ['ねこが足元に来てくれて しあわせ…', 'ねこがとなりでゴロゴロしてた！', 'ねこと目があった。かわいすぎる'];
   const mid = [`${r.item}はふつうかな`, 'ちょっと待ったけど まあまあ', 'ねこにあいたかったな'];
@@ -801,6 +876,7 @@ function update() {
     spawnTimer = Math.round(clamp(base, 140, 620) * rnd(0.7, 1.3) * (weather === 'rain' ? 1.4 : 1) * (G.time < rushUntil ? 0.4 : 1));
   }
   if (staffBusy > 0) staffBusy--;
+  updateJobs();
   customers.forEach(updateCustomer);
   customers = customers.filter(c => !c.gone);
   for (const s of seats) if (s.dirty) { s.dirtyT++; if (G.staff && s.dirtyT > 160 && !staffBusy) { s.dirty = false; staffBusy = 30; } }
@@ -858,10 +934,8 @@ function drawRoom() {
   drawPantry();
   // カウンター
   P('#3a2616', 152, 56, 72, 40);
-  P('#6a7a8a', 160, 40, 16, 17); P('#8a9aaa', 162, 42, 12, 6); P('#2a2a2a', 166, 50, 4, 4);
-  P('#cfe8f0', 186, 42, 26, 15); P('#ffffff', 187, 43, 24, 1);
-  ctx.drawImage(ICON.cake, 188, 47); ctx.drawImage(ICON.cookie, 200, 47);
-  if (G.staff) ctx.drawImage(STAFF_SPR, 210, 38 + ((tick >> 5) & 1));
+  drawAppliances();
+  if (G.staff) ctx.drawImage(STAFF_SPR, 172, 38 + ((tick >> 5) & 1));
   P('#c08858', 154, 56, 70, 8); P('#d8a070', 154, 56, 70, 2);
   P('#8a5a34', 154, 64, 70, 30);
   for (let x = 162; x < VW; x += 18) P('#74482a', x, 66, 1, 26);
@@ -905,6 +979,29 @@ function drawPantry() {
   { const n = Math.min(4, Math.ceil(stockOf('cream') / 2)); for (let j = 0; j < n; j++) { const x = cx(3) + j * 4; P('#ffffff', x, 30, 3, 6); P('#f0a0b0', x, 32, 3, 2); P('#d0c8c0', x, 30, 3, 1); } pantryMark(cx(3) + 6, 'cream'); }
   // たな板
   for (const by of [19, 37]) { P('#7a5232', x0 - 1, by, 72, 2); P('#5a3a22', x0 - 1, by + 2, 72, 1); }
+}
+function drawAppliances() {
+  const busy = st => jobs.some(j => j.st === st && j.state === 'cook');
+  const ready = st => jobs.some(j => j.st === st && j.state === 'ready');
+  const b = (tick >> 3) & 1;
+  // コーヒーマシン
+  P('#4a5a6a', 155, 40, 15, 17); P('#6a7a8a', 156, 41, 13, 15); P('#9aaaba', 157, 42, 11, 5);
+  P(busy('drink') ? (b ? '#ff6a4a' : '#ffb04a') : '#4a8a4a', 166, 43, 1, 1);
+  P('#2a2a2a', 160, 49, 5, 2); P('#f4f4f4', 160, 52, 5, 4); P('#7a4426', 161, 53, 3, 1);
+  if (busy('drink')) for (let i = 0; i < 3; i++) P('#ffffff', 160 + i * 2, 36 - ((tick >> 2) + i * 3) % 6, 1, 2);
+  // オーブン
+  P('#5a4a3a', 186, 41, 17, 16); P('#8a7a6a', 187, 42, 15, 14); P('#3a2a20', 189, 45, 11, 8);
+  P(busy('oven') ? (b ? '#ff9a3a' : '#ffc060') : '#4a3a2a', 190, 46, 9, 6);
+  P('#c8c0b0', 189, 43, 3, 1); P('#c8c0b0', 194, 43, 3, 1);
+  // コンロ
+  P('#4a4a52', 205, 51, 18, 6); P('#2a2a30', 206, 50, 16, 1);
+  P('#3a3a40', 207, 46, 14, 4); P('#5a5a64', 208, 45, 12, 1); P('#3a3a40', 220, 47, 3, 1);
+  if (busy('stove')) { P(b ? '#ff8a2a' : '#ffd040', 209, 50, 2, 1); P(b ? '#ffd040' : '#ff8a2a', 213, 50, 2, 1); P(b ? '#ff8a2a' : '#ffd040', 217, 50, 2, 1); for (let i = 0; i < 2; i++) P('#ffffff', 211 + i * 4, 42 - ((tick >> 2) + i * 2) % 5, 1, 2); }
+  // 2台目のしるし
+  [['drink', 155], ['oven', 186], ['stove', 205]].forEach(([st, x]) => { if (G.kitchen[st] > 1) { P('#f2c14e', x, 38, 5, 3); P('#3a2a10', x + 1, 39, 1, 1); P('#3a2a10', x + 3, 39, 1, 1); } });
+  if (ready('drink') && b) P('#f2c14e', 162, 34, 2, 2);
+  if (ready('oven') && b) P('#f2c14e', 194, 36, 2, 2);
+  if (ready('stove') && b) P('#f2c14e', 213, 38, 2, 2);
 }
 function drawTable(x, y) {
   P('#5a3a20', x - 1, y - 9, 3, 9); P('#4a2e18', x - 6, y - 1, 13, 2);
@@ -968,6 +1065,7 @@ function drawTableItems(s) {
 }
 function drawBubble(c) {
   const s = c.seat, x = s.x - 9, y = s.y - 40;
+  if (c.state === 'wait' && c.job) { drawCookBubble(c, c.job, x, y); return; }
   P('#3a3030', x, y + 1, 18, 14); P('#3a3030', x + 1, y, 16, 16);
   P('#ffffff', x + 1, y + 1, 16, 14); P('#3a3030', x + 7, y + 16, 4, 2); P('#ffffff', x + 8, y + 15, 2, 2);
   ctx.drawImage(ICON[c.order.id], x + 5, y + 2);
@@ -976,6 +1074,27 @@ function drawBubble(c) {
   const f = c.pat / c.maxPat;
   P('#d8d0d0', x + 2, y + 12, 14, 2); P(f > 0.5 ? '#5ac85a' : f > 0.25 ? '#f0c040' : '#e85a4a', x + 2, y + 12, Math.max(1, Math.round(14 * f)), 2);
   if (f < 0.25 && (tick >> 3) & 1) P('#e85a4a', x + 17, y - 2, 2, 5);
+}
+function drawCookBubble(c, j, x, y) {
+  const ready = j.state === 'ready', blink = (tick >> 3) & 1;
+  const bg = ready ? (blink ? '#fff2a8' : '#ffe070') : '#f4f0e8';
+  P('#3a3030', x, y + 1, 18, 14); P('#3a3030', x + 1, y, 16, 16);
+  P(bg, x + 1, y + 1, 16, 14); P('#3a3030', x + 7, y + 16, 4, 2); P(bg, x + 8, y + 15, 2, 2);
+  ctx.globalAlpha = j.state === 'queue' ? 0.45 : 1; ctx.drawImage(ICON[j.item.id], x + 5, y + 1); ctx.globalAlpha = 1;
+  if (j.state === 'cook') {
+    const f = j.t / j.dur;
+    P('#c8c0b8', x + 2, y + 11, 14, 3);
+    if (!j.missed) P('#4fbf6a', x + 2 + Math.round(14 * ZONE[0]), y + 11, Math.max(1, Math.round(14 * (ZONE[1] - ZONE[0]))), 3);
+    P('#e8702a', x + 2, y + 12, Math.max(1, Math.round(14 * f)), 1);
+    if ((tick >> 4) & 1) { P('#ffffff', x + 13, y - 2, 1, 2); P('#ffffff', x + 15, y - 3, 1, 2); }
+  } else if (j.state === 'queue') {
+    for (let i = 0; i < 3; i++) if ((tick >> 4) % 4 > i) P('#8a8a8a', x + 5 + i * 3, y + 12, 2, 2);
+  } else if (ready) {
+    P('#e8483a', x + 15, y - 3, 2, 5); P('#e8483a', x + 15, y + 3, 2, 2);
+    const cold = j.readyT / COLD_AFTER;
+    P('#c8c0b8', x + 2, y + 12, 14, 2); P(cold < 1 ? '#6aa0d8' : '#8a8aa0', x + 2, y + 12, Math.max(1, Math.round(14 * Math.min(1, cold))), 2);
+  }
+  if (c.vip) drawCrown(x + 9, y - 5);
 }
 function drawParticles() {
   for (const p of particles) {
@@ -1010,10 +1129,44 @@ function render() {
   for (const c of customers) list.push({ y: c.state === 'enter' || c.state === 'leave' ? c.y : c.seat.y - 0.2, d: () => drawCustomer(c) });
   for (const k of cats) list.push({ y: k.spot === TOWER && k.state === 'nap' ? TOWER.base + 1 : k.y, d: () => drawCat(k) });
   list.sort((a, b) => a.y - b.y).forEach(o => o.d());
-  for (const c of customers) if (c.state === 'order') drawBubble(c);
+  for (const c of customers) if (c.state === 'order' || c.state === 'wait') drawBubble(c);
   drawParticles();
   const f = (G.time - OPEN) / (CLOSE - OPEN);
   if (f > 0.65) { ctx.fillStyle = `rgba(255,140,60,${Math.min(0.16, (f - 0.65) * 0.6)})`; ctx.fillRect(0, 0, VW, VH); }
+}
+
+// ================= キッチン列 =================
+const ICON_URL = {};
+for (const k in ICON) ICON_URL[k] = ICON[k].toDataURL();
+const jobEls = new Map();
+function renderJobs() {
+  const box = $('jobs'), alive = new Set(jobs.map(j => j.id));
+  for (const [id, el] of jobEls) if (!alive.has(id)) { el.remove(); jobEls.delete(id); }
+  for (const j of jobs) {
+    let el = jobEls.get(j.id);
+    if (!el) {
+      el = document.createElement('button'); el.type = 'button'; el.className = 'job';
+      el.innerHTML = `<img src="${ICON_URL[j.item.id]}" alt="${j.item.name}"><span class="gauge"><span class="zone"></span><span class="fill"></span></span><span class="lbl"></span>`;
+      el.addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); if (!isPaused()) cookTap(j); });
+      box.appendChild(el); jobEls.set(j.id, el);
+    }
+    const zone = el.querySelector('.zone'), fill = el.querySelector('.fill'), lbl = el.querySelector('.lbl');
+    el.classList.toggle('ready', j.state === 'ready');
+    el.classList.toggle('wait', j.state === 'queue');
+    el.classList.toggle('perfect', j.q === 'perfect');
+    if (j.state === 'cook') {
+      zone.style.display = j.missed ? 'none' : '';
+      zone.style.left = ZONE[0] * 100 + '%'; zone.style.width = (ZONE[1] - ZONE[0]) * 100 + '%';
+      fill.style.width = (j.t / j.dur * 100) + '%'; fill.classList.add('hot');
+      lbl.textContent = j.missed ? 'ふつうに' : STATIONS[j.st].name.slice(0, 5);
+    } else if (j.state === 'queue') {
+      zone.style.display = 'none'; fill.style.width = '0'; lbl.textContent = 'じゅんばん';
+    } else {
+      zone.style.display = 'none'; fill.classList.remove('hot');
+      fill.style.width = Math.min(100, j.readyT / COLD_AFTER * 100) + '%';
+      lbl.textContent = j.readyT > COLD_AFTER && j.q !== 'perfect' ? 'さめた…' : j.q === 'perfect' ? 'はこぶ！★' : 'はこぶ！';
+    }
+  }
 }
 
 // ================= HUD・UI =================
@@ -1040,17 +1193,23 @@ function row(name, desc, label, disabled, id) {
   return `<div class="row"><span class="name">${name}</span><span class="desc">${desc}</span><button type="button" data-buy="${id}" ${disabled ? 'disabled' : ''}>${label}</button></div>`;
 }
 function openShop(tab = 'furniture', fromReport = false) {
-  const tabs = [['furniture', '家具'], ['menu', 'メニュー'], ['family', 'ねこ・人']];
+  const tabs = [['furniture', '家具'], ['kitchen', 'キッチン'], ['menu', 'メニュー'], ['family', 'ねこ・人']];
   let rows = '';
   if (tab === 'furniture') {
     rows = FURNITURE.map(f => {
       const n = G.furniture[f.id], full = n >= f.max;
       return row(f.name + (f.max > 1 ? `（${n}/${f.max}）` : n ? '（設置ずみ）' : ''), f.desc, full ? 'いっぱい' : `¥${f.price.toLocaleString()}`, full || G.money < f.price, `buy-f-${f.id}`);
     }).join('');
+  } else if (tab === 'kitchen') {
+    rows = Object.entries(STATIONS).map(([k, st]) => {
+      const n = G.kitchen[k], full = n >= 2;
+      const what = MENU.filter(m => m.st === k).map(m => m.name).join('・');
+      return row(`${st.name}（${n}台）`, `${what}を作る。2台あると同時に2つ作れる`, full ? 'いっぱい' : `¥${st.price.toLocaleString()}`, full || G.money < st.price, `buy-k-${k}`);
+    }).join('');
   } else if (tab === 'menu') {
     rows = MENU.filter(m => m.unlock > 0).map(m => {
       const has = G.menu.includes(m.id);
-      return row(m.name, `1つ ¥${m.price}。材料：${Object.entries(m.need).map(([id, n]) => ingr(id).name + (n > 1 ? '×' + n : '')).join('・')}`, has ? 'メニューにあり' : `¥${m.unlock.toLocaleString()}`, has || G.money < m.unlock, `buy-m-${m.id}`);
+      return row(m.name, `1つ ¥${m.price}。${STATIONS[m.st].name}で作る。材料：${Object.entries(m.need).map(([id, n]) => ingr(id).name + (n > 1 ? '×' + n : '')).join('・')}`, has ? 'メニューにあり' : `¥${m.unlock.toLocaleString()}`, has || G.money < m.unlock, `buy-m-${m.id}`);
     }).join('');
   } else {
     rows = ADOPT.map(a => {
@@ -1074,7 +1233,10 @@ function openShop(tab = 'furniture', fromReport = false) {
 }
 function buy(id) {
   const [, kind, key] = id.split('-');
-  if (kind === 'f') {
+  if (kind === 'k') {
+    const st = STATIONS[key]; if (G.money < st.price || G.kitchen[key] >= 2) return;
+    G.money -= st.price; G.kitchen[key]++; toast(`${st.name}をもう1台おきました`);
+  } else if (kind === 'f') {
     const f = FURNITURE.find(x => x.id === key); if (G.money < f.price || G.furniture[key] >= f.max) return;
     G.money -= f.price; G.furniture[key]++; if (key === 'table') buildSeats();
     toast(`${f.name}をおきました`);
@@ -1159,7 +1321,7 @@ function openTitle() {
     <canvas id="titleArt" class="title-art" width="160" height="80"></canvas>
     <h2>ぐりおのねこカフェ</h2>
     <p>店長ねこ「ぐりお」といっしょに、小さなねこカフェを人気のお店にしよう。</p>
-    <p class="sub">・ふきだしをタップ → 注文の品を出す<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう<br>・料理の材料は「仕入れ」で。閉店後に買うとやすい</p>
+    <p class="sub">・ふきだしをタップ → 注文をうける → 調理中にみどりのゾーンでタップ → できたらタップで運ぶ<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう<br>・料理の材料は「仕入れ」で。閉店後に買うとやすい</p>
     <p class="sub">目標：ひょうばん ★5 と もちきん ¥100,000</p>
     <div class="actions-row">
       ${saved ? `<button type="button" id="mCont">つづきから（${saved.day}日目）</button>` : ''}
@@ -1173,7 +1335,7 @@ function openTitle() {
   tg.drawImage(CAT_SPR.mike.sit[0], 12, 47); tg.drawImage(CAT_SPR.kuro.sleep[1], 124, 55);
   tg.drawImage(ICON.coffee, 34, 57); tg.drawImage(ICON.cake, 116, 57);
   const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) event('intro'); };
-  if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, market: saved.market || base.market, flags: saved.flags || {} }, false); };
+  if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, kitchen: { ...base.kitchen, ...(saved.kitchen || {}) }, market: saved.market || base.market, flags: saved.flags || {} }, false); };
   $('mNew').onclick = () => go(newSave(), true);
 }
 
@@ -1187,9 +1349,9 @@ cv.addEventListener('pointerdown', e => {
   if (!G || isPaused() || (mode !== 'open' && mode !== 'closing')) return;
   const { x, y } = canvasPoint(e);
   for (const c of customers) {
-    if (c.state !== 'order') continue;
+    if (c.state !== 'order' && c.state !== 'wait') continue;
     const s = c.seat;
-    if (x > s.x - 14 && x < s.x + 14 && y > s.y - 44 && y < s.y - 2) { serve(c, false); return; }
+    if (x > s.x - 14 && x < s.x + 14 && y > s.y - 44 && y < s.y - 2) { if (c.state === 'order') serve(c, false); else if (c.job) cookTap(c.job); return; }
   }
   for (const s of seats) {
     if (s.dirty && Math.abs(x - (s.tx + s.side * 5)) < 12 && y > s.ty - 26 && y < s.ty - 4) { s.dirty = false; sfx.clean(); addFx('spark', s.tx + s.side * 5, s.ty - 18); return; }
@@ -1319,7 +1481,8 @@ const TALKS = {
     ['normal', 'ぼくは ぐりお。この ねこカフェの てんちょう だにゃ。'],
     ['sad', 'おみせは まだ ちいさくて、お客さんも すくないんだ……'],
     ['happy', 'でも いつか、まちで いちばんの ねこカフェに したいにゃ！'],
-    ['normal', 'お客さんの ふきだしを タップすると、ちゅうもんの品を はこべるよ。'],
+    ['normal', 'お客さんの ふきだしを タップすると、注文を うけられるよ。'],
+    ['normal', '注文は キッチンで 調理するにゃ。できたら もういちど タップして はこんでね。'],
     ['normal', 'たべおわった おさらも タップして かたづけてね。'],
     ['happy', 'それから…… ぼくたちを なでてくれると、げんきが でるにゃ〜'],
     ['surprise', 'そうそう、料理には 材料が いるにゃ。'],
@@ -1344,6 +1507,13 @@ const TALKS = {
   vip: [['surprise', 'あっ、つぎの お客さんは ねこ好きで ゆうめいな 常連さん！'], ['happy', '王冠の お客さんに はやく はこぶと、チップを たくさん くれるにゃ。']],
   stockout: [['sad', 'にゃっ…… 材料が たりなくて 作れないよ……'], ['normal', 'ふきだしに ✕ が ついてる料理は 材料切れ。「仕入れ」で 買い足そう。']],
   waste: [['sad', '牛乳や いちごは 日もちしないから、すてることに なっちゃった……'], ['normal', '日もちの短い材料は、使うぶんだけ 買うのが コツだにゃ。']],
+  cook: [
+    ['surprise', 'はじめての 調理だにゃ！'],
+    ['normal', '調理中は ゲージが のびていくよ。みどりの ところで タップすると……'],
+    ['happy', '「パーフェクト！」 できたての 最高の 一品に なって、チップも ふえるにゃ。'],
+    ['sad', 'でも はやすぎると しっぱい。ふつうの 出来に なっちゃう。'],
+    ['normal', 'できた料理は ほうっておくと さめちゃうから、はやめに はこんでね。下の「キッチン」からも タップできるよ。'],
+  ],
   toy: [['happy', 'ねこじゃらしを みつけたにゃ！'], ['happy', 'みんなで あそんで、ごきげんに なったよ〜']],
 };
 const talkQ = [];
@@ -1360,6 +1530,7 @@ function showLine() {
   talking.text = text; talking.shown = 0; $('talkNext').hidden = true;
   clearInterval(typeTimer);
   typeTimer = setInterval(() => {
+    if (!talking) { clearInterval(typeTimer); return; }
     talking.shown++;
     $('talkText').textContent = text.slice(0, talking.shown);
     if (talking.shown % 2 === 0 && text[talking.shown - 1] !== ' ') tone(700 + Math.random() * 300, 0.03, 'square', 0.06);
@@ -1400,7 +1571,7 @@ function loop(now) {
     acc -= 1000 / 60;
   }
   if (!talking && talkQ.length && $('modal').hidden) startTalk();
-  render();
+  render(); renderJobs();
   if (++hudT % 10 === 0) updateHud();
   requestAnimationFrame(loop);
 }
