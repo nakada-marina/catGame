@@ -158,7 +158,10 @@ fs.mkdirSync(artifacts, {recursive:true});
     fs.writeFileSync(path.join(artifacts,'cafe-assets.png'),Buffer.from(newArtwork.sheet,'base64'));
     assert(newArtwork.heads.every(Boolean),'walking people keep identical face');
     assert(newArtwork.transforms.every(([x,y])=>x===y),'decor uniformly scaled');
-    assert.deepEqual(newArtwork.frames,[[48,72],[48,72],[48,72],[48,54],[48,54],[48,54],[48,54],[48,54]]);
+    assert.deepEqual(newArtwork.frames,[[48,72],[48,72],[48,72],[48,66],[48,66],[48,66],[48,66],[48,54]]);
+    const seatAlignment=await p.evaluate(()=>{const tableY=140,seatY=tableY-8;return {chair:tableY-56+31,faceBottom:seatY-66+36,tableTop:tableY-39+2,person:seatY-CafeArt.person({hair:'#5a3a22',skin:'#f8dcc0',shirt:'#80a890',pants:'#4a4a58'},'sit').height+49};});
+    assert.equal(seatAlignment.chair,seatAlignment.person,'seated hips align with chair cushion');
+    assert(seatAlignment.faceBottom<=seatAlignment.tableTop,'table must not cover seated mouth');
     assert.deepEqual(newArtwork.furniture,[[88,52],[38,58],[34,34]]);
     console.log('PASS native people all 8 frames; stable walking faces; decor aspect ratios');
     const bowSheet=await p.evaluate(()=>{
@@ -235,7 +238,7 @@ fs.mkdirSync(artifacts, {recursive:true});
       Object.assign(G.furniture,{table:6,stool:3,plant:3,cushion:4,tower:1,shelf:1,rug:1,lamp:1});
       G.staff=true;buildSeats();customers=[];
       for(const [n,seat] of seats.entries()){
-        if(n%2)continue;const c={seat,x:seat.x,y:seat.y,state:n%4?'order':'eat',order:MENU[0],t:100,pat:600,maxPat:760,spr:makePerson(randomLook()),anim:0,quality:'normal'};
+        if(seat.counter&&n%2)continue;const c={seat,x:seat.x,y:seat.y,state:n%4?'order':'eat',order:MENU[0],t:100,pat:600,maxPat:760,spr:makePerson(randomLook()),anim:0,quality:'normal'};
         seat.cust=c;customers.push(c);
       }
       render();renderKitchen();

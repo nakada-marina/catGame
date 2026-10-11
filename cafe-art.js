@@ -10,7 +10,7 @@
   function outline(c,col){const g=c.getContext('2d'),d=g.getImageData(0,0,c.width,c.height),out=g.createImageData(c.width,c.height);out.data.set(d.data);const rgb=[1,3,5].map(i=>parseInt(col.slice(i,i+2),16));for(let y=1;y<c.height-1;y++)for(let x=1;x<c.width-1;x++){const i=(y*c.width+x)*4;if(d.data[i+3])continue;if([[0,-1],[-1,0],[1,0],[0,1]].some(([a,b])=>d.data[((y+b)*c.width+x+a)*4+3]))out.data.set([...rgb,255],i);}g.putImageData(out,0,0);return c;}
   function person(look,frame,apron){
     const seated=['sit','blink','eat','chew','back'].includes(frame),back=frame==='back';
-    const c=canvas(48,seated?54:72),p=painter(c),r=p.r,e=p.e;
+    const c=canvas(48,seated?(back?54:66):72),p=painter(c),r=p.r,e=p.e;
     const skin=look.skin,hair=look.hair,shirt=look.shirt,pants=look.pants;
     const dark='#49352c',ss=shade(skin,.83),hs=shade(hair,.72),hl=shade(hair,1.28),cloth=shade(shirt,.76);
     // Back hair, tailored shoulders and softly shaded sleeves.
@@ -26,6 +26,16 @@
     r(23,42,1,14,cloth);for(let y=44;y<56;y+=4)r(24,y,1,1,'#fff1cf');
     r(28,45,5,5,cloth);r(28,45,5,1,shade(shirt,1.2));r(14,56,19,2,cloth);
     if(apron){r(17,42,15,17,'#89583a');r(17,42,15,2,'#c3905b');r(18,38,2,6,'#89583a');r(29,38,2,6,'#89583a');r(20,50,9,6,'#6a442f');r(20,50,9,1,'#d6aa70');r(17,58,15,1,'#c3905b');}
+    if(seated&&!back){
+      // Seated hips at row 49; knees bend forward, feet stay below the seat.
+      e(24,50,11,4,pants);r(13,49,22,4,pants);r(14,52,8,7,pants);r(27,52,8,7,pants);
+      r(14,52,2,6,shade(pants,1.18));r(33,52,2,7,shade(pants,.72));
+      r(16,57,6,6,pants);r(27,57,6,6,pants);
+      r(14,62,9,3,'#49352c');r(26,62,9,3,'#49352c');r(15,62,6,1,'#987351');r(27,62,6,1,'#987351');
+      // Relaxed forearms lie on the tabletop rather than hanging vertically.
+      r(8,40,5,8,cloth);r(9,40,2,6,shirt);r(35,40,5,8,cloth);r(35,40,2,6,shirt);
+      e(12,47,3,2,skin);e(36,47,3,2,ss);
+    }
     if(!seated){r(15,59,18,4,pants);r(23,59,2,4,shade(pants,.7));for(const [x,n] of [[15,a],[26,-a]]){r(x,62,7,7-Math.abs(n),pants);r(x+5,62,2,6-Math.abs(n),shade(pants,.7));r(x-1,68-Math.abs(n),9,3,'#4c3730');r(x,68-Math.abs(n),7,1,'#896853');r(x-1,71-Math.abs(n),9,1,'#dec7a1');}}
     // Stable head anatomy for every walking step; only arms/feet change.
     e(24,20,14,16,skin);e(11,22,2,4,skin);e(37,22,2,4,ss);r(12,21,1,3,ss);r(37,22,1,3,'#c18c70');
@@ -35,9 +45,9 @@
     if(back){e(24,20,14,15,hair);for(let x=14;x<35;x+=4)r(x,15,1,14,hl);}
     else{
       r(16,19,5,1,hs);r(28,19,5,1,hs);
-      if(frame==='blink'){r(16,24,5,1,dark);r(28,24,5,1,dark);}else{r(17,22,3,5,dark);r(29,22,3,5,dark);r(17,22,1,2,'#fff6e6');r(29,22,1,2,'#fff6e6');r(17,27,3,1,ss);r(29,27,3,1,ss);}
+      if(frame==='blink'){r(16,24,5,1,dark);r(28,24,5,1,dark);}else{r(16,22,5,1,dark);r(28,22,5,1,dark);r(17,23,3,4,dark);r(29,23,3,4,dark);r(17,22,1,2,'#fff6e6');r(29,22,1,2,'#fff6e6');r(17,27,3,1,ss);r(29,27,3,1,ss);}
       r(14,28,5,2,'#e6a58c');r(30,28,5,2,'#e6a58c');r(24,26,2,3,ss);r(24,26,1,2,'#ffe4bf');
-      r(22,32,6,1,'#995c50');r(23,33,4,1,shade(skin,.92));if(frame==='eat'){r(23,31,4,3,'#80483d');r(24,33,2,1,'#e4a48b');}
+      r(22,31,1,1,'#995c50');r(27,31,1,1,'#995c50');r(23,32,4,1,'#995c50');r(23,33,4,1,shade(skin,.92));if(frame==='eat'){r(23,31,4,3,'#80483d');r(24,33,2,1,'#e4a48b');}
     }
     return outline(c,dark);
   }

@@ -271,7 +271,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .make .zero { color: var(--bad); }
 #sub button { padding: 4px 10px; font-size: 12px; border-bottom-width: 2px; white-space: nowrap; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261011-ratio">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261011-seated">
 </head>
 <body>
 <div id="wrap">
@@ -305,10 +305,10 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
-<script src="./cafe-art.js?v=20261011-renew"></script>
+<script src="./cafe-art.js?v=20261011-seated"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-detail.js?v=20261011-renew"></script>
-<script src="./character-art.js?v=20261011-renew"></script>
+<script src="./character-detail.js?v=20261011-seated"></script>
+<script src="./character-art.js?v=20261011-seated"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -1055,7 +1055,7 @@ function freeSeats() { return seats.filter(s => !s.cust && !s.dirty); }
 function spawnCustomer() {
   const free = freeSeats(); if (!free.length) return;
   const seat = pick(free), look = randomLook();
-  const c = { x: ENTRANCE.x + rnd(-8, 8), y: ENTRANCE.y, seat, state: 'enter', t: 0, spr: makePerson(look), anim: 0, order: null, pat: 0, maxPat: 0, visits: 0, vip: vipNext };
+  const c = { x: ENTRANCE.x + rnd(-8, 8), y: ENTRANCE.y, seat, state: 'enter', t: 0, spr: makePerson(look), look, anim: 0, order: null, pat: 0, maxPat: 0, visits: 0, vip: vipNext };
   vipNext = false;
   seat.cust = c; customers.push(c);
   sfx.doorbell(); addFx('text', ENTRANCE.x, ENTRANCE.y - 34, { text: 'カランコロン♪', color: '#fff2a0', life: 60 });
@@ -1806,7 +1806,7 @@ function placeBaked(key, x, y, bx, by, l, t, w, h, raw) {
   ctx.drawImage(b.img, Math.round(x * 2 - l), Math.round(y * 2 - t));
 }
 function floorShadow(X, Y, rx, ry, a = 0.2) { ctx.globalAlpha = a; ellipse(Math.round(X), Math.round(Y), rx, ry, '#2a1808'); ctx.globalAlpha = 1; }
-function drawTable(x,y){const im=CafeArt.table();floorShadow(x*2,y*2,34,4,.14);drawAt(im,x*2-im.width/2,y*2-49);}
+function drawTable(x,y){const im=CafeArt.table();floorShadow(x*2,y*2+10,34,4,.14);drawAt(im,x*2-im.width/2,y*2-39);}
 function drawChair(x,y){const im=CafeArt.chair();floorShadow(x*2,y*2,14,3,.13);drawAt(im,x*2-im.width/2,y*2-56);}
 function drawStool(x,y){const im=CafeArt.stool();floorShadow(x*2,y*2,12,3,.13);drawAt(im,x*2-im.width/2,y*2-32);}
 
@@ -2078,7 +2078,7 @@ function drawCustomer(c) {
     let f = 'sit', bob = 0;
     if (c.state === 'eat') { const e = ((c.t + sd) >> 3) % 8; f = ['sit', 'eat', 'eat', 'chew', 'sit', 'chew', 'sit', 'sit'][e]; bob = c.seat.counter && (e === 1 || e === 2) ? 1 : 0; }
     if (f === 'sit' && (tick + sd * 11) % 170 < 6) f = 'blink';
-    const img = c.seat.counter ? c.spr.back : c.spr[f], top = c.seat.y * 2 - (c.seat.counter ? 18 : 10) - img.height + bob;
+    const img = c.seat.counter ? c.spr.back : c.spr[f], top = c.seat.y * 2 - (c.seat.counter ? 22 : 0) - img.height + bob;
     drawAt(img, c.seat.x * 2 - img.width / 2, top);
     if (c.vip && c.state !== 'order') drawCrown(c.seat.x * 2, top - 8);
   }
@@ -2090,6 +2090,11 @@ function drawCrown(X, Y) {
   P('#e84a5a', X - 1, Y + 3, 3, 2); P('#4a9ae8', X - 6, Y + 3, 2, 2); P('#4a9ae8', X + 5, Y + 3, 2, 2);
 }
 function drawTableItems(s) {
+  if(s.cust && ['sit','order','wait','eat'].includes(s.cust.state)) {
+    const x=s.x*2, y=s.ty*2-27;
+    ellipse(x-12,y,3,2,s.cust.look ? s.cust.look.skin : '#efd0ac');
+    ellipse(x+12,y,3,2,s.cust.look ? shade(s.cust.look.skin,.86) : '#d6ac88');
+  }
   const IX = s.itemX * 2 - 8, IY = s.itemY * 2 - 16;
   if (s.cust && s.cust.state === 'eat') drawAt(ICON2[s.cust.order.id], IX, IY);
   if (s.dirty) { drawAt(PLATE2, IX - 1, IY + 6); if ((tick >> 4) & 1) { P('#ffffff', IX + 15, IY + 1, 1, 3); P('#ffffff', IX + 14, IY + 2, 3, 1); } }
@@ -2106,7 +2111,7 @@ function gauge(X, Y, f, col, zone) {
   P(col, X + 1, Y + 2, Math.max(1, Math.round(26 * Math.min(1, f))), zone ? 2 : 3);
 }
 function drawBubble(c) {
-  const s = c.seat, X = s.x * 2 - 18, Y = s.y * 2 - (s.counter ? 102 : 94);
+  const s = c.seat, X = s.x * 2 - 18, Y = s.y * 2 - (s.counter ? 102 : 110);
   if (c.state === 'wait' && c.job) { drawCookBubble(c, c.job, X, Y); return; }
   bubbleBox(X, Y, '#ffffff');
   drawAt(ICON2[c.order.id], X + 10, Y + 4);
@@ -2138,7 +2143,7 @@ function drawSay(c) {
   const s = c.seat, X = Math.round((walking ? c.x : s.x) * 2);
   let Y;
   if (walking) Y = Math.round(c.y * 2 - c.spr.a.height) - 6;
-  else if (c.state === 'order' || c.state === 'wait') Y = s.y * 2 - (s.counter ? 102 : 94) - 4;
+  else if (c.state === 'order' || c.state === 'wait') Y = s.y * 2 - (s.counter ? 102 : 110) - 4;
   else Y = s.y * 2 - (s.counter ? 18 : 10) - c.spr.sit.height - 6;
   ctx.font = '13px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   const w = Math.ceil(ctx.measureText(c.say.text).width) + 12, h = 19, bx = clamp(X - w / 2, 2, FW - w - 2);
@@ -2211,14 +2216,14 @@ function render() {
   list.push({ y: BOWL.y, d: drawBowl });
   for (let i = 0; i < G.furniture.table; i++) {
     const [x, y] = TABLE_POS[i];
-    list.push({ y: y - 8.5, d: () => { drawChair(x - 10, y); drawChair(x + 10, y); } });
+    list.push({ y: y - 8.5, anchor: y, d: () => { drawChair(x - 10, y); drawChair(x + 10, y); } });
     list.push({ y, d: () => { drawTable(x, y); seats.filter(s => s.ti === i).forEach(drawTableItems); } });
   }
   for (let i = 0; i < (G.furniture.stool || 0); i++) { const [x, y] = STOOL_POS[i]; list.push({ y: y - 0.5, d: () => drawStool(x, y) }); }
   for (const c of customers) list.push({ y: c.state === 'enter' || c.state === 'leave' ? c.y : c.seat.y - 0.2, d: () => drawCustomer(c) });
   if (ponta) list.push({ y: ponta.y, d: drawPonta });
   for (const k of cats) list.push({ y: k.spot === TOWER && k.state === 'nap' ? TOWER.base + 1 : k.y, d: () => drawCat(k) });
-  list.sort((a, b) => a.y - b.y).forEach(o => compactAt(o.y, o.d));
+  list.sort((a, b) => a.y - b.y).forEach(o => compactAt(o.anchor === undefined ? o.y : o.anchor, o.d));
   const f = (G.time - OPEN) / (CLOSE - OPEN);
   if (f > 0.6 && f < 0.95 && weather === 'sun') { ctx.fillStyle = `rgba(255,140,60,${Math.min(0.1, (f - 0.6) * 0.4)})`; ctx.fillRect(0, 0, FW, FH); }
   ctx.save(); ctx.scale(1,.5); drawLighting(); ctx.restore();
@@ -2750,7 +2755,7 @@ onCafeTap(e => {
   for (const c of customers) {
     if (c.state !== 'order' && c.state !== 'wait') continue;
     const s = c.seat;
-    if (x > s.x - 14 && x < s.x + 14 && y > s.y / 2 - (s.counter ? 52 : 48) && y < s.y / 2 - 2) { if (c.state === 'order') serve(c, false); else if (c.job && c.job.state === 'ready') deliver(c.job, false); else if (c.job) toast('下のキッチンで 設備をタップして 調理してね'); return; }
+    if (x > s.x - 14 && x < s.x + 14 && y > s.y / 2 - (s.counter ? 52 : 56) && y < s.y / 2 - 2) { if (c.state === 'order') serve(c, false); else if (c.job && c.job.state === 'ready') deliver(c.job, false); else if (c.job) toast('下のキッチンで 設備をタップして 調理してね'); return; }
   }
   for (const s of seats) {
     if (s.dirty && Math.abs(x - s.itemX) < 12 && y > s.itemY / 2 - 13 && y < s.itemY / 2 + 9) { s.dirty = false; sfx.clean(); addFx('spark', s.itemX, s.itemY - 5); return; }
