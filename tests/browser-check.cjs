@@ -119,6 +119,19 @@ fs.mkdirSync(artifacts, {recursive:true});
         const face=c=>c.getContext('2d').getImageData(0,0,128,110).data.join(',');
         for(let n=1;n<4;n++)if(face(frames[who].walk0)!==face(frames[who]['walk'+n]))issues.push(who+' walk face changed');
       }
+      for(const who of ['grio','ponta']) {
+        for(const state of ['walk','toServe','toCounter','toTable']) {
+          const moving={pal:who,state,anim:0,carryDish:true,x:50,y:100};
+          moveTo(moving,100,100,1);
+          if(moving.face!==1||catImg(who,'walk0',moving.face,moving)!==CHAR_SPR[who].walk0[0])issues.push(who+' right movement reversed');
+          moveTo(moving,0,100,1);
+          if(moving.face!==-1||catImg(who,'walk0',moving.face,moving)!==CHAR_SPR[who].walk0[1])issues.push(who+' left movement reversed');
+        }
+        if(charPose({pal:who,state:'takeOrder',t:50},'sit0')!=='idle')issues.push(who+' bows throughout order');
+        if(charPose({pal:who,state:'takeOrder',t:12},'sit0')!=='bow')issues.push(who+' missing final bow');
+        if(charPose({pal:who,state:'idle',t:60},'sit0')!=='idle')issues.push(who+' bow does not return to idle');
+        if(charPose({pal:who,state:'idle'},'stretch')==='bow')issues.push(who+' stretch uses deep bow');
+      }
       const k={pal:'grio',state:'toServe',carryDish:true,anim:0};
       const walk=[0,9,18,27].map(n=>{k.anim=n;return charPose(k,'walk0');});
       return {issues,walk,portraitCount:Object.keys(frames.grio).filter(k=>k.startsWith('f_')).length};

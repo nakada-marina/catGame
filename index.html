@@ -306,8 +306,8 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-detail.js?v=20261011-native"></script>
-<script src="./character-art.js?v=20261011-native"></script>
+<script src="./character-detail.js?v=20261011-direction-bow"></script>
+<script src="./character-art.js?v=20261011-direction-bow"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -1958,10 +1958,11 @@ function charPose(k, pose) {
   if (pose.startsWith('sleep')) return k && k.pal === 'ponta' && k.spot === BOX ? 'box' : 'sleepbag';
   if (pose.startsWith('walk')) return 'walk' + (Math.floor(Math.max(0, k ? k.anim : tick) / 9) % 4);
   if (k && (k.carryDish || k.carry)) return k.pal === 'ponta' ? 'cake' : 'serve';
-  if (k && k.state === 'takeOrder') return 'bow';
+  // Acknowledge at the end, rather than crouching throughout the order.
+  if (k && k.state === 'takeOrder') return k.t > 0 && k.t <= 12 ? 'bow' : 'idle';
   if (k && k.state === 'pickup') return 'clean';
   if (pose.startsWith('yawn')) return 'surprise';
-  if (pose.startsWith('stretch')) return 'bow';
+  if (pose.startsWith('stretch')) return 'sit';
   if (pose.startsWith('groom')) return 'sit';
   if (k && ['eat','visit','slack'].includes(k.state)) return 'sit';
   if (pose.startsWith('sit')) return 'idle';
@@ -1972,7 +1973,8 @@ function catImg(pal, pose, face, k) {
   if (cs) {
     const n = charPose(k, pose), s = cs[n] || cs.idle;
     // 背面を単純な左右反転で代用せず、移動方向に応じて左右を選択する。
-    return s[face > 0 ? 1 : 0];
+    // Reference walking poses face right: +1 uses native art, -1 mirrors it.
+    return s[face > 0 ? 0 : 1];
   }
   if (pal === 'grio' || pal === 'ponta') return CHAR_PENDING;
   return CAT_SPR[pal][pose][face > 0 ? 0 : 1];
@@ -2075,7 +2077,7 @@ function drawCat(k) {
     P('#a07a10', tx - w / 2 - 1, ty, w + 2, 13); P('#f2c14e', tx - w / 2, ty + 1, w, 11); P('#ffe08a', tx - w / 2, ty + 1, w, 1);
     ctx.fillStyle = '#3a2a10'; ctx.fillText(k.name, tx, ty + 1);
   }
-  if (k.state === 'takeOrder') {
+  if (k.state === 'takeOrder' && k.t > 12) {
     const mx = Math.round(k.x * 2 + k.face * 6 - 6), my = Y - 18 - ((tick >> 3) & 1);
     P('#3a2a20', mx - 1, my - 1, 14, 17); P('#fffaf0', mx, my, 12, 15); P('#e86a6a', mx, my, 12, 2);
     for (let i = 0; i < 3; i++) P('#8a8a98', mx + 2, my + 5 + i * 3, ((tick >> 2) + i) % 4 === 0 ? 5 : 8, 1);
