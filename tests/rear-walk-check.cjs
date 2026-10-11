@@ -13,7 +13,10 @@ function canvas() {
 const document = { createElement: () => canvas() }, window = {};
 const back = canvas(); back.width = 96; back.height = 108;
 const GuestArt = { person: () => back };
-new Function('document','window','GuestArt',rear)(document,window,GuestArt);
+class FakeImage {
+  set src(value) { this.width = value.includes('rear-cats') ? 1254 : 1024; this.height = value.includes('rear-cats') ? 1254 : 1536; this.onload(); }
+}
+new Function('document','window','GuestArt','Image',rear)(document,window,GuestArt,FakeImage);
 const moveCode = html.slice(html.indexOf('function moveTo('),html.indexOf('const catNear ='));
 const moveTo = new Function(moveCode + '; return moveTo;')();
 for (const [dx,dy,expected] of [[0,-10,true],[2,-10,true],[-2,-10,true],[10,-2,true],[-10,-2,true],[0,10,false],[0,-.2,true],[.2,.1,false],[10,0,false],[-10,0,false],[10,-.01,true],[-10,-.01,true]]) {
@@ -33,10 +36,18 @@ assert.equal(frames[0].width,128); assert.equal(frames[0].height,144);
 assert.equal(window.RearWalk.cat('grio',0,original,fur),frames[0],'cached sprite');
 assert.notDeepEqual(frames[0].operations,frames[1].operations,'feet animate');
 const upper = c=>c.operations.filter(op=>op[1]<80);
-assert.deepEqual(upper(frames[0]),upper(frames[1]),'head remains fixed');
-for(const frame of frames) for(const [x,y,w,h] of frame.operations) {
-  assert(x>=0&&y>=0&&x+w<=frame.width&&y+h<=frame.height,'pixel inside frame');
+function verifyAtlasFrame(frame) {
+  assert.equal(frame.generatedRear, true, 'generated artwork selected');
+  assert.equal(frame.operations.length, 1, 'one complete sprite, without procedural body parts');
+  const [type,image,sx,sy,sw,sh,dx,dy,dw,dh] = frame.operations[0];
+  assert.equal(type,'image');
+  assert(sx>=0&&sy>=0&&sx+sw<=image.width&&sy+sh<=image.height,'crop inside source atlas');
+  assert(dx>=0&&dy>=0&&dx+dw<=frame.width&&dy+dh<=frame.height,'sprite inside destination frame');
+  assert(Math.abs(dw/sw-dh/sh)<=1/sw+1/sh,'uniform scale with integer rounding');
 }
+for(const frame of frames) verifyAtlasFrame(frame);
+for(const pal of ['grio','ponta','mike','kuro','shiro','chacha'])
+  for(let f=0;f<4;f++) verifyAtlasFrame(window.RearWalk.cat(pal,f,original,fur));
 const frontFrames = [0,1,2,3].map(f=>window.RearWalk.cat('grio',f,original,fur,'front'));
 assert.notDeepEqual(frontFrames[0].operations,frames[0].operations,'front and back have distinct faces');
 assert.notDeepEqual(frontFrames[0].operations,frontFrames[1].operations,'front feet animate');
@@ -47,7 +58,10 @@ const look = { guest:0,pants:'#3a3a44' };
 const guests = [0,1,2,3].map(f=>window.RearWalk.guest(look,f));
 assert.equal(guests[0].logicalHeight,84); assert.equal(guests[0].logicalWidth,64);
 assert.notDeepEqual(guests[0].operations,guests[1].operations,'guest feet animate');
-assert.deepEqual(guests[0].operations.at(-1),guests[1].operations.at(-1),'rear head crop stays fixed');
+for(let guest=0;guest<4;guest++) for(let frame=0;frame<4;frame++)
+  verifyAtlasFrame(window.RearWalk.guest({guest,pants:'#3a3a44'},frame));
+assert.equal(guests[0].operations[0][7],guests[1].operations[0][7],'consistent vertical anchor');
+assert(html.includes('GuestArt.load, RearWalk.load'),'game waits for generated assets');
 const catCode = html.slice(html.indexOf('function catImg('),html.indexOf('// Display-scale only:'));
 const normal = {};
 const catImg = new Function('CHAR_SPR','RearWalk','CAT_LOOK','charPose','CHAR_PENDING','CAT_SPR',catCode+';return catImg;')(
@@ -66,4 +80,4 @@ const drawCustomer = new Function('GuestArt','RearWalk','drawAt','floorShadow','
 for(const [facing,expected] of [['back',rearGuest],['front',frontGuest],['side',sideGuest]])
   { drawCustomer({state:'enter',look,walkFacing:facing,anim:0,x:0,y:0});assert.equal(drawn,expected,'guest facing '+facing); }
 for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) if(match[1].trim()) new Function(match[1]);
-console.log('PASS rear direction, turns, arrival, sprite dispatch, cached frames, walking feet, stable head and script syntax');
+console.log('PASS generated rear crops for six cats and four guests, direction, turns, arrival, caching, front poses and script syntax');

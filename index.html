@@ -307,7 +307,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
-<script src="./rear-walk.js?v=20261011-four-directions"></script>
+<script src="./rear-walk.js?v=20261011-generated-rear"></script>
 <script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
 <script src="./character-detail.js?v=20261012-walk"></script>
@@ -1831,7 +1831,7 @@ function drawLighting() {
 // ぐりお と ぽんた は キャラクター設定画の 絵を つかう（chars.webp）
 
 const CHAR_SPR = {}, CHAR_PENDING = mk(81, 64);
-const artworkReady = Promise.all([CatArtwork.load(), GuestArt.load]).then(([originals]) => {
+const artworkReady = Promise.all([CatArtwork.load(), GuestArt.load, RearWalk.load]).then(([originals]) => {
   for (const who of ['grio', 'ponta']) {
     CHAR_SPR[who] = {};
     for (const [pose, frame] of Object.entries(originals[who])) CHAR_SPR[who][pose] = [frame, flipH(frame)];
