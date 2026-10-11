@@ -41,7 +41,7 @@ body {
   overflow-x: hidden;
 }
 #wrap {
-  width: min(100%, 640px, calc((100dvh - 230px) * 224 / 300));
+  width: min(100%, 640px, calc((100dvh - 170px) / 1.72));
   min-width: min(100%, 300px);
   display: flex;
   flex-direction: column;
@@ -190,6 +190,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
 .title-art { display: block; width: 100%; image-rendering: pixelated; border-radius: 6px; }
 #sub { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--chalk-dim); gap: 8px; }
 #sub span { min-width: 0; }
+#kitchenCv { display: block; width: 100%; max-width: 100%; aspect-ratio: 448 / 168; image-rendering: pixelated; border: 3px solid #0f1814; border-radius: 6px; touch-action: none; cursor: pointer; background: #f2f4f0; }
 #kitchen { display: flex; align-items: center; gap: 8px; min-height: 58px; background: #18241f; border-radius: 8px; padding: 6px 8px; }
 #kitchen .klabel { font-size: 11px; color: var(--chalk-dim); writing-mode: vertical-rl; letter-spacing: 2px; flex-shrink: 0; }
 #jobs { display: flex; gap: 6px; overflow-x: auto; min-width: 0; flex: 1; }
@@ -238,7 +239,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
       <div class="msg"><span class="who">ぐりお</span><p id="talkText"></p><span class="next" id="talkNext">▼</span></div>
     </div>
   </div>
-  <div id="kitchen" aria-label="キッチン"><span class="klabel">キッチン</span><div id="jobs"></div></div>
+  <canvas id="kitchenCv" aria-label="キッチン：設備をタップして調理"></canvas>
   <div id="actions">
     <button type="button" id="btnFood">ごはん<small id="foodLeft">のこり 0</small></button>
     <button type="button" id="btnStock">仕入れ<small id="stockInfo">ざいこ</small></button>
@@ -246,7 +247,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
     <button type="button" id="btnCats">ねこ<small>ようす</small></button>
   </div>
   <div id="sub">
-    <span>ふきだし＝注文・調理・運ぶ／お皿＝かたづけ／ねこ＝なでる</span>
+    <span>ふきだし＝注文／キッチンの設備＝調理／ねこ＝なでる</span>
     <span class="tools"><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
   </div>
 </div>
@@ -616,7 +617,7 @@ let dayLog = null, weather = 'sun', dayFlags = {}, rushUntil = 0, vipNext = fals
 function newSave() {
   return {
     day: 1, money: 8000, pop: 10, bowl: 6, staff: false, served: 0, legend: false,
-    furniture: { table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0, fridge: 0, rack: 0 },
+    ponta: false, furniture: { table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0, fridge: 0, rack: 0 },
     stock: { beans: [{ n: 16, day: 1 }], flour: [{ n: 12, day: 1 }] }, kitchen: { drink: 1, oven: 1, stove: 1 }, market: rollMarket(), pendingCost: 0,
     menu: ['coffee', 'cookie'], flags: {},
     cats: [{ name: 'ぐりお', pal: 'grio', mood: 70, hunger: 20 }],
@@ -773,20 +774,23 @@ function serve(c, byStaff) {
   consume(c.order); updateStockInfo();
   const job = { id: ++jobSeq, c, item: c.order, st: c.order.st, state: 'queue', t: 0, dur: c.order.time, q: 'normal', missed: false, readyT: 0 };
   jobs.push(job); c.job = job; c.state = 'wait'; c.patAtServe = c.pat;
-  addFx('text', c.seat.x, c.seat.y - 40, { text: '注文うけたよ', color: '#ffffff', life: 40 });
+  addFx('text', c.seat.x, c.seat.y - 40, { text: '注文うけたよ', color: '#ffffff', life: 40 }); job.waitT = 0;
   if (!byStaff) { tone(988, 0.08, 'triangle', 0.5); event('cook'); }
   return true;
 }
-function cookTap(job) {
+function cookTap(job, u) {
   if (job.state === 'ready') { deliver(job, false); return; }
-  if (job.state !== 'cook' || job.missed) return;
+  if (job.state !== 'cook') return;
+  if (job.missed) { if (u) kfx.push({ x: u.x + u.w / 2, y: u.y, text: 'できあがりを まってね', color: '#ffffff', t: 0 }); return; }
   const f = job.t / job.dur;
   if (f >= ZONE[0] && f <= ZONE[1]) {
     job.q = 'perfect'; job.state = 'ready'; job.readyT = 0;
+    if (u) kfx.push({ x: u.x + u.w / 2, y: u.y, text: 'パーフェクト！', color: '#3aa85a', t: 0 });
     addFx('text', job.c.seat.x, job.c.seat.y - 42, { text: 'パーフェクト！', color: '#8affa0', life: 60 });
     [1047, 1319, 1568].forEach((f2, i) => tone(f2, 0.12, 'square', 0.25, null, i * 0.06));
   } else {
     job.missed = true;
+    if (u) kfx.push({ x: u.x + u.w / 2, y: u.y, text: 'はやすぎ…', color: '#c84a3a', t: 0 });
     addFx('text', job.c.seat.x, job.c.seat.y - 42, { text: 'はやすぎ…', color: '#ffb0a0', life: 50 });
     tone(220, 0.15, 'triangle', 0.5);
   }
@@ -799,6 +803,7 @@ function deliver(job, byStaff) {
   addFx('spark', c.seat.x, c.seat.y - 24);
   if (!byStaff) sfx.serve();
 }
+function makePonta() { return { x: PONTA_HOME.x, y: PONTA_HOME.y, state: 'idle', t: 0, face: -1, anim: 0, job: null, carry: null, napCool: 900 }; }
 function updatePonta() {
   const p = ponta; if (!p) return;
   if (p.state !== 'nap' && p.state !== 'slack' && p.napCool > 0) p.napCool--;
@@ -842,10 +847,11 @@ function wakePonta() {
   }
 }
 function updateJobs() {
-  for (const st in STATIONS) {
-    const busy = jobs.filter(j => j.st === st && j.state === 'cook').length;
-    let free = G.kitchen[st] - busy;
-    for (const j of jobs) if (free > 0 && j.st === st && j.state === 'queue') { j.state = 'cook'; free--; }
+  for (const j of jobs) if (j.state === 'queue') j.waitT = (j.waitT || 0) + 1;
+  // アルバイトさんは しばらく待っている注文を 調理しはじめる（パーフェクトはねらわない）
+  if (G.staff && !staffBusy) for (const u of kitchenUnits()) {
+    const q = queued(u.st)[0];
+    if (!unitJob(u) && q && q.waitT > 180) { startCook(u, true); staffBusy = 30; break; }
   }
   for (const j of jobs) {
     if (j.state === 'cook' && ++j.t >= j.dur) { j.state = 'ready'; j.readyT = 0; tone(1568, 0.1, 'sine', 0.3); }
@@ -1006,7 +1012,7 @@ function startDay() {
   customers = []; particles = []; furs = []; jobs = [];
   cats.forEach(k => { if (k.clean || k.carry) { k.clean = null; k.carry = false; k.state = 'idle'; k.t = 30; } });
   seats.forEach(s => { s.cleaner = null; });
-  ponta = { x: PONTA_HOME.x, y: PONTA_HOME.y, state: 'idle', t: 0, face: -1, anim: 0, job: null, carry: null, napCool: 900 };
+  ponta = G.ponta ? makePonta() : null;
   seats.forEach(s => { s.cust = null; s.dirty = false; });
   weather = Math.random() < 0.25 ? 'rain' : 'sun';
   dayLog = { served: 0, angry: 0, sales: 0, tips: 0, reviews: [], popStart: G.pop, cost: G.pendingCost || 0 };
@@ -1078,7 +1084,7 @@ function update() {
     spawnTimer = Math.round(clamp(base, 140, 620) * rnd(0.7, 1.3) * (weather === 'rain' ? 1.4 : 1) * (G.time < rushUntil ? 0.4 : 1));
   }
   if (staffBusy > 0) staffBusy--;
-  updateJobs(); updatePonta();
+  updateJobs(); updatePonta(); updateKitchenFx();
   customers.forEach(updateCustomer);
   customers = customers.filter(c => !c.gone);
   for (const s of seats) if (s.dirty) { s.dirtyT++; if (G.staff && s.dirtyT > 160 && !staffBusy) { s.dirty = false; staffBusy = 30; } }
@@ -1476,39 +1482,197 @@ function render() {
   if (f > 0.65) { ctx.fillStyle = `rgba(255,140,60,${Math.min(0.16, (f - 0.65) * 0.6)})`; ctx.fillRect(0, 0, FW, FH); }
 }
 
-// ================= キッチン列 =================
-const ICON_URL = {};
-for (const k in ICON) ICON_URL[k] = ICON[k].toDataURL();
-const jobEls = new Map();
-function renderJobs() {
-  const box = $('jobs'), alive = new Set(jobs.map(j => j.id));
-  for (const [id, el] of jobEls) if (!alive.has(id)) { el.remove(); jobEls.delete(id); }
-  for (const j of jobs) {
-    let el = jobEls.get(j.id);
-    if (!el) {
-      el = document.createElement('button'); el.type = 'button'; el.className = 'job';
-      el.innerHTML = `<img src="${ICON_URL[j.item.id]}" alt="${j.item.name}"><span class="gauge"><span class="zone"></span><span class="fill"></span></span><span class="lbl"></span>`;
-      el.addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); if (!isPaused()) cookTap(j); });
-      box.appendChild(el); jobEls.set(j.id, el);
-    }
-    const zone = el.querySelector('.zone'), fill = el.querySelector('.fill'), lbl = el.querySelector('.lbl');
-    el.classList.toggle('ready', j.state === 'ready');
-    el.classList.toggle('wait', j.state === 'queue');
-    el.classList.toggle('perfect', j.q === 'perfect');
-    if (j.state === 'cook') {
-      zone.style.display = j.missed ? 'none' : '';
-      zone.style.left = ZONE[0] * 100 + '%'; zone.style.width = (ZONE[1] - ZONE[0]) * 100 + '%';
-      fill.style.width = (j.t / j.dur * 100) + '%'; fill.classList.add('hot');
-      lbl.textContent = j.missed ? 'ふつうに' : STATIONS[j.st].name.slice(0, 5);
-    } else if (j.state === 'queue') {
-      zone.style.display = 'none'; fill.style.width = '0'; lbl.textContent = 'じゅんばん';
-    } else {
-      zone.style.display = 'none'; fill.classList.remove('hot');
-      fill.style.width = Math.min(100, j.readyT / COLD_AFTER * 100) + '%';
-      lbl.textContent = j.readyT > COLD_AFTER && j.q !== 'perfect' ? 'さめた…' : j.q === 'perfect' ? 'はこぶ！★' : 'はこぶ！';
-    }
+// ================= キッチン画面（設備をタップして調理） =================
+const kcv = $('kitchenCv');
+const KW = 448, KH = 168;            // 2倍の細かさの座標
+kcv.width = KW * 2; kcv.height = KH * 2;
+const kctx = kcv.getContext('2d');
+const kfx = [];
+// 設備のならび（2台目は横にならぶ）
+function kitchenUnits() {
+  const u = [];
+  const n = st => G.kitchen[st];
+  // コーヒーマシン
+  if (n('drink') === 1) u.push({ st: 'drink', i: 0, x: 34, y: 40, w: 60, h: 72 });
+  else { u.push({ st: 'drink', i: 0, x: 6, y: 40, w: 60, h: 72 }); u.push({ st: 'drink', i: 1, x: 68, y: 40, w: 60, h: 72 }); }
+  // コンロ
+  if (n('stove') === 1) u.push({ st: 'stove', i: 0, x: 170, y: 60, w: 80, h: 52 });
+  else { u.push({ st: 'stove', i: 0, x: 134, y: 60, w: 72, h: 52 }); u.push({ st: 'stove', i: 1, x: 208, y: 60, w: 72, h: 52 }); }
+  // オーブン（2台目は上に重ねる）
+  if (n('oven') === 1) u.push({ st: 'oven', i: 0, x: 288, y: 44, w: 80, h: 68 });
+  else { u.push({ st: 'oven', i: 0, x: 288, y: 79, w: 80, h: 33 }); u.push({ st: 'oven', i: 1, x: 288, y: 44, w: 80, h: 33 }); }
+  return u;
+}
+const unitJob = u => jobs.find(j => j.state === 'cook' && j.st === u.st && j.unit === u.i);
+const queued = st => jobs.filter(j => j.state === 'queue' && j.st === st);
+function startCook(u, byStaff) {
+  const j = queued(u.st)[0];
+  if (!j) return false;
+  j.state = 'cook'; j.unit = u.i; j.t = 0;
+  if (!byStaff) tone(660, 0.08, 'triangle', 0.5);
+  return true;
+}
+function tapUnit(u) {
+  const j = unitJob(u);
+  if (j) { cookTap(j, u); return; }
+  if (!startCook(u, false)) {
+    const any = jobs.some(j => j.state === 'queue');
+    kfx.push({ x: u.x + u.w / 2, y: u.y, text: any ? 'この設備の注文はないよ' : '注文をうけてね', color: '#ffffff', t: 0 });
   }
 }
+// 料理の焼き色（生 → きつね色 → こげ気味）
+function lerpCol(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16), m = (s) => Math.round(((pa >> s) & 255) + ((((pb >> s) & 255) - ((pa >> s) & 255)) * t));
+  return '#' + [16, 8, 0].map(s => m(s).toString(16).padStart(2, '0')).join('');
+}
+function K(c, x, y, w = 1, h = 1) { kctx.fillStyle = c; kctx.fillRect(x, y, w, h); }
+function KE(cx, cy, rx, ry, c) {
+  kctx.fillStyle = c;
+  for (let y = -ry; y <= ry; y++) { const hw = Math.round(rx * Math.sqrt(Math.max(0, 1 - (y * y) / (ry * ry + 0.0001)))); kctx.fillRect(Math.round(cx - hw), Math.round(cy + y), hw * 2 + 1, 1); }
+}
+function KT(text, x, y, size, color, align = 'center') {
+  kctx.font = `${size}px "DotGothic16", monospace`; kctx.textAlign = align; kctx.textBaseline = 'top';
+  kctx.fillStyle = '#1a1410'; kctx.fillText(text, x + 1, y + 1); kctx.fillStyle = color; kctx.fillText(text, x, y);
+}
+function inZone(j) { const f = j.t / j.dur; return f >= ZONE[0] && f <= ZONE[1] && !j.missed; }
+function tapHint(u) {
+  if (!((tick >> 4) & 1)) return;
+  const x = u.x + u.w / 2;
+  for (let i = 0; i < 6; i++) K('#f2c14e', x - 6 + i, u.y - 14 + i, 13 - i * 2, 1);
+  KT('タップ', x, u.y - 28, 11, '#f2c14e');
+}
+function drawCoffeeUnit(u, j) {
+  const { x, y, w } = u, cx = x + w / 2;
+  K('#2e3a46', x + 4, y, w - 8, 60); K('#5a6a7a', x + 5, y + 1, w - 10, 58); K('#7a8a9a', x + 5, y + 1, w - 10, 4);
+  K('#8a9aaa', x + 9, y + 9, w - 18, 14); K('#24303a', x + 12, y + 12, 18, 8);
+  K(j ? ((tick >> 3) & 1 ? '#ff6a4a' : '#ffb04a') : '#4ac86a', x + w - 18, y + 13, 4, 4);
+  K('#3a3a44', cx - 10, y + 28, 20, 6); K('#2a2a30', cx - 3, y + 34, 6, 4); K('#2a2a30', cx + 8, y + 30, 14, 3);
+  K('#2a2a30', x + 8, y + 66, w - 16, 5); K('#4a4a54', x + 8, y + 66, w - 16, 1);
+  // カップ（またはパフェのグラス）
+  const parfait = j && j.item.id === 'parfait';
+  const cupX = cx - 9, cupY = y + 46, cupW = 18, cupH = 20;
+  if (parfait) { K('#c8d0d8', cupX + 2, cupY - 4, cupW - 4, cupH + 4); K('#eef4f8', cupX + 3, cupY - 3, cupW - 6, cupH + 2); }
+  else { K('#d8d8e0', cupX, cupY, cupW, cupH); K('#ffffff', cupX + 1, cupY + 1, cupW - 2, cupH - 2); K('#d8d8e0', cupX + cupW, cupY + 5, 4, 8); K('#ffffff', cupX + cupW + 1, cupY + 7, 2, 4); }
+  if (j) {
+    const f = Math.min(1, j.t / j.dur), inner = cupH - 3, lvl = Math.round(inner * f);
+    const col = j.item.id === 'tea' ? '#c89a6a' : j.item.id === 'parfait' ? ((Math.floor(f * 6) % 2) ? '#f8a0b8' : '#fffaf2') : '#6a3a20';
+    if (parfait) { for (let k = 0; k < lvl; k++) K(k % 6 < 3 ? '#f8a0b8' : '#fffaf2', cupX + 3, cupY + cupH - 2 - k, cupW - 6, 1); }
+    else K(col, cupX + 1, cupY + cupH - 1 - lvl, cupW - 2, lvl);
+    if (j.t < j.dur) K(col, cx - 1, y + 38, 2, cupY + cupH - 1 - lvl - (y + 38));
+    // ちょうどいい線
+    if (!j.missed) { const z0 = cupY + cupH - 1 - Math.round(inner * ZONE[1]), z1 = cupY + cupH - 1 - Math.round(inner * ZONE[0]); K('#4fbf6a', cupX - 4, z0, 3, z1 - z0); K('#4fbf6a', cupX + cupW + (parfait ? 0 : 5), z0, 3, z1 - z0); }
+    if (inZone(j) && (tick >> 2) & 1) { K('#fff6a0', cx - 1, cupY - 10, 2, 6); K('#fff6a0', cx - 4, cupY - 8, 8, 2); }
+    if (f > 0.3) for (let i = 0; i < 2; i++) { kctx.globalAlpha = 0.6; K('#ffffff', cx - 4 + i * 6, cupY - 6 - ((tick >> 2) + i * 3) % 8, 1, 3); kctx.globalAlpha = 1; }
+  }
+}
+function drawStoveUnit(u, j) {
+  const { x, y, w } = u, cx = x + w / 2 - 6, cy = y + 34;
+  K('#2e2e36', x + 2, y + 38, w - 4, 14); K('#4a4a54', x + 3, y + 39, w - 6, 2);
+  [x + 10, x + w - 14].forEach(kx => KE(kx, y + 46, 3, 3, '#1e1e24'));
+  // 火
+  if (j) for (let i = 0; i < 9; i++) { const fx = cx - 14 + i * 3.5, fh = 3 + ((tick >> 2) + i) % 4; K(i % 2 ? '#ffd040' : '#ff8a2a', fx, cy + 4 - fh, 2, fh); K('#5a8aff', fx, cy + 4, 2, 1); }
+  // フライパン
+  KE(cx, cy + 1, 24, 8, '#141418'); KE(cx, cy - 1, 23, 7, '#3a3a42'); KE(cx, cy - 1, 20, 5, '#2a2a30');
+  K('#2a2a30', cx + 22, cy - 3, 22, 4); K('#6a4a2a', cx + 34, cy - 4, 12, 6); K('#8a6a40', cx + 35, cy - 4, 10, 1);
+  if (j) {
+    const f = Math.min(1, j.t / j.dur);
+    if (j.item.id === 'omurice') {
+      const col = f < ZONE[0] ? lerpCol('#fff0a0', '#f8d040', f / ZONE[0]) : lerpCol('#f8d040', '#e0a020', (f - ZONE[0]) / (1 - ZONE[0]));
+      KE(cx, cy - 2, 14, 4, col); KE(cx - 3, cy - 3, 6, 1, '#fff6c0');
+      if (f > 0.4) { K('#d03030', cx - 3, cy - 3, 2, 2); K('#d03030', cx + 2, cy - 3, 2, 2); K('#d03030', cx - 2, cy, 5, 1); }
+    } else {
+      const col = f < ZONE[0] ? lerpCol('#f4e4b0', '#e8b860', f / ZONE[0]) : lerpCol('#d8943a', '#a8642a', (f - ZONE[0]) / (1 - ZONE[0]));
+      KE(cx, cy - 2, 13, 4, col); KE(cx - 2, cy - 3, 5, 1, lerpCol('#fff6d0', col, 0.5));
+      if (f < ZONE[0]) for (let i = 0; i < 4; i++) K('#fff6d0', cx - 8 + i * 5, cy - 3 + (i % 2), 1, 1);
+    }
+    if (inZone(j)) for (let i = 0; i < 3; i++) { const a = (tick / 6) + i * 2.1; K('#fff6a0', Math.round(cx + Math.cos(a) * 16), Math.round(cy - 6 + Math.sin(a) * 5), 2, 2); }
+    for (let i = 0; i < 3; i++) { kctx.globalAlpha = 0.6; K('#ffffff', cx - 8 + i * 8, cy - 12 - ((tick >> 2) + i * 4) % 12, 1, 4); kctx.globalAlpha = 1; }
+  }
+}
+function drawOvenUnit(u, j) {
+  const { x, y, w, h } = u;
+  K('#3a2e24', x, y, w, h); K('#7a6a5a', x + 1, y + 1, w - 2, h - 2); K('#8a7a6a', x + 1, y + 1, w - 2, 2);
+  const wx = x + 8, wy = y + 8, ww = w - 30, wh = h - 14;
+  K('#2a2018', wx, wy, ww, wh);
+  if (j) {
+    const f = Math.min(1, j.t / j.dur);
+    K(lerpCol('#5a3a20', '#ff9a3a', Math.min(1, f * 1.4)), wx + 1, wy + 1, ww - 2, wh - 2);
+    K('#c8c0b0', wx + 3, wy + wh - 5, ww - 6, 2);
+    const fx = wx + ww / 2, fy = wy + wh - 6;
+    if (j.item.id === 'cake') { const c = lerpCol('#f8e8c0', '#e8b870', f); K(c, fx - 8, fy - 8, 16, 8); K('#ffffff', fx - 8, fy - 9, 16, 2); if (f > 0.6) K('#e02040', fx - 1, fy - 11, 3, 2); }
+    else for (let i = 0; i < 3; i++) { KE(fx - 9 + i * 9, fy - 3, 3, 2, lerpCol('#f4e0b0', '#c8883a', f)); }
+  } else K('#3a2e24', wx + 1, wy + 1, ww - 2, wh - 2);
+  kctx.globalAlpha = 0.25; K('#ffffff', wx + 2, wy + 2, ww / 3, 1); kctx.globalAlpha = 1;
+  K('#c8c0b0', wx, wy - 4, ww, 2);
+  // タイマーのダイヤル と ベル
+  const dx = x + w - 12, dy = y + 12;
+  KE(dx, dy, 6, 6, '#3a2e24'); KE(dx, dy, 5, 5, '#e8e0d0');
+  if (j) { const a = (j.t / j.dur) * Math.PI * 2 - Math.PI / 2; K('#c83a3a', Math.round(dx + Math.cos(a) * 3), Math.round(dy + Math.sin(a) * 3), 2, 2); }
+  if (h > 40) { const by = y + 30, ring = j && inZone(j) && (tick >> 2) & 1; KE(dx, by, 5, 4, ring ? '#ffe060' : '#a08a40'); K(ring ? '#ffe060' : '#a08a40', dx - 6, by + 3, 13, 2); if (ring) { K('#fff6a0', dx - 10, by - 6, 2, 2); K('#fff6a0', dx + 9, by - 6, 2, 2); } }
+  else if (j && inZone(j) && (tick >> 2) & 1) KE(dx, y + h - 8, 4, 3, '#ffe060');
+}
+function passSlots() {
+  const ready = jobs.filter(j => j.state === 'ready');
+  return ready.slice(0, 6).map((j, n) => ({ j, x: 380 + (n % 2) * 32, y: 50 + Math.floor(n / 2) * 22 }));
+}
+function renderKitchen() {
+  kctx.setTransform(2, 0, 0, 2, 0, 0); kctx.imageSmoothingEnabled = false;
+  // かべ（タイル）
+  K('#f2f4f0', 0, 0, KW, 112);
+  for (let y = 0; y < 112; y += 8) { K('#d8e0dc', 0, y + 7, KW, 1); for (let x = ((y / 8) % 2) * 8; x < KW; x += 16) K('#d8e0dc', x, y, 1, 7); }
+  K('#4a9a8a', 0, 34, KW, 3);
+  // チケットレール
+  K('#8a8a94', 4, 6, KW - 80, 3); K('#b8b8c4', 4, 6, KW - 80, 1);
+  if (!G) return;
+  const q = jobs.filter(j => j.state === 'queue');
+  const tagCol = { drink: '#7a4426', stove: '#c84a3a', oven: '#e08a2a' };
+  q.slice(0, 11).forEach((j, n) => {
+    const tx = 10 + n * 32, sway = Math.round(Math.sin((tick + n * 20) / 30));
+    K('#c8c0b0', tx + 12 + sway, 9, 2, 3);
+    K('#d8d0c0', tx + sway, 12, 26, 24); K('#fffaf0', tx + 1 + sway, 13, 24, 22); K(tagCol[j.st], tx + 1 + sway, 13, 24, 3);
+    kctx.drawImage(ICON2[j.item.id], tx + 5 + sway, 17);
+    if (j.c.vip) K('#f2c14e', tx + 20 + sway, 30, 4, 4);
+  });
+  if (q.length > 11) KT(`+${q.length - 11}`, 365, 14, 11, '#3a3a44');
+  // 調理台
+  K('#9aa4ae', 0, 112, KW, 8); K('#c8d0d8', 0, 112, KW, 2); K('#6a747e', 0, 119, KW, 1);
+  K('#7a5232', 0, 120, KW, 48);
+  for (let x = 4; x < KW; x += 56) { K('#6a4528', x, 126, 50, 36); K('#86603c', x, 126, 50, 1); K('#86603c', x, 126, 1, 36); K('#c8a070', x + 22, 140, 6, 2); }
+  // 設備
+  for (const u of kitchenUnits()) {
+    const j = unitJob(u);
+    if (u.st === 'drink') drawCoffeeUnit(u, j);
+    else if (u.st === 'stove') drawStoveUnit(u, j);
+    else drawOvenUnit(u, j);
+    if (!j && queued(u.st).length) tapHint(u);
+  }
+  // 設備の名前（設備ごとに1つ）
+  const groups = {};
+  for (const u of kitchenUnits()) { const g = groups[u.st] || (groups[u.st] = [u.x, u.x + u.w]); g[0] = Math.min(g[0], u.x); g[1] = Math.max(g[1], u.x + u.w); }
+  for (const st in groups) KT({ drink: 'コーヒーマシン', stove: 'フライパン', oven: 'オーブン' }[st], (groups[st][0] + groups[st][1]) / 2, 150, 11, '#efe9dc');
+  // できあがり台
+  K('#5a3a22', 372, 40, 74, 72); K('#e8dcc4', 374, 42, 70, 68);
+  KT('できあがり', 409, 26, 10, '#3a3a44');
+  for (const by of [66, 88, 110]) { K('#a2724a', 372, by - 2, 74, 3); }
+  for (const s of passSlots()) {
+    const cold = s.j.readyT > COLD_AFTER && s.j.q !== 'perfect';
+    KE(s.x + 14, s.y + 13, 12, 3, '#ffffff'); KE(s.x + 14, s.y + 13, 9, 2, '#e8e8f0');
+    kctx.globalAlpha = cold ? 0.6 : 1; kctx.drawImage(ICON2[s.j.item.id], s.x + 6, s.y - 2); kctx.globalAlpha = 1;
+    if (s.j.q === 'perfect') { K('#8affa0', s.x + 24, s.y - 4, 3, 3); }
+    if (!cold && (tick >> 4) & 1) { K('#ffffff', s.x + 2, s.y, 1, 3); }
+  }
+  // 文字の演出
+  for (const f of kfx) { kctx.globalAlpha = Math.min(1, (60 - f.t) / 20); KT(f.text, f.x, f.y - f.t * 0.4, 12, f.color); kctx.globalAlpha = 1; }
+}
+function updateKitchenFx() { for (const f of kfx) f.t++; for (let i = kfx.length - 1; i >= 0; i--) if (kfx[i].t > 60) kfx.splice(i, 1); }
+kcv.addEventListener('pointerdown', e => {
+  e.preventDefault(); initAudio();
+  if (!G || isPaused() || (mode !== 'open' && mode !== 'closing')) return;
+  const r = kcv.getBoundingClientRect(), b = 3;
+  const x = (e.clientX - r.left - b) / (r.width - b * 2) * KW, y = (e.clientY - r.top - b) / (r.height - b * 2) * KH;
+  for (const s of passSlots()) if (x >= s.x - 2 && x <= s.x + 30 && y >= s.y - 6 && y <= s.y + 20) { deliver(s.j, false); return; }
+  for (const u of kitchenUnits()) { const top = u.h > 40 ? u.y - 16 : u.y, bot = u.y + u.h >= 110 ? 124 : u.y + u.h; if (x >= u.x && x <= u.x + u.w && y >= top && y <= bot) { tapUnit(u); return; } }
+});
 
 // ================= HUD・UI =================
 const fmtTime = t => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
@@ -1558,6 +1722,8 @@ function openShop(tab = 'furniture', fromReport = false) {
       return row(`${a.name}をむかえる`, locked ? `ひょうばん ★${a.star} で会える` : a.desc, has ? 'なかま' : `¥${a.price.toLocaleString()}`, has || locked || G.money < a.price, `buy-c-${a.pal}`);
     }).join('');
     const locked = stars() < STAFF.star;
+    rows += row('ぽんた（ぐりおの弟）をやとう', stars() < 2 ? 'ひょうばん ★2 で やとえる' : 'できた料理を 席まで はこんでくれる。お給料はおやつ。でも よくサボる',
+      G.ponta ? 'なかま' : '¥6,000', G.ponta || stars() < 2 || G.money < 6000, 'buy-p-x');
     rows += row('アルバイトをやとう', locked ? `ひょうばん ★${STAFF.star} でやとえる` : `注文出しと片づけを手伝ってくれる。日給 ¥${STAFF.wage.toLocaleString()}`,
       G.staff ? 'やとった' : `¥${STAFF.price.toLocaleString()}`, G.staff || locked || G.money < STAFF.price, 'buy-s-x');
   }
@@ -1593,6 +1759,10 @@ function buy(id) {
     G.cats.push(k); cats.push(makeCat(k, ENTRANCE.x, 282));
     toast(`${a.name}がカフェのなかまになりました`); setTimeout(sfx.meow, 300);
     say([['happy', `${a.name}、ようこそ！ なかよく しようにゃ。`]]);
+  } else if (kind === 'p') {
+    if (G.money < 6000 || G.ponta) return;
+    G.money -= 6000; G.ponta = true; ponta = makePonta(); G.flags.pontaJoin = true;
+    toast('ぽんたが 従業員に なりました'); say(TALKS.pontaJoin);
   } else if (kind === 's') {
     if (G.money < STAFF.price || G.staff) return; G.money -= STAFF.price; G.staff = true; toast('アルバイトさんが来てくれました');
   }
@@ -1647,7 +1817,7 @@ function openCats() {
       <span class="desc">できた料理を はこんでくれる。よく寝る。寝ていたらタップで起こそう</span>
       <span class="desc">いまのようす：${!ponta ? '-' : ponta.state === 'nap' ? 'ねてる（サボり中）' : ponta.state === 'slack' ? '毛づくろい（サボり中）' : ponta.carry ? 'はこんでる' : 'まじめに待機'}</span>
     </div>`;
-  const list = pontaRow + cats.map(k => `
+  const list = (G.ponta ? pontaRow : '') + cats.map(k => `
     <div class="row catrow">
       <canvas width="52" height="47" data-cat="${k.pal}"></canvas>
       <span class="name">${k.name}${k.pal === 'grio' ? '（店長）' : ''}</span>
@@ -1669,7 +1839,7 @@ function openTitle() {
     <canvas id="titleArt" class="title-art" width="160" height="80"></canvas>
     <h2>ぐりおのねこカフェ</h2>
     <p>店長ねこ「ぐりお」といっしょに、小さなねこカフェを人気のお店にしよう。</p>
-    <p class="sub">・ふきだしをタップ → 注文をうける → 調理中にみどりのゾーンでタップ → できたらタップで運ぶ<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう<br>・料理の材料は「仕入れ」で。閉店後に買うとやすい</p>
+    <p class="sub">・ふきだしをタップ → 注文をうける<br>・下のキッチンで設備をタップ → 調理。ちょうどいいときにもう一度タップでパーフェクト<br>・できあがり台の料理をタップ → はこぶ<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう<br>・料理の材料は「仕入れ」で。閉店後に買うとやすい</p>
     <p class="sub">目標：ひょうばん ★5 と もちきん ¥100,000</p>
     <div class="actions-row">
       ${saved ? `<button type="button" id="mCont">つづきから（${saved.day}日目）</button>` : ''}
@@ -1682,7 +1852,7 @@ function openTitle() {
   tg.drawImage(FACES.grio.happy, 34, 2); tg.drawImage(FACES.ponta.sleep, 82, 6);
   tg.drawImage(CAT_SPR.mike.sit[0], 0, 34, 26, 23.5); tg.drawImage(CAT_SPR.kuro.sleep[1], 132, 50, 26, 14);
   tg.drawImage(ICON.coffee, 24, 57); tg.drawImage(ICON.cake, 148, 45);
-  const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) { event('intro'); G.flags.pontaJoin = true; } else event('pontaJoin'); };
+  const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) event('intro'); };
   if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, kitchen: { ...base.kitchen, ...(saved.kitchen || {}) }, market: saved.market || base.market, flags: saved.flags || {} }, false); };
   $('mNew').onclick = () => go(newSave(), true);
 }
@@ -1699,7 +1869,7 @@ cv.addEventListener('pointerdown', e => {
   for (const c of customers) {
     if (c.state !== 'order' && c.state !== 'wait') continue;
     const s = c.seat;
-    if (x > s.x - 14 && x < s.x + 14 && y > s.y - 44 && y < s.y - 2) { if (c.state === 'order') serve(c, false); else if (c.job) cookTap(c.job); return; }
+    if (x > s.x - 14 && x < s.x + 14 && y > s.y - 44 && y < s.y - 2) { if (c.state === 'order') serve(c, false); else if (c.job && c.job.state === 'ready') deliver(c.job, false); else if (c.job) toast('下のキッチンで 設備をタップして 調理してね'); return; }
   }
   for (const s of seats) {
     if (s.dirty && Math.abs(x - (s.tx + s.side * 5)) < 12 && y > s.ty - 26 && y < s.ty - 4) { s.dirty = false; sfx.clean(); addFx('spark', s.tx + s.side * 5, s.ty - 18); return; }
@@ -1864,14 +2034,9 @@ const TALKS = {
     ['sad', 'おみせは まだ ちいさくて、お客さんも すくないんだ……'],
     ['happy', 'でも いつか、まちで いちばんの ねこカフェに したいにゃ！'],
     ['normal', 'お客さんの ふきだしを タップすると、注文を うけられるよ。'],
-    ['normal', '注文は キッチンで 調理するにゃ。できたら もういちど タップして はこんでね。'],
+    ['normal', '注文は 下の キッチンに とどくにゃ。設備を タップして 調理してね。'],
     ['normal', 'たべおわった おさらも タップして かたづけてね。'],
     ['happy', 'それから…… ぼくたちを なでてくれると、げんきが でるにゃ〜'],
-    ['normal', 'あ、しょうかいするね。こっちは 弟の ぽんた。いちおう 従業員だにゃ。'],
-    ['sleep', '……むにゃ。……ぽんた です……', 'ponta'],
-    ['normal', 'できた料理を テーブルまで はこんでくれるんだけど……'],
-    ['sad', 'よく ねちゃうし、すぐ サボるんだ。ねてたら タップして おこしてあげて。'],
-    ['happy', 'がんばるにゃ〜…… ふあぁ', 'ponta'],
     ['surprise', 'そうそう、料理には 材料が いるにゃ。'],
     ['normal', 'コーヒーには コーヒー豆、クッキーには 小麦粉。なくなったら「仕入れ」で 買ってね。'],
     ['normal', '営業中に 買うと おいそぎ便で たかいから、閉店後に まとめて 買うのが おトクだにゃ。'],
@@ -1885,7 +2050,7 @@ const TALKS = {
   firstAngry: [['sad', 'あっ…… お客さん、おこって かえっちゃった……'], ['normal', 'ふきだしの ゲージが なくなる前に はこぼうね。']],
   fur: [['surprise', 'ゆかに ぼくたちの 毛が おちてる……！'], ['normal', '毛を タップすると おそうじ できるにゃ。']],
   hungry: [['sad', 'おなか すいたにゃ……'], ['normal', '下の「ごはん」ボタンで ごはんを 足してほしいにゃ。']],
-  star2: [['surprise', 'ひょうばんが ★2 に なったにゃ！'], ['happy', 'アルバイトさんを やとえるように なったよ。クロも 会いに来たいって！']],
+  star2: [['surprise', 'ひょうばんが ★2 に なったにゃ！'], ['happy', 'アルバイトさんや、弟の ぽんたを やとえるように なったよ。ショップの「ねこ・人」を 見てみてね。']],
   star3: [['surprise', '★3！ まちで うわさに なってきたにゃ。'], ['happy', 'シロも あそびに 来たいって。ショップを 見てみてね。']],
   star4: [['happy', '★4 だにゃ！ チャチャが なかまに なりたいって。']],
   star5: [['surprise', '★5！！ まちいちばんの ねこカフェ だにゃ！'], ['happy', 'あとは もちきん ¥100,000 を めざそう！']],
@@ -1896,10 +2061,11 @@ const TALKS = {
   waste: [['sad', '牛乳や いちごは 日もちしないから、すてることに なっちゃった……'], ['normal', '日もちの短い材料は、使うぶんだけ 買うのが コツだにゃ。']],
   cook: [
     ['surprise', 'はじめての 調理だにゃ！'],
-    ['normal', '調理中は ゲージが のびていくよ。みどりの ところで タップすると……'],
-    ['happy', '「パーフェクト！」 できたての 最高の 一品に なって、チップも ふえるにゃ。'],
+    ['normal', '下の キッチンで、光っている 設備を タップすると 調理スタート！'],
+    ['normal', 'コーヒーは カップの みどりの線まで たまったら タップ。フライパンは きつね色で キラキラしたら タップ。オーブンは ベルが 光ったら タップ！'],
+    ['happy', 'うまく できたら「パーフェクト！」 チップも ふえるにゃ。'],
     ['sad', 'でも はやすぎると しっぱい。ふつうの 出来に なっちゃう。'],
-    ['normal', 'できた料理は ほうっておくと さめちゃうから、はやめに はこんでね。下の「キッチン」からも タップできるよ。'],
+    ['normal', 'できた料理は「できあがり」の台に ならぶよ。タップして はこんでね。さめないうちに！'],
   ],
   pontaJoin: [
     ['happy', 'オーナーさん、しょうかいするね。弟の ぽんた だにゃ。'],
@@ -1978,7 +2144,7 @@ function loop(now) {
     acc -= 1000 / 60;
   }
   if (!talking && talkQ.length && $('modal').hidden) startTalk();
-  render(); renderJobs();
+  render(); renderKitchen();
   if (++hudT % 10 === 0) updateHud();
   requestAnimationFrame(loop);
 }
