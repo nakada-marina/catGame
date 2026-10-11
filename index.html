@@ -118,6 +118,37 @@ body {
 .nya-card button { grid-column: 3; grid-row: 1 / span 4; background: #e8b43a; color: #3a2a10; border-bottom-color: #a07a10; min-width: 84px; }
 .nya-card button small { color: #5a4010; }
 .nya-card.done { opacity: 0.55; }
+#sub .nyax-btn { background: #101418; color: #fff; border-bottom-color: #000; position: relative; flex-shrink: 0; }
+.badge { position: absolute; top: -6px; right: -6px; background: #e8483a; color: #fff; font-size: 10px; line-height: 16px; min-width: 16px; padding: 0 4px; border-radius: 8px; }
+.nx { display: flex; flex-direction: column; gap: 10px; }
+.nx-head { background: #101418; color: #fff; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.nx-head b { font-size: 22px; font-weight: normal; }
+.nx-head span { font-size: 12px; color: #9aa4ae; }
+.nx-tabs button { background: #22282e; border-bottom-color: #101418; }
+.nx-tabs button.on { background: #f4f6f8; color: #101418; border-bottom-color: #9aa4ae; }
+.nx-tl { display: flex; flex-direction: column; gap: 1px; background: #2a3238; border-radius: 8px; overflow: hidden; }
+.nx-post { display: grid; grid-template-columns: 40px 1fr; gap: 10px; background: #15191d; color: #e8ecef; padding: 10px; }
+.nx-post.bad p { color: #ffb0a0; }
+.nx-av { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; color: #fff; font-size: 18px; }
+.nx-av canvas { width: 40px; height: 40px; image-rendering: pixelated; }
+.nx-body { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.nx-who { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nx-who b { font-weight: normal; color: #fff; }
+.nx-who span { color: #8a949e; font-size: 11px; }
+.nx-body p { margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.nx-body img { width: 100%; max-width: 240px; border-radius: 8px; image-rendering: pixelated; border: 1px solid #2a3238; }
+.nx-acts { display: flex; gap: 14px; font-size: 12px; color: #8a949e; flex-wrap: wrap; }
+.nx-acts .lk { color: #f2789a; }
+.nx-acts .bz { color: #101418; background: #f2c14e; border-radius: 4px; padding: 0 6px; }
+.nx-rep { font-size: 12px; color: #b8c0c8; border-left: 2px solid #2a3238; padding-left: 8px; }
+.nx-rep b { font-weight: normal; color: #e8ecef; }
+.nx-compose { display: flex; flex-direction: column; gap: 8px; }
+.nx-compose textarea { font-family: inherit; font-size: 16px; min-height: 84px; resize: vertical; border-radius: 8px; border: 2px solid #3a4d44; background: #fffdf6; color: #2a1e10; padding: 8px; -webkit-user-select: text; user-select: text; }
+.nx-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; gap: 8px; }
+.nx-row label { display: flex; align-items: center; gap: 6px; }
+.nx-tpls { display: flex; flex-direction: column; gap: 6px; }
+.nx-tpls button { text-align: left; font-size: 13px; background: #24352e; border-bottom-color: #18241f; padding: 8px 10px; white-space: normal; }
+.nx-btn { background: #101418 !important; color: #fff !important; }
 button {
   font-family: inherit;
   font-size: 14px;
@@ -211,7 +242,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .actions-row button { flex: 1; min-width: 120px; }
 .title-art { display: block; width: 100%; image-rendering: pixelated; border-radius: 6px; }
 #sub { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--chalk-dim); gap: 8px; }
-#sub > span:first-child { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sub > span:not(.tools) { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #kitchenCv { display: block; width: 100%; max-width: 100%; aspect-ratio: 448 / 168; image-rendering: pixelated; border: 3px solid #0f1814; border-radius: 6px; touch-action: none; cursor: pointer; background: #f2f4f0; }
 #kitchen { display: flex; align-items: center; gap: 8px; min-height: 58px; background: #18241f; border-radius: 8px; padding: 6px 8px; }
 #kitchen .klabel { font-size: 11px; color: var(--chalk-dim); writing-mode: vertical-rl; letter-spacing: 2px; flex-shrink: 0; }
@@ -270,6 +301,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
     <button type="button" id="btnNyaimee" class="nyaimee">ニャイミー<small>のらねこ</small></button>
   </div>
   <div id="sub">
+    <button type="button" id="btnNyax" class="nyax-btn">ニャックス<span id="nyaxBadge" class="badge" hidden>0</span></button>
     <span>ふきだし＝注文・設備＝調理・ねこ＝なでる</span>
     <span class="tools"><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
   </div>
@@ -830,7 +862,7 @@ let dayLog = null, weather = 'sun', dayFlags = {}, rushUntil = 0, vipNext = fals
 function newSave() {
   return {
     day: 1, money: 8000, pop: 10, bowl: 6, staff: false, served: 0, legend: false,
-    ponta: false, furniture: { stool: 0, table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0, fridge: 0, rack: 0 },
+    ponta: false, sns: { followers: 12, posts: [], unread: 0, seq: 0 }, furniture: { stool: 0, table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0, fridge: 0, rack: 0 },
     stock: { beans: [{ n: 16, day: 1 }], flour: [{ n: 12, day: 1 }] }, kitchen: { drink: 1, oven: 1, stove: 1 }, market: rollMarket(), pendingCost: 0,
     menu: ['coffee', 'cookie'], flags: {},
     cats: [{ name: 'ぐりお', pal: 'grio', mood: 70, hunger: 20 }],
@@ -879,7 +911,10 @@ function daysLeft(id) {
   if (!it.life || !lots.length) return null;
   return it.life - (G.day - lots[0].day);
 }
-function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (_) {} }
+function save() {
+  if (G && G.sns) G.sns.posts.forEach((p, i) => { if (i >= 5) delete p.img; });
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (_) {}
+}
 function loadSave() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (_) { return null; } }
 
 const stars = () => clamp(1 + Math.floor(G.pop / 20), 1, 5);
@@ -1126,6 +1161,7 @@ function updateCustomer(c) {
 function leaveAngry(c) {
   const s = c.seat;
   chat(c, ['もう かえる！', 'おそい…！', 'またこんど…']);
+  snsFromCustomer(c, 10, c.order ? c.order.name : '');
   if (c.job) { jobs = jobs.filter(j => j !== c.job); c.job = null; }
   c.state = 'leave'; s.cust = null; dayLog.angry++;
   G.pop = clamp(G.pop - 2, 0, 100); sfx.angry(); addFx('anger', s.x, s.y - 26, { life: 70 });
@@ -1145,6 +1181,7 @@ function pay(c) {
   G.pop = clamp(G.pop + (sat - 58) / 22, 0, 100);
   G.served++; dayLog.served++;
   dayLog.reviews.push({ sat, item: item.name, cat: c.visits > 0, q: c.quality });
+  snsFromCustomer(c, sat, item.name);
   if (c.quality === 'perfect') dayLog.perfect = (dayLog.perfect || 0) + 1;
   sfx.coin();
   if (sat >= 75) addFx('heart', s.x, s.y - 24);
@@ -1359,11 +1396,11 @@ function reviewText(r) {
 function update() {
   if (mode !== 'open' && mode !== 'closing') return;
   tick++;
-  if (tick % 10 === 0 && G.time < CLOSE) { G.time++; if (G.time >= CLOSE) { mode = 'closing'; toast('閉店時間です。最後のお客さんを見送ろう'); } }
+  if (tick % 10 === 0 && G.time < CLOSE) { G.time++; snsTick(); if (G.time >= CLOSE) { mode = 'closing'; toast('閉店時間です。最後のお客さんを見送ろう'); } }
   if (mode === 'open' && --spawnTimer <= 0) {
     spawnCustomer();
     const base = 560 - G.pop * 3.2 - (G.menu.length - 2) * 25 - decor() * 10;
-    spawnTimer = Math.round(clamp(base, 140, 620) * rnd(0.7, 1.3) * (weather === 'rain' ? 1.4 : 1) * (G.time < rushUntil ? 0.4 : 1) * (cats.some(k => k.temp && k.skill === 'charm' && k.state !== 'leaving') ? 0.7 : 1));
+    spawnTimer = Math.round(clamp(base, 140, 620) * rnd(0.7, 1.3) * (weather === 'rain' ? 1.4 : 1) * (G.time < rushUntil ? 0.4 : 1) * (cats.some(k => k.temp && k.skill === 'charm' && k.state !== 'leaving') ? 0.7 : 1) * (1 - Math.min(0.3, (G.sns ? G.sns.followers : 0) / 2500)));
   }
   if (staffBusy > 0) staffBusy--;
   updateJobs(); updatePonta(); updateKitchenFx();
@@ -2160,6 +2197,7 @@ kcv.addEventListener('pointerdown', e => {
 // ================= HUD・UI =================
 const fmtTime = t => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 function updateHud() {
+  updateNyaxBadge();
   if (!G) return;
   $('hudDay').textContent = `${G.day}日目 ${mode === 'report' ? '閉店' : fmtTime(G.time || OPEN)}${weather === 'rain' && mode !== 'report' ? ' 雨' : ''}`;
   $('hudMoney').textContent = '¥' + G.money.toLocaleString();
@@ -2376,7 +2414,7 @@ function openTitle() {
   tg.drawImage(CAT_SPR.mike.sit[0], 0, 34, 26, 23.5); tg.drawImage(CAT_SPR.kuro.sleep[1], 132, 50, 26, 14);
   tg.drawImage(ICON2.coffee, 22, 52, 12, 12); tg.drawImage(ICON2.cake, 146, 40, 12, 12);
   const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) event('intro'); };
-  if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, kitchen: { ...base.kitchen, ...(saved.kitchen || {}) }, market: saved.market || base.market, flags: saved.flags || {} }, false); };
+  if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, kitchen: { ...base.kitchen, ...(saved.kitchen || {}) }, market: saved.market || base.market, sns: saved.sns || base.sns, flags: saved.flags || {} }, false); };
   $('mNew').onclick = () => go(newSave(), true);
 }
 
@@ -2418,6 +2456,7 @@ $('btnStock').onclick = () => { initAudio(); if (G && mode !== 'report') openSto
 $('btnShop').onclick = () => { initAudio(); if (G && mode !== 'report') openShop(); };
 $('btnCats').onclick = () => { initAudio(); if (G && mode !== 'report') openCats(); };
 $('btnNyaimee').onclick = () => { initAudio(); if (G && mode !== 'report') openNyaimee(); };
+$('btnNyax').onclick = () => { initAudio(); if (G) openNyax(); };
 $('btnSpeed').onclick = () => { speed = speed % 3 + 1; $('speedLabel').textContent = '×' + speed; };
 $('btnMute').onclick = () => {
   initAudio(); muted = !muted; $('btnMute').textContent = muted ? '音 OFF' : '音 ON';
@@ -2603,6 +2642,12 @@ const TALKS = {
     ['surprise', 'にゃっ!? ね、ねてないよ！ ちょっと 目を とじてただけ！', 'ponta'],
     ['sad', '……まったく もう。'],
   ],
+  nyax: [
+    ['surprise', 'ニャックス、はじめるの？'],
+    ['normal', 'お店のことを つぶやくと、見た人が 来てくれるかも。写真や ねこの名前を 入れると 見てもらいやすいにゃ。'],
+    ['happy', 'お昼や 夕方が ねらいめ。バズったら お客さんが どっと 来るよ！'],
+  ],
+  nyaxFirst: [['happy', 'はじめての ポスト！ いいねが つくか ドキドキするにゃ…']],
   nyaimee: [
     ['surprise', 'ニャイミー、つかうの？'],
     ['normal', 'スキマ時間に はたらきたい 野良ねこさんと お店を つなぐ アプリだにゃ。'],
@@ -2660,6 +2705,141 @@ function checkEvents() {
       else if (ev === 'toy') cats.forEach(k => { k.mood = clamp(k.mood + 15, 0, 100); addFx('heart', k.x, k.y - 22); });
     });
   }
+}
+
+// ================= ニャックス（つぶやきSNS） =================
+const SNS_NAMES = ['ねこすき子', 'カフェめぐり部', 'もふもふ太郎', 'にくきゅう愛好会', 'ぬこ課長', 'しっぽ研究所', 'ミルクティー党', 'あまいもの日記', 'ねこ島ねこ美', 'ひなたぼっこ'];
+const SNS_HANDLES = ['nekosukiko', 'cafe_meguri', 'mofumofu_taro', 'nikukyu_club', 'nuko_kacho', 'shippo_lab', 'milktea_party', 'amaimono_d', 'nekojima', 'hinata_bocco'];
+function snsState() { if (!G.sns) G.sns = { followers: 12, posts: [], unread: 0, seq: 0 }; return G.sns; }
+function snsTemplates() {
+  const names = cats.filter(k => !k.temp).map(k => k.name);
+  const items = MENU.filter(m => G.menu.includes(m.id)).map(m => m.name);
+  return [
+    `きょうも ぐりおのねこカフェ 開店しました！ ${pick(names)}が おまちしてます`,
+    `${pick(items)}、できたてです。${pick(names)}と いっしょに どうぞ`,
+    `${pick(names)}が おひるねちゅう…しずかに見守ってください`,
+    `店長ぐりおより：きょうも がんばるにゃ`,
+    `雨の日は ねこと まったり。あたたかい ${pick(items)}あります`,
+  ];
+}
+// いいねの伸び方を決める
+function postReach(text, withPhoto) {
+  const sns = snsState();
+  let base = 4 + sns.followers * 0.12 + G.pop * 0.25, mult = 1;
+  if (withPhoto) mult += 0.7 + Math.min(0.6, cats.length * 0.1);
+  const catNames = cats.map(k => k.name).concat(['ねこ', 'ぐりお', 'ぽんた']);
+  mult += Math.min(0.9, catNames.filter(n => text.includes(n)).length * 0.3);
+  if (MENU.some(m => G.menu.includes(m.id) && text.includes(m.name))) mult += 0.25;
+  const t = G.time; if ((t >= 690 && t <= 810) || t >= 1020) mult *= 1.3;
+  const recent = sns.posts.filter(p => p.mine && p.day === G.day && G.time - p.t < 120).length;
+  mult *= Math.pow(0.5, recent);
+  if (text.length < 6) mult *= 0.5;
+  let luck = rnd(0.6, 1.8); if (Math.random() < 0.06) luck *= 6;
+  return Math.max(1, Math.round(base * mult * luck));
+}
+function snapCafe() {
+  const c = mk(180, 240), g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.drawImage(cv, 0, 0, 180, 240);
+  return c.toDataURL('image/jpeg', 0.75);
+}
+function postNyax(text, withPhoto) {
+  const sns = snsState();
+  text = text.trim().slice(0, 140); if (!text) return false;
+  const target = postReach(text, withPhoto);
+  sns.posts.unshift({ id: ++sns.seq, mine: true, name: 'ぐりおのねこカフェ', handle: 'guriocafe', text, img: withPhoto ? snapCafe() : null, day: G.day, t: G.time, likes: 0, rts: 0, replies: [], target, buzzed: false });
+  sns.posts = sns.posts.slice(0, 40);
+  tone(1568, 0.06, 'square', 0.2); tone(2093, 0.1, 'square', 0.2, null, 0.06);
+  toast('ニャックスに ポストしました');
+  event('nyaxFirst');
+  return true;
+}
+const REPLIES = ['いきたい！', 'かわいすぎる…', 'こんど行きます！', 'ねこちゃん〜', 'おいしそう', 'え、ねこが運んでくれるの？', 'このねこ だれですか', 'フォローしました！'];
+function snsTick() {
+  const sns = G.sns; if (!sns) return;
+  for (const p of sns.posts) {
+    if (!p.mine || p.day !== G.day) continue;
+    const prog = clamp((G.time - p.t) / 180, 0, 1);
+    const likes = Math.round(p.target * (1 - Math.exp(-3.2 * prog)));
+    if (likes > p.likes) {
+      const gain = likes - p.likes; p.likes = likes; p.rts = Math.round(likes * 0.22);
+      sns.followers += gain * 0.08; sns.unread += gain >= 3 ? 1 : 0;
+      if (p.replies.length < 4 && Math.random() < gain * 0.04) p.replies.push({ name: pick(SNS_NAMES), text: pick(REPLIES) });
+    }
+    if (!p.buzzed && p.likes >= Math.max(80, sns.followers * 1.2)) {
+      p.buzzed = true; sns.followers += p.likes * 0.25; G.pop = clamp(G.pop + 5, 0, 100);
+      rushUntil = Math.max(rushUntil, G.time + 120); spawnTimer = Math.min(spawnTimer, 30);
+      toast(`ポストが バズりました！（いいね ${p.likes}）`);
+      say([['surprise', 'オーナーさん！ ニャックスで バズってるにゃ！'], ['happy', 'お客さんが どっと 来るよ！ がんばろう！']]);
+    }
+  }
+  updateNyaxBadge();
+}
+function snsFromCustomer(c, sat, item) {
+  const sns = snsState();
+  if (sat >= 75 && Math.random() < 0.3) {
+    const i = Math.floor(Math.random() * SNS_NAMES.length);
+    const text = pick([`@guriocafe ${item}おいしかった！ ねこが席まで運んでくれた`, `@guriocafe ねこと目があった…しあわせ`, `ぐりおのねこカフェ、また行きたい。${item}が さいこう`, `@guriocafe 店長ねこが かわいすぎる件`]);
+    sns.posts.unshift({ id: ++sns.seq, mine: false, name: SNS_NAMES[i], handle: SNS_HANDLES[i], text, day: G.day, t: G.time, likes: Math.round(rnd(1, 20)), rts: Math.round(rnd(0, 4)), replies: [] });
+    sns.followers += 1; sns.unread++;
+  } else if (sat <= 15 && Math.random() < 0.5) {
+    const i = Math.floor(Math.random() * SNS_NAMES.length);
+    sns.posts.unshift({ id: ++sns.seq, mine: false, name: SNS_NAMES[i], handle: SNS_HANDLES[i], text: pick(['@guriocafe 待たされすぎて 帰った…', 'ねこカフェ行ったけど 注文が来なかった', '@guriocafe もうちょっと 早くしてほしい']), day: G.day, t: G.time, likes: Math.round(rnd(0, 6)), rts: 0, replies: [], bad: true });
+    sns.unread++;
+  }
+  sns.posts = sns.posts.slice(0, 40);
+  updateNyaxBadge();
+}
+function updateNyaxBadge() {
+  const b = $('nyaxBadge'); if (!b || !G || !G.sns) return;
+  b.textContent = G.sns.unread > 9 ? '9+' : G.sns.unread; b.hidden = !G.sns.unread;
+}
+let nyaxDraft = '', nyaxPhoto = true;
+function openNyax(tab = 'tl') {
+  const sns = snsState(); sns.unread = 0; updateNyaxBadge();
+  const esc = t => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const tl = sns.posts.map(p => `
+    <div class="nx-post${p.bad ? ' bad' : ''}">
+      <div class="nx-av" style="background:${p.mine ? '#e9dcc0' : `hsl(${(p.handle.length * 47) % 360} 45% 55%)`}">${p.mine ? '<canvas width="64" height="64" data-face="1"></canvas>' : esc(p.name[0])}</div>
+      <div class="nx-body">
+        <div class="nx-who"><b>${esc(p.name)}</b> <span>@${p.handle} ・ ${p.day}日目 ${fmtTime(p.t)}</span></div>
+        <p>${esc(p.text)}</p>
+        ${p.img ? `<img src="${p.img}" alt="お店の写真">` : ''}
+        <div class="nx-acts"><span>返信 ${p.replies.length}</span><span>リポスト ${p.rts}</span><span class="lk">いいね ${p.likes}</span>${p.buzzed ? '<span class="bz">バズり中</span>' : ''}</div>
+        ${p.replies.map(r => `<div class="nx-rep"><b>${esc(r.name)}</b> ${esc(r.text)}</div>`).join('')}
+      </div>
+    </div>`).join('') || '<p class="sub" style="padding:12px">まだ ポストがありません。「つぶやく」から ポストしてみよう。</p>';
+  const tpl = snsTemplates();
+  const compose = `
+    <div class="nx-compose">
+      <textarea id="nxText" maxlength="140" placeholder="お店の いまを つぶやこう">${esc(nyaxDraft)}</textarea>
+      <div class="nx-row"><label><input type="checkbox" id="nxPhoto" ${nyaxPhoto ? 'checked' : ''}> お店の写真をそえる</label><span id="nxCount">${nyaxDraft.length}/140</span></div>
+      <p class="sub">テンプレート</p>
+      <div class="nx-tpls">${tpl.map((t, i) => `<button type="button" data-tpl="${i}">${esc(t)}</button>`).join('')}</div>
+      <p class="sub">コツ：写真・ねこの名前・メニュー名を入れると 伸びやすい。お昼と夕方が ねらいめ。続けて ポストすると 伸びにくい。</p>
+      <div class="actions-row"><button type="button" id="nxPost" class="nx-btn">ポストする</button></div>
+    </div>`;
+  openModal(`
+    <div class="nx">
+      <div class="nx-head"><b>ニャックス</b><span>@guriocafe ・ フォロワー ${Math.floor(sns.followers).toLocaleString()}</span></div>
+      <div class="tabs nx-tabs"><button type="button" class="${tab === 'tl' ? 'on' : ''}" data-nxtab="tl">タイムライン</button><button type="button" class="${tab === 'post' ? 'on' : ''}" data-nxtab="post">つぶやく</button></div>
+      ${tab === 'tl' ? `<div class="nx-tl">${tl}</div>` : compose}
+      <div class="actions-row"><button type="button" id="mClose">とじる</button></div>
+    </div>`);
+  $('panel').querySelectorAll('[data-face]').forEach(c => c.getContext('2d').drawImage(FACES.grio.happy, 0, 0));
+  $('panel').querySelectorAll('[data-nxtab]').forEach(b => { b.onclick = () => openNyax(b.dataset.nxtab); });
+  if (tab === 'post') {
+    const ta = $('nxText');
+    ta.oninput = () => { nyaxDraft = ta.value; $('nxCount').textContent = `${ta.value.length}/140`; };
+    $('nxPhoto').onchange = e => { nyaxPhoto = e.target.checked; };
+    $('panel').querySelectorAll('[data-tpl]').forEach(b => { b.onclick = () => { nyaxDraft = tpl[+b.dataset.tpl]; ta.value = nyaxDraft; $('nxCount').textContent = `${nyaxDraft.length}/140`; }; });
+    $('nxPost').onclick = () => {
+      if (mode !== 'open' && mode !== 'closing') { toast('ポストは 営業中に できます'); return; }
+      if (!ta.value.trim()) { toast('なにか 書いてね'); return; }
+      closeModal();
+      requestAnimationFrame(() => { render(); if (postNyax(ta.value, nyaxPhoto)) { nyaxDraft = ''; save(); } });
+    };
+  }
+  $('mClose').onclick = closeModal;
+  event('nyax');
 }
 
 // ================= ループ =================
