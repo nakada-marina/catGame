@@ -282,7 +282,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 const VW = 224, VH = 300, S = 4;
 const cv = document.getElementById('cafe');
 cv.width = VW * S; cv.height = VH * S;
-const ctx = cv.getContext('2d');
+let ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
 function P(c, x, y, w = 1, h = 1) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
 function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
@@ -1179,6 +1179,7 @@ function catThink(k) {
   if (guests.length && r < 0.35) { const s = pick(guests); k.visit = s; k.state = 'toVisit'; k.tx = s.catX; k.ty = s.catY + 4; return; }
   const freeCush = CUSHION_POS.slice(0, G.furniture.cushion).filter(p => !cats.some(o => o.spot === p));
   if (freeCush.length && r < 0.55) { const p = pick(freeCush); k.spot = p; k.state = 'toSpot'; k.tx = p[0]; k.ty = p[1] - 1; return; }
+  if (r < 0.6 && r > 0.55 && !cats.some(o => o.spot === BOX)) { k.spot = BOX; k.state = 'toSpot'; k.tx = BOX.x; k.ty = BOX.y - 1; return; }
   if (G.furniture.tower && r < 0.68 && !cats.some(o => o.spot === TOWER)) { k.spot = TOWER; k.state = 'toSpot'; k.tx = TOWER.x + 10; k.ty = TOWER.base + 2; return; }
   if (r < 0.9) { k.state = 'walk'; k.tx = rnd(14, 210); k.ty = rnd(104, 288); return; }
   k.state = 'idle'; k.t = Math.floor(rnd(120, 300));
@@ -1597,37 +1598,34 @@ function drawRoom() {
   drawCounter();
   if (G.furniture.lamp) drawLamps();
 }
-function drawTable(x, y) {
+function rawTable(x, y) {
   const X = x * 2, Y = y * 2;
-  ctx.globalAlpha = 0.18; ellipse(X, Y + 1, 18, 4, '#000000'); ctx.globalAlpha = 1;
   P('#3a2412', X - 3, Y - 18, 6, 17); P('#6a4426', X - 2, Y - 18, 2, 17);
   ellipse(X, Y - 1, 12, 3, '#3a2412'); ellipse(X, Y - 2, 11, 2, '#6a4426');
   ellipse(X, Y - 23, 32, 8, '#4a2e18'); ellipse(X, Y - 25, 31, 8, '#8a5a30'); ellipse(X, Y - 26, 30, 7, '#b07a44');
   ellipse(X - 6, Y - 29, 13, 2, '#c8925a'); P('#d8a870', X - 14, Y - 30, 8, 1);
 }
-function drawChair(x, y) {
+function rawChair(x, y) {
   const X = x * 2, Y = y * 2;
   P('#3a2412', X - 11, Y - 47, 22, 5); P('#7a4e2c', X - 10, Y - 46, 20, 2);
   P('#3a2412', X - 10, Y - 42, 4, 28); P('#3a2412', X + 6, Y - 42, 4, 28); P('#6e4828', X - 9, Y - 42, 2, 28); P('#6e4828', X + 7, Y - 42, 2, 28);
   P('#5a3820', X - 3, Y - 42, 2, 22); P('#5a3820', X + 1, Y - 42, 2, 22);
   P('#3a2412', X - 13, Y - 18, 26, 7); P('#8a5a34', X - 12, Y - 18, 24, 3); P('#a06a40', X - 12, Y - 18, 24, 1);
 }
-function drawStool(x, y) {
+function rawStool(x, y) {
   const X = x * 2, Y = y * 2;
-  ctx.globalAlpha = 0.18; ellipse(X, Y + 1, 12, 3, '#000000'); ctx.globalAlpha = 1;
   P('#3a3a44', X - 9, Y - 14, 2, 14); P('#3a3a44', X + 7, Y - 14, 2, 14); P('#5a5a64', X - 6, Y - 6, 12, 2);
   ellipse(X, Y - 16, 12, 4, '#5a2e22'); ellipse(X, Y - 18, 11, 4, '#a84a3a'); ellipse(X - 3, Y - 19, 5, 1, '#d87a6a');
 }
-function drawPlant(x, y) {
+function rawPlant(x, y) {
   const X = x * 2, Y = y * 2;
-  ctx.globalAlpha = 0.18; ellipse(X, Y, 12, 3, '#000000'); ctx.globalAlpha = 1;
   for (let i = 0; i < 16; i++) { const w = 9 - Math.floor(i / 5); P(i < 3 ? '#b86a40' : '#9a5432', X - w, Y - 16 + i, w * 2, 1); }
   P('#d0805a', X - 11, Y - 19, 22, 4); P('#e09a70', X - 11, Y - 19, 22, 1);
   const leaves = [[-9, -32, 8, 5, '#2e6e3a'], [8, -30, 8, 5, '#2e6e3a'], [-4, -40, 7, 6, '#3a8a4a'], [5, -42, 7, 6, '#4aa85a'], [0, -50, 5, 7, '#4aa85a'], [-12, -24, 7, 4, '#3a8a4a'], [12, -24, 7, 4, '#3a8a4a']];
   for (const [dx, dy, rx, ry, c] of leaves) { ellipse(X + dx, Y + dy, rx, ry, c); P(shade(c, 1.3), X + dx - 1, Y + dy - ry + 2, 2, ry); }
   P('#2a5a30', X, Y - 46, 1, 28);
 }
-function drawTower() {
+function rawTower() {
   const X = TOWER.x * 2, top = TOWER.top * 2, base = TOWER.base * 2;
   const rope = (x, y0, y1, w) => { P('#b89a60', x, y0, w, y1 - y0); for (let y = y0; y < y1; y += 3) { P('#d8c090', x, y, w, 2); P('#a08850', x + w - 1, y, 1, 2); } };
   rope(X + 16, top + 6, base, 12);
@@ -1638,19 +1636,135 @@ function drawTower() {
   ellipse(X + 12, base + 2, 36, 7, '#6a2e4a'); ellipse(X + 12, base, 35, 6, '#9a4a6a'); ellipse(X + 12, base - 1, 33, 5, '#c87a9a');
   P('#e8d8b0', X + 40, top + 8, 1, 18); ellipse(X + 40, top + 29, 4, 4, '#f2c14e'); P('#fff2a0', X + 39, top + 27, 2, 2);
 }
-function drawCushion(x, y) {
+function rawCushion(x, y) {
   const X = x * 2, Y = y * 2;
-  ctx.globalAlpha = 0.2; ellipse(X, Y + 2, 22, 5, '#000000'); ctx.globalAlpha = 1;
   ellipse(X, Y, 22, 8, '#9a4a62'); ellipse(X, Y - 2, 21, 7, '#e48aa0'); ellipse(X - 4, Y - 4, 12, 3, '#f4b0c0');
   ellipse(X, Y - 2, 2, 1, '#9a4a62');
   [[-14, -1], [14, -1], [0, -7], [0, 4]].forEach(([dx, dy]) => P('#c86a84', X + dx, Y + dy, 2, 1));
 }
-function drawBowl() {
+function rawBowl(full) {
   const X = BOWL.x * 2, Y = BOWL.y * 2;
-  ctx.globalAlpha = 0.2; ellipse(X, Y + 3, 17, 3, '#000000'); ctx.globalAlpha = 1;
-  ellipse(X, Y, 16, 6, '#1e4a80'); ellipse(X, Y - 1, 15, 5, '#3a7ac0'); ellipse(X, Y - 2, 13, 3, G.bowl > 0 ? '#9a6430' : '#c8d8e8');
-  if (G.bowl > 0) for (let i = 0; i < 10; i++) P(i % 2 ? '#c8884a' : '#7a4a20', X - 10 + (i * 7) % 20, Y - 4 + (i * 3) % 3, 2, 2);
+  ellipse(X, Y, 16, 6, '#1e4a80'); ellipse(X, Y - 1, 15, 5, '#3a7ac0'); ellipse(X, Y - 2, 13, 3, full ? '#9a6430' : '#c8d8e8');
+  if (full) for (let i = 0; i < 10; i++) P(i % 2 ? '#c8884a' : '#7a4a20', X - 10 + (i * 7) % 20, Y - 4 + (i * 3) % 3, 2, 2);
   P('#ffffff', X - 12, Y + 1, 4, 1);
+}
+// ---- 家具を いちど絵にして しあげ処理（ふち・立体感）をかけ、使いまわす
+const BAKED = new Map();
+function bake(key, x0, y0, w, h, fn) {
+  let b = BAKED.get(key);
+  if (!b) {
+    const c = mk(w, h), g = c.getContext('2d'), keep = ctx;
+    g.imageSmoothingEnabled = false; g.translate(-x0, -y0); ctx = g;
+    try { fn(); } finally { ctx = keep; }
+    const d = g.getImageData(0, 0, w, h).data;
+    const hex = v => v.toString(16).padStart(2, '0');
+    const buf = Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => { const i = (y * w + x) * 4; return d[i + 3] > 200 ? '#' + hex(d[i]) + hex(d[i + 1]) + hex(d[i + 2]) : null; }));
+    const out = polish(buf, w, h, '#2a1a10', { despeckle: false });
+    const oc = mk(w, h), og = oc.getContext('2d');
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (out[y][x]) { og.fillStyle = out[y][x]; og.fillRect(x, y, 1, 1); }
+    b = { img: oc, x0, y0 }; BAKED.set(key, b);
+  }
+  return b;
+}
+// 基準の位置 (bx, by) で一度だけ描き、あとは ずらして置く
+function placeBaked(key, x, y, bx, by, l, t, w, h, raw) {
+  const b = bake(key, bx * 2 - l, by * 2 - t, w, h, () => raw(bx, by));
+  ctx.drawImage(b.img, Math.round(x * 2 - l), Math.round(y * 2 - t));
+}
+function floorShadow(X, Y, rx, ry, a = 0.2) { ctx.globalAlpha = a; ellipse(Math.round(X), Math.round(Y), rx, ry, '#2a1808'); ctx.globalAlpha = 1; }
+function drawTable(x, y) { floorShadow(x * 2, y * 2 + 1, 20, 4); placeBaked('table', x, y, 60, 60, 36, 40, 72, 46, rawTable); }
+function drawChair(x, y) { floorShadow(x * 2, y * 2 - 4, 13, 3, 0.14); placeBaked('chair', x, y, 60, 60, 16, 50, 32, 54, rawChair); }
+function drawStool(x, y) { floorShadow(x * 2, y * 2 + 1, 12, 3); placeBaked('stool', x, y, 60, 60, 16, 26, 32, 30, rawStool); }
+function drawPlant(x, y) { floorShadow(x * 2, y * 2, 13, 3); placeBaked('plant', x, y, 60, 60, 24, 62, 48, 66, rawPlant); }
+function drawCushion(x, y) { floorShadow(x * 2, y * 2 + 3, 23, 5); placeBaked('cushion', x, y, 60, 60, 26, 14, 52, 22, rawCushion); }
+function drawBowl() { floorShadow(BOWL.x * 2, BOWL.y * 2 + 3, 18, 3); const full = G.bowl > 0; placeBaked('bowl' + full, BOWL.x, BOWL.y, BOWL.x, BOWL.y, 20, 10, 40, 16, () => rawBowl(full)); }
+function drawTower() {
+  floorShadow(TOWER.x * 2 + 12, TOWER.base * 2 + 4, 38, 6);
+  const X = TOWER.x * 2, top = TOWER.top * 2, base = TOWER.base * 2;
+  const b = bake('tower', X - 28, top - 8, 84, base - top + 18, rawTower);
+  ctx.drawImage(b.img, b.x0, b.y0);
+}
+// ---- 床の小物（いつも置いてある）
+const SIGN = { x: 146, y: 290 }, UMBRELLA = { x: 74, y: 292 }, BOX = { x: 26, y: 238 };
+function rawSign(x, y) {
+  const X = x * 2, Y = y * 2;
+  P('#5a3a22', X - 13, Y - 34, 3, 34); P('#5a3a22', X + 10, Y - 34, 3, 34);
+  P('#5a3a22', X - 14, Y - 40, 28, 30); P('#2c4038', X - 12, Y - 38, 24, 26);
+  P('#8a5e3a', X - 14, Y - 40, 28, 2);
+  ctx.font = '8px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = '#efe9dc'; ctx.fillText('OPEN', X, Y - 36);
+  // チョークのねこ
+  [[-4, -24], [-3, -25], [3, -25], [4, -24], [-4, -23], [4, -23], [-4, -22], [4, -22], [-3, -21], [3, -21], [-2, -20], [-1, -20], [0, -20], [1, -20], [2, -20], [-2, -23], [2, -23], [0, -22]].forEach(([dx, dy]) => P(dy === -23 && dx !== -4 && dx !== 4 ? '#f2c14e' : '#efe9dc', X + dx, Y + dy, 1, 1));
+  P('#efe9dc', X - 8, Y - 16, 16, 1);
+}
+function rawUmbrella(x, y, rain) {
+  const X = x * 2, Y = y * 2;
+  if (rain) {
+    [[-5, '#4a7ac8', -30], [1, '#e86a7a', -34], [6, '#f2c14e', -28]].forEach(([dx, c, top]) => { P(shade(c, 0.7), X + dx - 2, Y + top, 5, 22); P(c, X + dx - 1, Y + top, 3, 22); P('#5a3a22', X + dx, Y + top - 4, 1, 4); P('#5a3a22', X + dx + 1, Y + top - 5, 2, 1); });
+  }
+  P('#3a4a5a', X - 9, Y - 16, 18, 16); P('#5a6a7a', X - 8, Y - 16, 16, 14); P('#7a8a9a', X - 8, Y - 16, 16, 2); P('#2a3440', X - 9, Y - 2, 18, 2);
+  P('#8a9aaa', X - 5, Y - 12, 1, 8);
+}
+function rawBox(x, y, part) {
+  const X = x * 2, Y = y * 2;
+  if (part === 'back') {
+    P('#a87a4a', X - 22, Y - 24, 44, 6); P('#c8965e', X - 26, Y - 30, 10, 7); P('#c8965e', X + 16, Y - 30, 10, 7);
+    P('#7a5432', X - 20, Y - 20, 40, 4);
+  } else {
+    P('#b88654', X - 22, Y - 18, 44, 18); P('#d0a06a', X - 22, Y - 18, 44, 2); P('#9a6e42', X + 16, Y - 16, 6, 16);
+    P('#e8d8b0', X - 4, Y - 16, 8, 14); P('#c8b890', X - 4, Y - 3, 8, 1);
+    P('#8a5a32', X - 14, Y - 10, 4, 1); P('#8a5a32', X - 13, Y - 11, 1, 3);
+  }
+}
+function drawSign() { floorShadow(SIGN.x * 2, SIGN.y * 2 + 1, 15, 3); placeBaked('sign', SIGN.x, SIGN.y, SIGN.x, SIGN.y, 18, 44, 36, 48, () => rawSign(SIGN.x, SIGN.y)); }
+function drawUmbrella() { const r = weather === 'rain'; floorShadow(UMBRELLA.x * 2, UMBRELLA.y * 2 + 1, 11, 3); placeBaked('umb' + r, UMBRELLA.x, UMBRELLA.y, UMBRELLA.x, UMBRELLA.y, 14, 42, 28, 46, () => rawUmbrella(UMBRELLA.x, UMBRELLA.y, r)); }
+function drawBox(part) {
+  if (part === 'back') floorShadow(BOX.x * 2, BOX.y * 2 + 1, 24, 4);
+  placeBaked('box' + part, BOX.x, BOX.y, BOX.x, BOX.y, 28, 34, 56, 38, () => rawBox(BOX.x, BOX.y, part));
+}
+// 入口から続く ねこの足あと
+function drawPawTrail() {
+  ctx.globalAlpha = 0.35;
+  for (let i = 0; i < 9; i++) {
+    const x = (112 + (i % 2 ? 5 : -5) - i * 1.6) * 2, y = (296 - i * 12) * 2;
+    P('#8a5e3a', x - 2, y, 5, 4); P('#8a5e3a', x - 3, y - 3, 2, 2); P('#8a5e3a', x, y - 4, 2, 2); P('#8a5e3a', x + 3, y - 3, 2, 2);
+  }
+  ctx.globalAlpha = 1;
+}
+// ---- 光：窓からの日だまり と 夕方〜夜の明かり
+const LIGHT = mk(FW / 4, FH / 4), lgc = LIGHT.getContext('2d');
+function drawSunbeam() {
+  const t = G.time, f = (t - OPEN) / (CLOSE - OPEN);
+  if (weather !== 'sun' || f > 0.82) return;
+  const warm = f > 0.58, len = 70 + f * 110, slant = 0.25 + f * 0.9;
+  ctx.globalAlpha = warm ? 0.2 : 0.15; ctx.fillStyle = warm ? '#ffb060' : '#fff4c8';
+  for (let y = 132; y < 132 + len; y += 2) { const d = y - 132; ctx.fillRect(Math.round(28 + d * slant), y, 88, 2); }
+  ctx.fillStyle = warm ? '#ffcf90' : '#ffffff'; ctx.globalAlpha = warm ? 0.12 : 0.1;
+  for (let y = 132; y < 132 + len; y += 2) { const d = y - 132; ctx.fillRect(Math.round(28 + d * slant + 44), y, 4, 2); }
+  ctx.globalAlpha = 1;
+}
+function drawLighting() {
+  const f = (G.time - OPEN) / (CLOSE - OPEN);
+  let dark = f < 0.6 ? 0 : Math.min(0.42, (f - 0.6) * 1.3);
+  if (weather === 'rain') dark += 0.08;
+  if (mode === 'report') dark = Math.max(dark, 0.3);
+  if (dark <= 0) return;
+  const lw = LIGHT.width, lh = LIGHT.height;
+  lgc.globalCompositeOperation = 'source-over'; lgc.clearRect(0, 0, lw, lh);
+  lgc.fillStyle = `rgba(18,16,48,${dark})`; lgc.fillRect(0, 0, lw, lh);
+  lgc.globalCompositeOperation = 'destination-out';
+  const lights = [[376, 120, 90], [224, 330, 110]];
+  if (G.furniture.lamp) lights.push([138, 60, 90], [256, 60, 90]);
+  for (const [x, y, r] of lights) {
+    const g = lgc.createRadialGradient(x / 4, y / 4, 0, x / 4, y / 4, r / 4);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.5, 'rgba(0,0,0,1)'); g.addColorStop(0.5, 'rgba(0,0,0,0.7)'); g.addColorStop(0.72, 'rgba(0,0,0,0.7)');
+    g.addColorStop(0.72, 'rgba(0,0,0,0.35)'); g.addColorStop(0.9, 'rgba(0,0,0,0.35)'); g.addColorStop(0.9, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    lgc.fillStyle = g; lgc.fillRect(0, 0, lw, lh);
+  }
+  ctx.drawImage(LIGHT, 0, 0, FW, FH);
+  // 明かりのまわりを少し あたたかく
+  ctx.globalAlpha = Math.min(0.12, dark * 0.3);
+  for (const [x, y, r] of lights) ellipse(x, y, Math.round(r * 0.45), Math.round(r * 0.3), '#ffb860');
+  ctx.globalAlpha = 1;
 }
 function catImg(pal, pose, face) { return CAT_SPR[pal][pose][face > 0 ? 0 : 1]; }
 function drawPonta() {
@@ -1658,6 +1772,7 @@ function drawPonta() {
   const pose = p.state === 'nap' ? 'sleep' : p.state === 'slack' ? ((tick >> 3) & 1 ? 'groomA' : 'groomB') : moving ? ((p.anim >> 3) & 1 ? 'walkA' : 'walkB') : 'sit';
   const img = catImg('ponta', pose, p.face);
   const X = Math.round(p.x * 2 - img.width / 2), Y = Math.round(p.y * 2 - img.height);
+  floorShadow(p.x * 2, p.y * 2 - 1, Math.round(img.width * 0.32), 3, 0.18);
   drawAt(img, X, Y);
   if (p.carry) drawAt(ICON2[p.carry.item.id], p.x * 2 - 8, Y - 18 + ((tick >> 3) & 1) * 2);
   else {
@@ -1685,6 +1800,7 @@ function drawCat(k) {
   let Y = Math.round(k.y * 2 - img.height);
   if (k.state === 'eat' && (k.t >> 4) & 1) Y += 2;
   if (k.jump > 0) Y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 12);
+  if (!(k.spot === TOWER && k.state === 'nap') && k.spot !== BOX) floorShadow(k.x * 2, k.y * 2 - 1, Math.round(img.width * 0.32), 3, 0.18);
   drawAt(img, Math.round(k.x * 2 - img.width / 2), Y);
   if (k.carry) drawAt(PLATE2, k.x * 2 - 9, Y - 10 + ((tick >> 3) & 1) * 2);
   if (k.carryDish && k.dish) drawAt(ICON2[k.dish.item.id], k.x * 2 - 8, Y - 16 + ((tick >> 3) & 1) * 2);
@@ -1701,6 +1817,7 @@ function drawCustomer(c) {
   if (c.state === 'enter' || c.state === 'leave') {
     const img = (c.anim >> 3) & 1 ? c.spr.a : c.spr.b;
     const Y = Math.round(c.y * 2 - img.height);
+    floorShadow(c.x * 2, c.y * 2 - 1, 11, 3, 0.2);
     drawAt(img, c.x * 2 - img.width / 2, Y);
     if (c.vip) drawCrown(c.x * 2, Y - 8);
   } else {
@@ -1820,8 +1937,11 @@ function render() {
   ctx.setTransform(S / 2, 0, 0, S / 2, 0, 0); ctx.imageSmoothingEnabled = false;
   if (!G) { drawWallAndFloor(OPEN); return; }
   drawRoom();
+  drawSunbeam();
+  drawPawTrail();
   for (const f of furs) drawAt(FUR2, f.x * 2 - 7, f.y * 2 - 5);
   const list = [];
+  list.push({ y: SIGN.y, d: drawSign }, { y: UMBRELLA.y, d: drawUmbrella }, { y: BOX.y - 7, d: () => drawBox('back') }, { y: BOX.y, d: () => drawBox('front') });
   for (let i = 0; i < G.furniture.cushion; i++) { const [x, y] = CUSHION_POS[i]; list.push({ y: y - 2, d: () => drawCushion(x, y) }); }
   for (let i = 0; i < G.furniture.plant; i++) { const [x, y] = PLANT_POS[i]; list.push({ y, d: () => drawPlant(x, y) }); }
   if (G.furniture.tower) list.push({ y: TOWER.base, d: drawTower });
@@ -1836,12 +1956,13 @@ function render() {
   if (ponta) list.push({ y: ponta.y, d: drawPonta });
   for (const k of cats) list.push({ y: k.spot === TOWER && k.state === 'nap' ? TOWER.base + 1 : k.y, d: () => drawCat(k) });
   list.sort((a, b) => a.y - b.y).forEach(o => o.d());
+  const f = (G.time - OPEN) / (CLOSE - OPEN);
+  if (f > 0.6 && f < 0.95 && weather === 'sun') { ctx.fillStyle = `rgba(255,140,60,${Math.min(0.1, (f - 0.6) * 0.4)})`; ctx.fillRect(0, 0, FW, FH); }
+  drawLighting();
   for (const c of customers) if (c.state === 'order' || c.state === 'wait') drawBubble(c);
   sayBoxes.length = 0;
   for (const c of customers.slice().sort((a, b) => (a.say ? a.say.t : 0) - (b.say ? b.say.t : 0)).reverse()) if (c.say) drawSay(c);
   drawParticles();
-  const f = (G.time - OPEN) / (CLOSE - OPEN);
-  if (f > 0.65) { ctx.fillStyle = `rgba(255,140,60,${Math.min(0.16, (f - 0.65) * 0.6)})`; ctx.fillRect(0, 0, FW, FH); }
 }
 
 // ================= キッチン画面（設備をタップして調理） =================
