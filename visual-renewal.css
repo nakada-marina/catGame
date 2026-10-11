@@ -139,3 +139,12 @@ body {display:block;padding-inline:max(8px,env(safe-area-inset-left));padding-bo
   box-shadow:0 -4px 16px rgba(79,47,29,.15);
 }
 #dock #actions button {min-height:48px}
+
+/* Keep dialogue readable above the dock while the larger room scrolls. */
+#wrap {filter:none}
+#talk {
+  position:fixed;left:50%;right:auto;transform:translateX(-50%);
+  bottom:var(--talk-bottom,124px);
+  width:min(calc(100% - 24px),620px);max-height:min(40dvh,240px);z-index:15;
+}
+#modal {z-index:30}

@@ -25,6 +25,9 @@ fs.mkdirSync(artifacts, {recursive:true});
       page.on('pageerror', e => {errors.push(e.message);console.error('Runtime error:',e.message);});
       await page.goto(base); await page.evaluate(() => artworkReady);
       await page.locator('#mNew').click();
+      await page.waitForFunction(()=>talking!==null);
+      const dialogue=await page.evaluate(()=>({bottom:$('talk').getBoundingClientRect().bottom,dockTop:$('dock').getBoundingClientRect().top,top:$('talk').getBoundingClientRect().top}));
+      assert(dialogue.top>=0&&dialogue.bottom<=dialogue.dockTop,'dialogue visible above dock');
       await page.evaluate(() => { talking=null; talkQ.length=0; $('talk').hidden=true; fitLayout(); render(); renderKitchen(); });
       const result = await page.evaluate(() => {
         const controls = [...$('actions').querySelectorAll('button'), ...$('sub').querySelectorAll('button')].map(el => el.getBoundingClientRect().toJSON());

@@ -271,7 +271,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .make .zero { color: var(--bad); }
 #sub button { padding: 4px 10px; font-size: 12px; border-bottom-width: 2px; white-space: nowrap; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261011-big-taps">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261011-big-dialogue">
 </head>
 <body>
 <div id="wrap">
@@ -3173,7 +3173,14 @@ function fitLayout() {
   if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
   const kr = Math.max(1, Math.ceil(kcv.clientWidth * (window.devicePixelRatio || 1) / KW));
   if (kcv.width !== KW * kr || kcv.height !== KH * kr) { kcv.width = KW * kr; kcv.height = KH * kr; }
+  positionDialogue();
 }
+function positionDialogue() {
+  const top = $('dock').getBoundingClientRect().top;
+  document.documentElement.style.setProperty('--talk-bottom', Math.max(12, innerHeight - top + 12) + 'px');
+}
+addEventListener('scroll', positionDialogue, {capture:true,passive:true});
+if (window.ResizeObserver) new ResizeObserver(positionDialogue).observe($('dock'));
 addEventListener('resize', fitLayout);
 if (window.visualViewport) visualViewport.addEventListener('resize', fitLayout);
 fitLayout();
