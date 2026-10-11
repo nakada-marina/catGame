@@ -552,10 +552,10 @@ function makeCatFine(L, P0, KS = CAT_K) {
     const sc = typeof L.scarf === 'string' ? L.scarf : '#2e7a4e', scL = shade(sc, 1.35), scD = shade(sc, 0.7);
     const sy = P0.scarfY, cx = P0.closed ? hx - 2 : nx;
     each((fx, fy, x, y) => {
-      if (fy >= sy && fy < sy + 2.2 && Math.abs(fx - cx) < 7) buf[y][x] = sc;
+      if (fy >= sy && fy < sy + 2.2 && Math.abs(fx - cx) < 7 && !(Math.abs(fx - nx) <= 3.5 && fy <= ny + 4.5)) buf[y][x] = sc;
       if (!P0.closed && tri(fx, fy, [cx - 5, sy + 2], [cx + 5, sy + 2], [cx, sy + 7])) buf[y][x] = sc;
     });
-    line(cx - 6, sy, cx + 4, sy, scL); if (!P0.closed) { set(cx - 2, sy + 3, scL); set(cx - 1, sy + 3, scL); set(cx + 1, sy + 1, scD); }
+    if (sy > ny + 4.5) line(cx - 6, sy, cx + 4, sy, scL); if (!P0.closed) { set(cx - 2, sy + 3, scL); set(cx - 1, sy + 3, scL); set(cx + 1, sy + 1, scD); }
   }
   // ふちどり（しあげ）
   const out = polish(buf, W, H, L.line);
