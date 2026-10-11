@@ -400,6 +400,16 @@ function makeCatFine(L, P0, KS = CAT_K) {
   }
   set(nx - 1, ny, L.nose); set(nx, ny, L.nose); set(nx + 1, ny, L.nose); set(nx, ny + 1, L.nose);
   set(nx, ny + 2, L.line); set(nx - 1, ny + 3, L.line); set(nx + 1, ny + 3, L.line);
+  // 前足を上げる（毛づくろい）・あくび
+  if (P0.raise) {
+    thick(P0.raise, 1.7, () => L.base);
+    const [cx, cy, rx, ry] = P0.raisePaw; each((fx, fy, x, y) => { if (ell(fx, fy, cx, cy, rx, ry)) buf[y][x] = L.paws ? L.white : L.base; });
+  }
+  if (P0.tongue) { set(P0.tongue[0], P0.tongue[1], '#f07a8a'); set(P0.tongue[0] + 0.7, P0.tongue[1], '#f07a8a'); }
+  if (P0.yawn) {
+    each((fx, fy, x, y) => { if (ell(fx, fy, nx, ny + 3.4, 2.3, 2.4)) buf[y][x] = '#6a2232'; });
+    each((fx, fy, x, y) => { if (ell(fx, fy, nx, ny + 4.6, 1.5, 1)) buf[y][x] = '#f07a8a'; });
+  }
   // 長毛：りんかくを ふさふさに
   if (L.long) {
     for (const salt of [0, 2]) {
@@ -433,6 +443,20 @@ function makeCatFine(L, P0, KS = CAT_K) {
   const c = mk(W, H), g = c.getContext('2d');
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (out[y][x]) { g.fillStyle = out[y][x]; g.fillRect(x, y, 1, 1); }
   return c;
+}
+{
+  const sit = CAT_POSE.sit, low = { head: [33, 15, 10, 9], cheek: [33, 18, 11.5, 6], eyes: [[29, 15], [37, 15]], nose: [33, 19], closed: true };
+  CAT_POSE.groomA = { ...sit, ...low, legs: [sit.legs[0]], raise: [[33.5, 31], [37.5, 22.5]], raisePaw: [38, 21.5, 2.4, 1.7], tongue: [35, 21] };
+  CAT_POSE.groomB = { ...sit, ...low, legs: [sit.legs[0]], raise: [[33.5, 31], [36.5, 25]], raisePaw: [37, 24.5, 2.4, 1.7], tongue: [34, 22] };
+  CAT_POSE.yawn = { ...sit, closed: true, yawn: true };
+  CAT_POSE.stretch = {
+    W: 56, H: 39,
+    body: [[16, 20, 9, 8], [28, 25, 12, 6]], head: [42, 26, 9, 8.5], cheek: [42, 29, 10, 5.5],
+    ears: [[[34, 21], [35, 13], [40, 17]], [[44, 17], [49, 13], [51, 22]]], earsIn: [[[36, 19], [36, 16], [38, 18]], [[46, 18], [48, 16], [49, 20]]],
+    legs: [[12, 26, 12, 36, 1], [34, 29, 46, 35, 1], [17, 26, 17, 36, 0], [36, 30, 49, 36, 0]], paws: [[12, 36.5, 2.6, 1.5], [46, 35.5, 2.6, 1.5], [17, 36.5, 2.6, 1.5], [49, 36.5, 2.6, 1.5]],
+    tail: [[9, 18], [5, 10], [7, 3]], eyes: [[38, 26], [46, 26]], nose: [42, 30], closed: true,
+    chest: [38, 31, 4, 3], bodyStripes: [[12, 13, 13, 24], [17, 13, 18, 25], [23, 18, 24, 29], [28, 19, 29, 29]], shadeY: 28, light: [16, 15, 7, 3], scarfY: 33,
+  };
 }
 const CAT_SPR = {};
 for (const pal in CAT_LOOK) {
@@ -551,8 +575,96 @@ const HEART = sprite(['.oo.oo.', 'orrorro', 'orrrrro', '.orrro.', '..oro..', '..
 const FUR = sprite(['..o.o..', '.ogogo.', 'oggggg.', '.ogggo.', '..o.o..'], { o: '#9a9aa6', g: '#d6d6de' });
 const PLATE = sprite(['..ooooo..', '.owwwwwo.', 'owwcwwcwo', '.owwwwwo.', '..ooooo..'], { o: '#8a8a9a', w: '#f4f4f8', c: '#b88a5a' });
 
+// ================= 料理のアイコン（16×16で1品ずつ描く） =================
+function makeFoodIcon(id) {
+  const N = 16, buf = Array.from({ length: N }, () => Array(N).fill(null));
+  const set = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < N && y < N) buf[y][x] = c; };
+  const each = fn => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) fn(x + 0.5, y + 0.5, x, y); };
+  const ell = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+  const fillE = (cx, cy, rx, ry, c) => each((fx, fy, x, y) => { if (ell(fx, fy, cx, cy, rx, ry)) buf[y][x] = c; });
+  const rect = (x, y, w, h, c) => { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) set(xx, yy, c); };
+  const tri = (x, y, a, b, c) => {
+    const sg = (p, q, r) => (p[0] - r[0]) * (q[1] - r[1]) - (q[0] - r[0]) * (p[1] - r[1]);
+    const d1 = sg([x, y], a, b), d2 = sg([x, y], b, c), d3 = sg([x, y], c, a);
+    return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+  };
+  const line = (x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2; for (let i = 0; i <= n; i++) set(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, c); };
+  const after = [];
+  if (id === 'coffee') {
+    fillE(8, 14, 7.2, 1.6, '#cfcac2'); fillE(8, 13.6, 6, 1, '#ebe7e0');
+    each((fx, fy, x, y) => { if ((fx >= 3 && fx <= 13 && fy >= 7 && fy <= 12) || ell(fx, fy, 8, 12, 5, 1.8)) buf[y][x] = fx > 11.5 ? '#d6d2ca' : '#f6f4f0'; });
+    each((fx, fy, x, y) => { const d = Math.hypot(fx - 13.6, fy - 9.6); if (d >= 1.1 && d <= 2.4 && fx > 12.8) buf[y][x] = '#e8e4dc'; });
+    fillE(8, 7, 4.8, 1.4, '#e8cfa0');
+    [[7, 6], [9, 6], [7, 7], [8, 7], [9, 7]].forEach(([x, y]) => set(x, y, '#8a5030'));
+    rect(4, 9, 1, 3, '#ffffff');
+    after.push(() => [5, 8, 11].forEach((x0, i) => [[0, 4], [1, 3], [0, 2], [1, 1]].forEach(([dx, dy]) => set(x0 + dx + (i % 2), dy, 'rgba(220,220,230,0.85)'))));
+  } else if (id === 'cookie') {
+    each((fx, fy, x, y) => { if (ell(fx, fy, 8, 9, 6.2, 5.6) || tri(fx, fy, [2.5, 8], [3, 1.5], [7.5, 5]) || tri(fx, fy, [8.5, 5], [13, 1.5], [13.5, 8])) buf[y][x] = ell(fx, fy, 8, 8.4, 5.2, 4.6) ? '#dcaa60' : '#b8803e'; });
+    rect(4, 3, 1, 2, '#e8a0a0'); rect(12, 3, 1, 2, '#e8a0a0');
+    rect(5, 8, 2, 2, '#4a2a14'); rect(10, 8, 2, 2, '#4a2a14'); set(5, 8, '#8a5a30'); set(10, 8, '#8a5a30');
+    rect(7, 10, 2, 1, '#e07a80'); set(7, 11, '#4a2a14'); set(8, 11, '#4a2a14'); set(6, 12, '#4a2a14'); set(9, 12, '#4a2a14');
+    [[3, 10], [2, 11], [13, 10], [14, 11]].forEach(([x, y]) => set(x, y, '#fff4d8'));
+    [[4, 12], [11, 12], [9, 5]].forEach(([x, y]) => set(x, y, '#7a4a20'));
+  } else if (id === 'tea') {
+    each((fx, fy, x, y) => { if (fx >= 3.5 && fx <= 12.5 && fy >= 3.5 && fy <= 14.5 && !(fy > 13.5 && (fx < 4.5 || fx > 11.5))) buf[y][x] = '#dfeaf0'; });
+    each((fx, fy, x, y) => { if (fx >= 4.5 && fx <= 11.5 && fy >= 6 && fy <= 13.5) buf[y][x] = fy < 7 ? '#efe0c8' : '#d2a070'; });
+    rect(5, 8, 2, 2, '#f4f8fa'); rect(8, 10, 2, 2, '#f4f8fa'); set(6, 8, '#ffffff');
+    rect(5, 7, 1, 7, '#e2bc8e');
+    line(11, 0, 9, 7, '#e86a8a'); line(12, 0, 10, 7, '#f29ab0');
+    rect(4, 4, 8, 1, '#ffffff');
+  } else if (id === 'cake') {
+    fillE(8, 14.3, 7.6, 1.4, '#e4e4ec');
+    for (let x = 2; x <= 13; x++) {
+      const top = Math.round(11 - (x - 2) * 0.36);
+      for (let y = top; y <= 13; y++) {
+        let c = y === 13 || y === 12 ? '#f0c878' : y === 11 ? (x % 3 === 0 ? '#e8506a' : '#fffaf2') : y >= 9 ? '#f4d28c' : '#fffaf2';
+        if (y === top && y < 11) c = '#ffffff';
+        if (x === 13) c = shade(c, 0.88);
+        set(x, y, c);
+      }
+    }
+    fillE(11, 5, 2.3, 2.3, '#e02040'); set(10, 4, '#ff8a9a'); set(12, 6, '#a01030');
+    set(11, 2, '#3a9a3a'); set(10, 3, '#3a9a3a'); set(12, 3, '#3a9a3a');
+    fillE(6.5, 8, 1.6, 1, '#ffffff');
+  } else if (id === 'pancake') {
+    fillE(8, 14, 7.6, 1.5, '#e4e4ec');
+    for (const cy of [12.2, 10.2, 8.2]) { fillE(8, cy, 6.2, 2.1, '#b8783a'); fillE(8, cy - 0.6, 6, 1.7, '#eab868'); }
+    fillE(8, 7.4, 5.2, 1.2, '#f4cc80'); fillE(8, 7.4, 3, 0.8, '#c87a2a');
+    rect(7, 5, 3, 2, '#fff2a0'); set(9, 6, '#e8d070'); set(7, 5, '#ffffff');
+    rect(3, 8, 1, 3, '#a05a20'); rect(12, 9, 1, 2, '#a05a20'); set(3, 11, '#a05a20');
+  } else if (id === 'omurice') {
+    fillE(8, 12.2, 7.6, 3, '#d8d8e0'); fillE(8, 11.8, 7, 2.4, '#f8f8fc');
+    fillE(8, 9.8, 5.8, 3.6, '#e0a820'); fillE(8, 9.3, 5.4, 3.1, '#f8d448'); fillE(6.3, 8, 2.2, 0.8, '#fff0a0');
+    [[6, 7], [10, 7], [6, 9], [10, 9], [8, 10], [7, 11], [9, 11]].forEach(([x, y]) => set(x, y, '#d03030'));
+    set(13, 12, '#3a9a3a'); set(12, 12, '#5ab04a'); set(13, 11, '#3a9a3a');
+  } else if (id === 'parfait') {
+    rect(5, 14, 6, 1, '#b8c8d8'); rect(7, 12, 2, 2, '#c8d8e8');
+    for (let y = 4; y <= 11; y++) {
+      const hw = Math.round(4.6 - (y - 4) * 0.42);
+      for (let x = 8 - hw; x < 8 + hw; x++) {
+        const c = y >= 10 ? '#c08040' : y >= 8 ? '#f8a0b8' : y >= 6 ? '#fffaf2' : '#f8a0b8';
+        set(x, y, (x === 8 - hw) ? '#e8f0f6' : c);
+      }
+    }
+    set(9, 10, '#e8b060'); set(6, 7, '#e02040'); set(9, 6, '#e02040');
+    fillE(8, 3.2, 3.6, 1.6, '#fffaf2'); fillE(7.5, 2.6, 2, 0.8, '#ffffff');
+    fillE(9.5, 1.5, 1.4, 1.4, '#e02040'); set(9, 1, '#ff8a9a');
+    line(4, 0, 5, 3, '#e0b060');
+  }
+  // ふちどり
+  const out = buf.map(r => r.slice());
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (buf[y][x]) continue;
+    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => buf[y + dy] && buf[y + dy][x + dx])) out[y][x] = '#3a2a20';
+  }
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) buf[y][x] = out[y][x];
+  after.forEach(f => f());
+  const c = mk(N, N), g = c.getContext('2d');
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (buf[y][x]) { g.fillStyle = buf[y][x]; g.fillRect(x, y, 1, 1); }
+  return c;
+}
 const ICON2 = {};
-for (const k in ICON) ICON2[k] = scale2x(ICON[k]);
+for (const k in ICON) ICON2[k] = makeFoodIcon(k);
 const HEART2 = scale2x(HEART), FUR2 = scale2x(FUR), PLATE2 = scale2x(PLATE);
 
 // ================= データ =================
@@ -760,6 +872,11 @@ function earn(n, x, y) {
 }
 
 // ================= お客さん =================
+// お客さんのひとこと（ふきだし）
+function chat(c, list, prob = 1) {
+  if (!c || Math.random() > prob) return;
+  c.say = { text: Array.isArray(list) ? pick(list) : list, t: 0 };
+}
 function freeSeats() { return seats.filter(s => !s.cust && !s.dirty); }
 function spawnCustomer() {
   const free = freeSeats(); if (!free.length) return;
@@ -819,6 +936,7 @@ function deliver(job, byStaff) {
   jobs = jobs.filter(j => j !== job); c.job = null;
   if (job.readyT > COLD_AFTER && job.q !== 'perfect') job.q = 'cold';
   c.quality = job.q; c.state = 'eat'; c.t = 0;
+  chat(c, job.q === 'perfect' ? ['できたて！', 'うわぁ、おいしそう！', 'きれい〜！'] : job.q === 'cold' ? ['あれ、ぬるい…'] : ['いただきます！', 'わーい', 'ありがとう'], job.q === 'normal' ? 0.5 : 1);
   addFx('spark', c.seat.x, c.seat.y - 24);
   if (!byStaff) sfx.serve();
 }
@@ -886,7 +1004,7 @@ function updateCustomer(c) {
   const s = c.seat;
   if (c.state === 'enter') {
     c.anim++;
-    if (moveTo(c, s.x, s.y + 2, 0.7)) { c.state = 'sit'; c.t = 0; }
+    if (moveTo(c, s.x, s.y + 2, 0.7)) { c.state = 'sit'; c.t = 0; chat(c, ['ねこカフェ、きてみたかった！', 'ねこ、どこかな〜', 'いいにおい…', 'おちつくお店だね', 'なに たのもうかな'], 0.45); }
   } else if (c.state === 'sit') {
     if (c.t > 70) {
       c.state = 'order'; c.t = 0; c.order = chooseOrder();
@@ -894,12 +1012,14 @@ function updateCustomer(c) {
     }
   } else if (c.state === 'order') {
     c.pat -= catNear(s) ? 0.5 : 1;
+    if (!c.saidWait && c.pat < c.maxPat * 0.35) { c.saidWait = true; chat(c, ['まだかな…', 'すみませーん！', 'ちゅうもん…', 'おなかすいた…']); }
     if (G.staff && !staffBusy && c.t > 200 && canMake(c.order)) { staffBusy = 40; serve(c, true); }
     else if (c.pat <= 0) leaveAngry(c);
   } else if (c.state === 'wait') {
     c.pat -= catNear(s) ? 0.2 : 0.4;
     if (c.pat <= 0) leaveAngry(c);
   } else if (c.state === 'eat') {
+    if (c.t === 170) chat(c, c.quality === 'cold' ? ['ちょっと さめてる…'] : ['おいしい！', 'しあわせ〜', 'ねこ見ながら たべるの さいこう', 'これ すき！'], 0.5);
     if (c.t > 420) pay(c);
   } else if (c.state === 'leave') {
     c.anim++;
@@ -908,6 +1028,7 @@ function updateCustomer(c) {
 }
 function leaveAngry(c) {
   const s = c.seat;
+  chat(c, ['もう かえる！', 'おそい…！', 'またこんど…']);
   if (c.job) { jobs = jobs.filter(j => j !== c.job); c.job = null; }
   c.state = 'leave'; s.cust = null; dayLog.angry++;
   G.pop = clamp(G.pop - 2, 0, 100); sfx.angry(); addFx('anger', s.x, s.y - 26, { life: 70 });
@@ -930,6 +1051,7 @@ function pay(c) {
   if (c.quality === 'perfect') dayLog.perfect = (dayLog.perfect || 0) + 1;
   sfx.coin();
   if (sat >= 75) addFx('heart', s.x, s.y - 24);
+  chat(c, sat >= 75 ? ['また来るね！', 'ごちそうさま〜', 'ねこたち ばいばい'] : sat < 45 ? ['うーん…', 'まあまあ かな'] : ['ごちそうさま'], 0.8);
   c.state = 'leave'; s.cust = null; s.dirty = true; s.dirtyT = 0;
 }
 
@@ -970,7 +1092,10 @@ function updateCat(k) {
   if (k.petCool > 0) k.petCool--;
   const sp = 0.45;
   switch (k.state) {
-    case 'idle': if (Math.random() < 0.06 && assignDeliver(k)) break; if (--k.t <= 0 || (Math.random() < 0.01 && assignClean(k))) { if (k.state === 'idle') catThink(k); } break;
+    case 'idle':
+      if (k.act) { if (--k.actT <= 0) k.act = null; }
+      else if (Math.random() < 0.004) { k.act = pick(['groom', 'groom', 'yawn', 'stretch']); k.actT = { groom: 260, yawn: 70, stretch: 110 }[k.act]; if (k.act === 'yawn') tone(380, 0.4, 'triangle', 0.15, 260); }
+      if (Math.random() < 0.06 && assignDeliver(k)) { k.act = null; break; } if (--k.t <= 0 || (Math.random() < 0.01 && assignClean(k))) { if (k.state === 'idle') catThink(k); } break;
     case 'toPickup':
       k.anim++;
       if (!jobs.includes(k.dish)) { k.dish = null; k.state = 'idle'; k.t = 20; break; }
@@ -1016,7 +1141,7 @@ function updateCat(k) {
     case 'toVisit':
       k.anim++;
       if (!k.visit.cust) { k.visit = null; k.state = 'idle'; k.t = 30; break; }
-      if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'visit'; k.t = Math.floor(rnd(280, 460)); k.visit.cust.visits++; k.face = -k.visit.side; addFx('heart', k.x, k.y - 22); }
+      if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'visit'; k.t = Math.floor(rnd(280, 460)); k.visit.cust.visits++; chat(k.visit.cust, ['かわいい…！', 'なでていい？', 'ふわふわ〜', 'こっち きた！', `${k.name}ちゃーん`], 0.7); k.face = -k.visit.side; addFx('heart', k.x, k.y - 22); }
       break;
     case 'visit':
       if (--k.t <= 0 || !k.visit.cust) { k.visit = null; k.state = 'idle'; k.t = 40; }
@@ -1044,7 +1169,7 @@ function petCat(k) {
   k.mood = clamp(k.mood + 12, 0, 100); k.petCool = 300;
   addFx('heart', k.x - 4, k.y - 22); addFx('heart', k.x + 4, k.y - 26, { t: -10 });
   addFx('text', k.x, k.y - 32, { text: k.name, color: '#ffffff', life: 50 });
-  if (k.state === 'idle' || k.state === 'walk') { k.state = 'idle'; k.t = 120; }
+  if (k.state === 'idle' || k.state === 'walk') { k.state = 'idle'; k.t = 120; k.act = null; }
   Math.random() < 0.5 ? sfx.meow() : sfx.pet();
 }
 
@@ -1132,6 +1257,7 @@ function update() {
   for (const s of seats) if (s.dirty) { s.dirtyT++; if (G.staff && s.dirtyT > 160 && !staffBusy) { s.dirty = false; staffBusy = 30; } }
   cats.forEach(updateCat);
   for (const p of particles) { p.t++; p.y += p.vy; }
+  for (const c of customers) if (c.say && ++c.say.t > 170) c.say = null;
   particles = particles.filter(p => p.t < p.life);
   checkEvents();
   if (mode === 'closing' && customers.length === 0) { seats.forEach(s => { s.dirty = false; }); endDay(); }
@@ -1395,9 +1521,9 @@ function drawBowl() {
 function catImg(pal, pose, face) { return CAT_SPR[pal][pose][face > 0 ? 0 : 1]; }
 function drawPonta() {
   const p = ponta, moving = p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
-  const pose = p.state === 'nap' ? 'sleep' : moving ? ((p.anim >> 3) & 1 ? 'walkA' : 'walkB') : 'sit';
+  const pose = p.state === 'nap' ? 'sleep' : p.state === 'slack' ? ((tick >> 3) & 1 ? 'groomA' : 'groomB') : moving ? ((p.anim >> 3) & 1 ? 'walkA' : 'walkB') : 'sit';
   const img = catImg('ponta', pose, p.face);
-  const X = Math.round(p.x * 2 - img.width / 2), Y = Math.round(p.y * 2 - img.height) + (p.state === 'slack' && (tick >> 4) & 1 ? 2 : 0);
+  const X = Math.round(p.x * 2 - img.width / 2), Y = Math.round(p.y * 2 - img.height);
   drawAt(img, X, Y);
   if (p.carry) drawAt(ICON2[p.carry.item.id], p.x * 2 - 8, Y - 18 + ((tick >> 3) & 1) * 2);
   else {
@@ -1418,8 +1544,9 @@ function drawZzz(x, y) {
 }
 function drawCat(k) {
   let pose = 'sit';
-  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink', 'toPickup', 'toServe'].includes(k.state)) pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB';
+  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink', 'toPickup', 'toServe'].includes(k.state)) { pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB'; k.act = null; }
   else if (k.state === 'nap') pose = 'sleep';
+  else if (k.state === 'idle' && k.act) pose = k.act === 'groom' ? ((tick >> 3) & 1 ? 'groomA' : 'groomB') : k.act;
   const img = catImg(k.pal, pose, k.face);
   let Y = Math.round(k.y * 2 - img.height);
   if (k.state === 'eat' && (k.t >> 4) & 1) Y += 2;
@@ -1491,6 +1618,24 @@ function drawCookBubble(c, j, X, Y) {
   }
   if (c.vip) drawCrown(X + 18, Y - 8);
 }
+function drawSay(c) {
+  const walking = c.state === 'enter' || c.state === 'leave';
+  const s = c.seat, X = Math.round((walking ? c.x : s.x) * 2);
+  let Y;
+  if (walking) Y = Math.round(c.y * 2 - c.spr.a.height) - 6;
+  else if (c.state === 'order' || c.state === 'wait') Y = s.y * 2 - (s.counter ? 102 : 94) - 4;
+  else Y = s.y * 2 - (s.counter ? 18 : 10) - c.spr.sit.height - 6;
+  ctx.font = '13px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const w = Math.ceil(ctx.measureText(c.say.text).width) + 12, h = 19, bx = clamp(X - w / 2, 2, FW - w - 2), by = Y - h - 6;
+  const pop = Math.min(1, c.say.t / 6), fade = c.say.t > 150 ? (170 - c.say.t) / 20 : 1;
+  ctx.globalAlpha = fade;
+  P('#4a3a30', bx + 2, by, w - 4, h); P('#4a3a30', bx, by + 2, w, h - 4);
+  P('#fffdf6', bx + 2, by + 1, w - 4, h - 2); P('#fffdf6', bx + 1, by + 2, w - 2, h - 4);
+  const tx = clamp(X, bx + 6, bx + w - 8);
+  P('#4a3a30', tx - 3, by + h - 1, 7, 2); P('#4a3a30', tx - 1, by + h + 1, 3, 3); P('#fffdf6', tx - 2, by + h - 2, 5, 2); P('#fffdf6', tx - 1, by + h, 3, 1); P('#fffdf6', tx, by + h + 1, 1, 2);
+  ctx.fillStyle = '#3a2a20'; ctx.fillText(c.say.text, bx + w / 2, by + 3 + Math.round((1 - pop) * 3));
+  ctx.globalAlpha = 1;
+}
 function drawParticles() {
   for (const p of particles) {
     if (p.t < 0) continue;
@@ -1528,6 +1673,7 @@ function render() {
   for (const k of cats) list.push({ y: k.spot === TOWER && k.state === 'nap' ? TOWER.base + 1 : k.y, d: () => drawCat(k) });
   list.sort((a, b) => a.y - b.y).forEach(o => o.d());
   for (const c of customers) if (c.state === 'order' || c.state === 'wait') drawBubble(c);
+  for (const c of customers) if (c.say) drawSay(c);
   drawParticles();
   const f = (G.time - OPEN) / (CLOSE - OPEN);
   if (f > 0.65) { ctx.fillStyle = `rgba(255,140,60,${Math.min(0.16, (f - 0.65) * 0.6)})`; ctx.fillRect(0, 0, FW, FH); }
@@ -1902,7 +2048,7 @@ function openTitle() {
   tg.fillStyle = '#c99a68'; tg.fillRect(0, 64, 160, 16); tg.fillStyle = '#8a5e3a'; tg.fillRect(0, 60, 160, 4);
   tg.drawImage(FACES.grio.happy, 34, 2); tg.drawImage(FACES.ponta.sleep, 82, 6);
   tg.drawImage(CAT_SPR.mike.sit[0], 0, 34, 26, 23.5); tg.drawImage(CAT_SPR.kuro.sleep[1], 132, 50, 26, 14);
-  tg.drawImage(ICON.coffee, 24, 57); tg.drawImage(ICON.cake, 148, 45);
+  tg.drawImage(ICON2.coffee, 22, 52, 12, 12); tg.drawImage(ICON2.cake, 146, 40, 12, 12);
   const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) event('intro'); };
   if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, kitchen: { ...base.kitchen, ...(saved.kitchen || {}) }, market: saved.market || base.market, flags: saved.flags || {} }, false); };
   $('mNew').onclick = () => go(newSave(), true);
