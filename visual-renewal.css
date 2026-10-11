@@ -93,3 +93,30 @@ button small {color:#775b47}
   #sub {justify-content:space-between}
   #actions button {min-height:52px}
 }
+
+/* Full-width controls, independently fitted cafe, and iOS safe areas. */
+body {
+  height:100dvh; align-items:flex-start;
+  padding: max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right))
+           max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+  overflow-y:auto;
+}
+#wrap {max-width:480px;flex-shrink:0;gap:7px}
+#wrap > * {flex-shrink:0}
+#stage {flex:1 0 150px;min-height:150px;display:flex;justify-content:center;align-items:center}
+#cafe {max-width:100%;border-width:3px;border-radius:10px;box-shadow:0 3px 0 #78533e}
+#kitchenCv {height:auto;aspect-ratio:448 / 168}
+#actions button {min-height:48px;font-size:12px;letter-spacing:0}
+#actions button small {font-size:10px;letter-spacing:0}
+#sub > span:not(.tools) {display:none}
+#sub {justify-content:space-between;flex-wrap:wrap}
+#sub button {min-height:36px;font-size:12px}
+#talk {max-height:100%;overflow-y:auto;z-index:2}
+#face {width:56px;max-width:56px}
+#talk p {font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.55}
+.panel {max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+@media(max-height:550px) {
+  #hud {padding:4px 8px}
+  #actions button {min-height:44px;padding:4px 1px}
+  #wrap {height:auto!important}
+}
