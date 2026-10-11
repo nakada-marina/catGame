@@ -190,6 +190,21 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
 .title-art { display: block; width: 100%; image-rendering: pixelated; border-radius: 6px; }
 #sub { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--chalk-dim); gap: 8px; }
 #sub span { min-width: 0; }
+.tools { display: flex; gap: 6px; flex-shrink: 0; }
+.ingr { display: grid; grid-template-columns: 28px 1fr auto auto; gap: 2px 8px; align-items: center; background: #24352e; border-radius: 8px; padding: 8px 10px; }
+.ingr img { width: 24px; height: 24px; image-rendering: pixelated; grid-column: 1; grid-row: 1 / span 2; }
+.ingr .name { font-size: 15px; grid-column: 2; grid-row: 1; min-width: 0; }
+.ingr .desc { font-size: 12px; color: var(--chalk-dim); grid-column: 2; grid-row: 2; min-width: 0; }
+.ingr .qty { grid-column: 3; grid-row: 1 / span 2; font-size: 15px; text-align: right; font-variant-numeric: tabular-nums; min-width: 44px; }
+.ingr .btns { grid-column: 4; grid-row: 1 / span 2; display: flex; gap: 4px; }
+.ingr .btns button { padding: 8px 8px; min-width: 52px; font-size: 13px; }
+.tag { display: inline-block; font-size: 11px; padding: 0 5px; border-radius: 4px; margin-left: 4px; vertical-align: 1px; }
+.tag.cheap { background: #3f7a4a; color: #e8ffe8; }
+.tag.high { background: #8a3a3a; color: #ffe8e8; }
+.tag.fresh { background: #3a5a8a; color: #e8f0ff; }
+.make { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; color: var(--chalk-dim); }
+.make b { color: var(--chalk); font-weight: normal; }
+.make .zero { color: var(--bad); }
 #sub button { padding: 4px 10px; font-size: 12px; border-bottom-width: 2px; white-space: nowrap; }
 </style>
 </head>
@@ -209,13 +224,13 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
   </div>
   <div id="actions">
     <button type="button" id="btnFood">ごはん<small id="foodLeft">のこり 0</small></button>
+    <button type="button" id="btnStock">仕入れ<small id="stockInfo">ざいこ</small></button>
     <button type="button" id="btnShop">ショップ<small>家具など</small></button>
-    <button type="button" id="btnCats">ねこ<small>ようすを見る</small></button>
-    <button type="button" id="btnSpeed">はやさ<small id="speedLabel">×1</small></button>
+    <button type="button" id="btnCats">ねこ<small>ようす</small></button>
   </div>
   <div id="sub">
     <span>ふきだし＝注文を出す・お皿＝かたづけ・ねこ＝なでる</span>
-    <button type="button" id="btnMute">音 ON</button>
+    <span class="tools"><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
   </div>
 </div>
 <div id="toast" hidden></div>
@@ -390,14 +405,28 @@ const PLATE = sprite(['..ooooo..', '.owwwwwo.', 'owwcwwcwo', '.owwwwwo.', '..ooo
 
 // ================= データ =================
 const MENU = [
-  { id: 'coffee', name: 'コーヒー', price: 400, unlock: 0 },
-  { id: 'cookie', name: 'ねこクッキー', price: 300, unlock: 0 },
-  { id: 'tea', name: 'ミルクティー', price: 500, unlock: 3000 },
-  { id: 'cake', name: 'いちごケーキ', price: 700, unlock: 6000 },
-  { id: 'pancake', name: 'パンケーキ', price: 900, unlock: 10000 },
-  { id: 'omurice', name: 'ねこオムライス', price: 1200, unlock: 16000 },
-  { id: 'parfait', name: 'にくきゅうパフェ', price: 1500, unlock: 24000 },
+  { id: 'coffee', name: 'コーヒー', price: 400, unlock: 0, need: { beans: 1 } },
+  { id: 'cookie', name: 'ねこクッキー', price: 300, unlock: 0, need: { flour: 1 } },
+  { id: 'tea', name: 'ミルクティー', price: 500, unlock: 3000, need: { leaf: 1, milk: 1 } },
+  { id: 'cake', name: 'いちごケーキ', price: 800, unlock: 6000, need: { flour: 1, egg: 1, berry: 1, cream: 1 } },
+  { id: 'pancake', name: 'パンケーキ', price: 900, unlock: 10000, need: { flour: 1, egg: 1, milk: 1 } },
+  { id: 'omurice', name: 'ねこオムライス', price: 1200, unlock: 16000, need: { rice: 1, egg: 2 } },
+  { id: 'parfait', name: 'にくきゅうパフェ', price: 1500, unlock: 24000, need: { berry: 1, cream: 1, milk: 1 } },
 ];
+// 材料（life: 日もち。0 は日もちする乾物）
+const INGR = [
+  { id: 'beans', name: 'コーヒー豆', base: 80, life: 0, icon: [['........', '..oo.oo.', '.obbobbo', '.obdobdo', '.obdobdo', '.obbobbo', '..oo.oo.', '........'], { o: '#2a1a10', b: '#7a4426', d: '#3a2014' }] },
+  { id: 'flour', name: '小麦粉', base: 40, life: 0, icon: [['..oooo..', '.owwwwo.', 'owwwwwwo', 'owbbbbwo', 'owbwwbwo', 'owbbbbwo', 'owwwwwwo', '.oooooo.'], { o: '#8a7050', w: '#f4ecd8', b: '#c8a060' }] },
+  { id: 'leaf', name: '紅茶の葉', base: 70, life: 0, icon: [['....oo..', '...ogo..', '..oggo..', '.oggo...', 'oggo.oo.', 'ogo.ogo.', 'oo.oggo.', '..oooo..'], { o: '#1e4a22', g: '#4a9a4a' }] },
+  { id: 'rice', name: 'お米', base: 50, life: 0, icon: [['........', '..oooo..', '.owwwwo.', 'owwwwwwo', 'owwwwwwo', 'obbbbbbo', '.obbbbo.', '..oooo..'], { o: '#6a4a3a', w: '#ffffff', b: '#c86a3a' }] },
+  { id: 'milk', name: '牛乳', base: 60, life: 3, icon: [['...oo...', '..owwo..', '.owwwwo.', '.obbbbo.', '.owwwwo.', '.owwwwo.', '.owwwwo.', '.oooooo.'], { o: '#5a6a7a', w: '#ffffff', b: '#5a8ad0' }] },
+  { id: 'egg', name: 'たまご', base: 50, life: 4, icon: [['...oo...', '..owwo..', '.owwwwo.', '.owwwwo.', 'owwwwwwo', 'owwwwsso', '.owwsso.', '..oooo..'], { o: '#a08a6a', w: '#fff8ec', s: '#e8dcc4' }] },
+  { id: 'berry', name: 'いちご', base: 120, life: 2, icon: [['..g.g...', '...gg...', '.orrro..', 'orrwrro.', 'orrrrro.', '.orrro..', '..oro...', '...o....'], { o: '#801020', r: '#e02040', w: '#ffc0c8', g: '#3a8a3a' }] },
+  { id: 'cream', name: '生クリーム', base: 90, life: 2, icon: [['...w....', '..www...', '.owwwo..', 'owwwwwo.', 'oyyyyyo.', '.oyyyo..', '..ooo...', '........'], { o: '#a09070', w: '#ffffff', y: '#f0e0b0' }] },
+];
+const INGR_IMG = {};
+for (const it of INGR) INGR_IMG[it.id] = sprite(it.icon[0], it.icon[1]).toDataURL();
+const RUSH_RATE = 1.5;
 const FURNITURE = [
   { id: 'table', name: 'テーブル席', price: 5000, max: 6, desc: 'お客さんの席が2つふえる' },
   { id: 'cushion', name: 'ねこクッション', price: 1500, max: 4, desc: 'ねこがお昼寝できる。ごきげんUP' },
@@ -406,6 +435,8 @@ const FURNITURE = [
   { id: 'rug', name: 'まるいラグ', price: 3500, max: 1, desc: 'おしゃれ度 +2', decor: 2 },
   { id: 'shelf', name: 'ほんだな', price: 4500, max: 1, desc: 'おしゃれ度 +2', decor: 2 },
   { id: 'lamp', name: 'ペンダントライト', price: 6000, max: 1, desc: 'おしゃれ度 +3。夕方がきれいに', decor: 3 },
+  { id: 'fridge', name: '大きな冷蔵庫', price: 6000, max: 2, desc: '牛乳・たまご・いちご・生クリームが +30 入る' },
+  { id: 'rack', name: '倉庫のたな', price: 4000, max: 2, desc: '豆・小麦粉・紅茶・お米が +60 入る' },
 ];
 const ADOPT = [
   { name: 'ミケ', pal: 'mike', price: 3000, star: 1, desc: 'あまえんぼうの三毛ねこ' },
@@ -433,10 +464,54 @@ let dayLog = null, weather = 'sun', dayFlags = {}, rushUntil = 0, vipNext = fals
 function newSave() {
   return {
     day: 1, money: 8000, pop: 10, bowl: 6, staff: false, served: 0, legend: false,
-    furniture: { table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0 },
+    furniture: { table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0, fridge: 0, rack: 0 },
+    stock: { beans: [{ n: 16, day: 1 }], flour: [{ n: 12, day: 1 }] }, market: rollMarket(), pendingCost: 0,
     menu: ['coffee', 'cookie'], flags: {},
     cats: [{ name: 'ぐりお', pal: 'grio', mood: 70, hunger: 20 }],
   };
+}
+function rollMarket() {
+  const m = {};
+  for (const it of INGR) m[it.id] = Math.round((0.7 + Math.random() * 0.7) * 20) / 20;
+  return m;
+}
+const ingr = id => INGR.find(i => i.id === id);
+const stockOf = id => (G.stock[id] || []).reduce((n, l) => n + l.n, 0);
+const capOf = cold => cold ? 30 + G.furniture.fridge * 30 : 60 + G.furniture.rack * 60;
+const usedOf = cold => INGR.filter(i => (i.life > 0) === cold).reduce((n, i) => n + stockOf(i.id), 0);
+const unitPrice = id => Math.round(ingr(id).base * G.market[id] * (mode === 'open' || mode === 'closing' ? RUSH_RATE : 1));
+const canMake = item => Object.entries(item.need).every(([id, n]) => stockOf(id) >= n);
+const makeCount = item => Math.min(...Object.entries(item.need).map(([id, n]) => Math.floor(stockOf(id) / n)));
+function consume(item) {
+  for (const [id, n] of Object.entries(item.need)) {
+    let left = n; const lots = G.stock[id];
+    while (left > 0 && lots.length) { const take = Math.min(left, lots[0].n); lots[0].n -= take; left -= take; if (!lots[0].n) lots.shift(); }
+  }
+}
+function addStock(id, n) {
+  const it = ingr(id), room = capOf(it.life > 0) - usedOf(it.life > 0);
+  n = Math.min(n, room); if (n <= 0) return 0;
+  const cost = unitPrice(id) * n; if (G.money < cost) return 0;
+  G.money -= cost; G.pendingCost = (G.pendingCost || 0) + cost;
+  const lots = G.stock[id] || (G.stock[id] = []);
+  const last = lots[lots.length - 1];
+  if (last && last.day === G.day) last.n += n; else lots.push({ n, day: G.day });
+  return n;
+}
+function expireStock(day) {
+  const waste = [];
+  for (const it of INGR) {
+    if (!it.life || !G.stock[it.id]) continue;
+    let lost = 0;
+    G.stock[it.id] = G.stock[it.id].filter(l => { if (day - l.day + 1 >= it.life) { lost += l.n; return false; } return true; });
+    if (lost) waste.push([it.name, lost, Math.round(lost * it.base)]);
+  }
+  return waste;
+}
+function daysLeft(id) {
+  const it = ingr(id), lots = G.stock[id] || [];
+  if (!it.life || !lots.length) return null;
+  return it.life - (G.day - lots[0].day);
 }
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (_) {} }
 function loadSave() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (_) { return null; } }
@@ -536,6 +611,14 @@ function moveTo(e, tx, ty, sp) {
 const catNear = seat => cats.some(k => k.visit === seat && k.state === 'visit');
 function serve(c, byStaff) {
   if (c.state !== 'order') return;
+  if (!canMake(c.order)) {
+    if (!byStaff) {
+      const miss = Object.entries(c.order.need).filter(([id, n]) => stockOf(id) < n).map(([id]) => ingr(id).name).join('・');
+      toast(`${miss}が足りない！「仕入れ」で買おう`); sfx.angry(); event('stockout');
+    }
+    return false;
+  }
+  consume(c.order); updateStockInfo();
   c.state = 'eat'; c.t = 0; c.patAtServe = c.pat;
   addFx('spark', c.seat.x, c.seat.y - 24);
   if (!byStaff) sfx.serve();
@@ -553,7 +636,7 @@ function updateCustomer(c) {
     }
   } else if (c.state === 'order') {
     c.pat -= catNear(s) ? 0.5 : 1;
-    if (G.staff && !staffBusy && c.t > 200) { staffBusy = 40; serve(c, true); }
+    if (G.staff && !staffBusy && c.t > 200 && canMake(c.order)) { staffBusy = 40; serve(c, true); }
     else if (c.pat <= 0) {
       c.state = 'leave'; s.cust = null; dayLog.angry++;
       G.pop = clamp(G.pop - 2, 0, 100); sfx.angry(); addFx('anger', s.x, s.y - 26, { life: 70 });
@@ -651,7 +734,8 @@ function startDay() {
   customers = []; particles = []; furs = [];
   seats.forEach(s => { s.cust = null; s.dirty = false; });
   weather = Math.random() < 0.25 ? 'rain' : 'sun';
-  dayLog = { served: 0, angry: 0, sales: 0, tips: 0, reviews: [], popStart: G.pop };
+  dayLog = { served: 0, angry: 0, sales: 0, tips: 0, reviews: [], popStart: G.pop, cost: G.pendingCost || 0 };
+  G.pendingCost = 0;
   dayFlags = {}; rushUntil = 0; vipNext = false;
   G.todayEvent = G.day >= 2 && Math.random() < 0.55 ? pick(['rush', 'vip', 'toy']) : null;
   if (G.day === 2) event('day2');
@@ -663,18 +747,22 @@ function endDay() {
   mode = 'report'; bgmOn = false; sfx.bell();
   const wage = G.staff ? STAFF.wage : 0;
   G.money -= RENT + wage;
-  const lines = [['うりあげ', dayLog.sales, 'plus'], ['（そのうちチップ）', dayLog.tips, 'plus'], ['家賃', -RENT, 'minus']];
+  dayLog.cost += G.pendingCost || 0; G.pendingCost = 0;
+  const lines = [['うりあげ', dayLog.sales, 'plus'], ['（そのうちチップ）', dayLog.tips, 'plus'], ['材料費', -dayLog.cost, 'minus'], ['家賃', -RENT, 'minus']];
   if (wage) lines.push(['アルバイト代', -wage, 'minus']);
-  const net = dayLog.sales - RENT - wage;
+  const net = dayLog.sales - dayLog.cost - RENT - wage;
+  const waste = expireStock(G.day);
+  if (waste.length) event('waste');
   const popDiff = Math.round(G.pop - dayLog.popStart);
   const revs = dayLog.reviews.slice().sort(() => Math.random() - 0.5).slice(0, 3).map(reviewText);
   G.cats = cats.map(k => ({ name: k.name, pal: k.pal, mood: Math.round(k.mood), hunger: Math.round(k.hunger) }));
   const finished = G.day;
   G.day++;
+  G.market = rollMarket();
   let legend = '';
   if (!G.legend && stars() >= 5 && G.money >= 100000) { G.legend = true; say(TALKS.legend); legend = '<p style="color:var(--butter)">★5 と ¥100,000 を達成！ぐりおのカフェは「でんせつの ねこカフェ」になりました！</p>'; }
   save();
-  const yen = v => `${v >= 0 ? '+' : '−'}¥${Math.abs(v).toLocaleString()}`;
+  const yen = v => `${v > 0 ? '+' : v < 0 ? '−' : ''}¥${Math.abs(v).toLocaleString()}`;
   openModal(`
     <h2>${finished}日目のけっか</h2>
     <p class="sub">お客さん ${dayLog.served}人 ／ おこって帰った人 ${dayLog.angry}人 ／ ひょうばん ${popDiff >= 0 ? '+' : ''}${popDiff}</p>
@@ -682,12 +770,14 @@ function endDay() {
       ${lines.map(([n, v, c]) => `<span>${n}</span><span class="${c}">${yen(v)}</span>`).join('')}
       <span class="total">きょうの利益</span><span class="total ${net >= 0 ? 'plus' : 'minus'}">${yen(net)}</span>
     </div>
+    ${waste.length ? `<p class="sub" style="color:var(--bad)">日もちが切れて すてた材料：${waste.map(([n, k]) => `${n}×${k}`).join('、')}</p>` : ''}
     ${legend}
     ${revs.length ? '<p class="sub">お客さんの声</p>' + revs.join('') : '<p class="sub">きょうはお客さんが来ませんでした。</p>'}
-    <div class="actions-row"><button type="button" id="mShop">ショップへ</button><button type="button" id="mNext">つぎの日へ</button></div>
+    <div class="actions-row"><button type="button" id="mStock">あすの仕入れ</button><button type="button" id="mShop">ショップ</button><button type="button" id="mNext">つぎの日へ</button></div>
   `);
   $('mNext').onclick = () => { closeModal(); startDay(); };
   $('mShop').onclick = () => openShop('furniture', true);
+  $('mStock').onclick = () => openStock(true);
   updateHud();
 }
 function reviewText(r) {
@@ -848,6 +938,7 @@ function drawBubble(c) {
   P('#ffffff', x + 1, y + 1, 16, 14); P('#3a3030', x + 7, y + 16, 4, 2); P('#ffffff', x + 8, y + 15, 2, 2);
   ctx.drawImage(ICON[c.order.id], x + 5, y + 2);
   if (c.vip) drawCrown(x + 9, y - 5);
+  if (!canMake(c.order)) { P('#e8483a', x + 11, y + 1, 6, 6); P('#ffffff', x + 12, y + 2, 1, 1); P('#ffffff', x + 15, y + 2, 1, 1); P('#ffffff', x + 13, y + 3, 2, 2); P('#ffffff', x + 12, y + 5, 1, 1); P('#ffffff', x + 15, y + 5, 1, 1); }
   const f = c.pat / c.maxPat;
   P('#d8d0d0', x + 2, y + 12, 14, 2); P(f > 0.5 ? '#5ac85a' : f > 0.25 ? '#f0c040' : '#e85a4a', x + 2, y + 12, Math.max(1, Math.round(14 * f)), 2);
   if (f < 0.25 && (tick >> 3) & 1) P('#e85a4a', x + 17, y - 2, 2, 5);
@@ -901,7 +992,7 @@ function updateHud() {
   $('hudStars').innerHTML = '★'.repeat(st) + `<span class="off">${'★'.repeat(5 - st)}</span>`;
   updateFoodLabel();
 }
-function updateFoodLabel() { if (G) $('foodLeft').textContent = `のこり${G.bowl}・¥${FOOD_PRICE}`; }
+function updateFoodLabel() { if (G) $('foodLeft').textContent = `のこり${G.bowl}・¥${FOOD_PRICE}`; updateStockInfo(); }
 let toastTimer = 0;
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.hidden = false;
@@ -925,7 +1016,7 @@ function openShop(tab = 'furniture', fromReport = false) {
   } else if (tab === 'menu') {
     rows = MENU.filter(m => m.unlock > 0).map(m => {
       const has = G.menu.includes(m.id);
-      return row(m.name, `1つ ¥${m.price}。メニューがふえるとお客さんもふえる`, has ? 'メニューにあり' : `¥${m.unlock.toLocaleString()}`, has || G.money < m.unlock, `buy-m-${m.id}`);
+      return row(m.name, `1つ ¥${m.price}。材料：${Object.entries(m.need).map(([id, n]) => ingr(id).name + (n > 1 ? '×' + n : '')).join('・')}`, has ? 'メニューにあり' : `¥${m.unlock.toLocaleString()}`, has || G.money < m.unlock, `buy-m-${m.id}`);
     }).join('');
   } else {
     rows = ADOPT.map(a => {
@@ -955,7 +1046,9 @@ function buy(id) {
     toast(`${f.name}をおきました`);
   } else if (kind === 'm') {
     const m = MENU.find(x => x.id === key); if (G.money < m.unlock || G.menu.includes(key)) return;
-    G.money -= m.unlock; G.menu.push(key); toast(`${m.name}がメニューにくわわりました`);
+    G.money -= m.unlock; G.menu.push(key);
+    const recipe = Object.entries(m.need).map(([id, n]) => ingr(id).name + (n > 1 ? `×${n}` : '')).join('・');
+    say([['happy', `${m.name}が メニューに くわわったにゃ！`], ['normal', `材料は ${recipe}。「仕入れ」で 買っておいてね。`]]);
   } else if (kind === 'c') {
     const a = ADOPT.find(x => x.pal === key); if (G.money < a.price || cats.some(c => c.pal === key)) return;
     G.money -= a.price;
@@ -967,6 +1060,47 @@ function buy(id) {
     if (G.money < STAFF.price || G.staff) return; G.money -= STAFF.price; G.staff = true; toast('アルバイトさんが来てくれました');
   }
   sfx.buy(); G.cats = cats.map(k => ({ name: k.name, pal: k.pal, mood: Math.round(k.mood), hunger: Math.round(k.hunger) })); save(); updateHud();
+}
+function openStock(fromReport = false) {
+  const open = mode === 'open' || mode === 'closing';
+  const cheapest = INGR.slice().sort((a, b) => G.market[a.id] - G.market[b.id])[0];
+  const items = MENU.filter(m => G.menu.includes(m.id));
+  const needed = new Set(items.flatMap(m => Object.keys(m.need)));
+  const list = INGR.filter(it => needed.has(it.id) || stockOf(it.id) > 0).map(it => {
+    const m = G.market[it.id], price = unitPrice(it.id), dl = daysLeft(it.id);
+    const tag = m <= 0.85 ? '<span class="tag cheap">やすい</span>' : m >= 1.2 ? '<span class="tag high">たかい</span>' : '';
+    const life = it.life ? `日もち${it.life}日${dl !== null ? `（のこり${Math.max(1, dl)}日）` : ''}` : '日もちする';
+    const room = capOf(it.life > 0) - usedOf(it.life > 0);
+    return `<div class="ingr"><img src="${INGR_IMG[it.id]}" alt=""><span class="name">${it.name}${tag}</span>
+      <span class="desc">1こ ¥${price}・${life}</span><span class="qty">${stockOf(it.id)}こ</span>
+      <span class="btns"><button type="button" data-add="${it.id}:5" ${room < 1 || G.money < price ? 'disabled' : ''}>+5</button><button type="button" data-add="${it.id}:10" ${room < 1 || G.money < price ? 'disabled' : ''}>+10</button></span></div>`;
+  }).join('');
+  const make = items.map(m => { const n = makeCount(m); return `<span>${m.name} <b class="${n ? '' : 'zero'}">${n}</b></span>`; }).join('');
+  openModal(`
+    <h2>仕入れ</h2>
+    <p class="sub">もちきん ¥${G.money.toLocaleString()}　冷蔵庫 ${usedOf(true)}/${capOf(true)}　たな ${usedOf(false)}/${capOf(false)}</p>
+    ${open ? `<p class="sub" style="color:var(--bad)">営業中は おいそぎ便なので ${RUSH_RATE}ばいの値段です。閉店後に まとめて買うとおトク。</p>` : `<p class="sub">あしたの値段です。きょうは ${cheapest.name}が やすいみたい。</p>`}
+    <p class="sub">いまの材料で つくれる数</p>
+    <div class="make">${make}</div>
+    <div class="list">${list}</div>
+    <div class="actions-row"><button type="button" id="mClose">${fromReport ? 'つぎの日へ' : 'とじる'}</button></div>
+  `);
+  $('panel').querySelectorAll('[data-add]').forEach(b => {
+    b.onclick = () => {
+      const [id, n] = b.dataset.add.split(':');
+      const got = addStock(id, +n);
+      if (got) { sfx.buy(); if (got < +n) toast('おき場所がいっぱいです'); }
+      else toast(G.money < unitPrice(id) ? 'おかねがたりません' : 'おき場所がいっぱいです');
+      save(); updateHud(); const st = $('panel').scrollTop; openStock(fromReport); $('panel').scrollTop = st;
+    };
+  });
+  $('mClose').onclick = () => { closeModal(); if (fromReport) startDay(); };
+}
+function updateStockInfo() {
+  if (!G) return;
+  const out = MENU.filter(m => G.menu.includes(m.id) && !canMake(m)).length;
+  $('stockInfo').textContent = out ? `${out}品 切れ` : 'ざいこOK';
+  $('stockInfo').style.color = out ? '#ffb0a0' : '';
 }
 function openCats() {
   const list = cats.map(k => `
@@ -991,7 +1125,7 @@ function openTitle() {
     <canvas id="titleArt" class="title-art" width="160" height="80"></canvas>
     <h2>ぐりおのねこカフェ</h2>
     <p>店長ねこ「ぐりお」といっしょに、小さなねこカフェを人気のお店にしよう。</p>
-    <p class="sub">・ふきだしをタップ → 注文の品を出す<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう</p>
+    <p class="sub">・ふきだしをタップ → 注文の品を出す<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう<br>・料理の材料は「仕入れ」で。閉店後に買うとやすい</p>
     <p class="sub">目標：ひょうばん ★5 と もちきん ¥100,000</p>
     <div class="actions-row">
       ${saved ? `<button type="button" id="mCont">つづきから（${saved.day}日目）</button>` : ''}
@@ -1005,7 +1139,7 @@ function openTitle() {
   tg.drawImage(CAT_SPR.mike.sit[0], 12, 47); tg.drawImage(CAT_SPR.kuro.sleep[1], 124, 55);
   tg.drawImage(ICON.coffee, 34, 57); tg.drawImage(ICON.cake, 116, 57);
   const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) event('intro'); };
-  if (saved) $('mCont').onclick = () => go(Object.assign(newSave(), saved), false);
+  if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, market: saved.market || base.market, flags: saved.flags || {} }, false); };
   $('mNew').onclick = () => go(newSave(), true);
 }
 
@@ -1041,6 +1175,7 @@ $('btnFood').onclick = () => {
   if (G.money < FOOD_PRICE) { toast('おかねがたりません'); return; }
   G.money -= FOOD_PRICE; G.bowl += FOOD_AMOUNT; sfx.buy(); toast(`ねこのごはんを ${FOOD_AMOUNT}回ぶん 補充しました`); save(); updateHud();
 };
+$('btnStock').onclick = () => { initAudio(); if (G && mode !== 'report') openStock(); };
 $('btnShop').onclick = () => { initAudio(); if (G && mode !== 'report') openShop(); };
 $('btnCats').onclick = () => { initAudio(); if (G && mode !== 'report') openCats(); };
 $('btnSpeed').onclick = () => { speed = speed % 3 + 1; $('speedLabel').textContent = '×' + speed; };
@@ -1152,6 +1287,9 @@ const TALKS = {
     ['normal', 'お客さんの ふきだしを タップすると、ちゅうもんの品を はこべるよ。'],
     ['normal', 'たべおわった おさらも タップして かたづけてね。'],
     ['happy', 'それから…… ぼくたちを なでてくれると、げんきが でるにゃ〜'],
+    ['surprise', 'そうそう、料理には 材料が いるにゃ。'],
+    ['normal', 'コーヒーには コーヒー豆、クッキーには 小麦粉。なくなったら「仕入れ」で 買ってね。'],
+    ['normal', '営業中に 買うと おいそぎ便で たかいから、閉店後に まとめて 買うのが おトクだにゃ。'],
     ['happy', 'さあ、かいてん しよう！'],
   ],
   day2: [
@@ -1169,6 +1307,8 @@ const TALKS = {
   legend: [['surprise', 'やったにゃ……！ でんせつの ねこカフェに なったよ！'], ['happy', 'オーナーさん、ほんとうに ありがとう。これからも よろしくにゃ！']],
   rush: [['surprise', 'たいへん！ SNSで おみせが 話題に なってるにゃ！'], ['happy', 'しばらく お客さんが いっぱい 来るよ。がんばろう！']],
   vip: [['surprise', 'あっ、つぎの お客さんは ねこ好きで ゆうめいな 常連さん！'], ['happy', '王冠の お客さんに はやく はこぶと、チップを たくさん くれるにゃ。']],
+  stockout: [['sad', 'にゃっ…… 材料が たりなくて 作れないよ……'], ['normal', 'ふきだしに ✕ が ついてる料理は 材料切れ。「仕入れ」で 買い足そう。']],
+  waste: [['sad', '牛乳や いちごは 日もちしないから、すてることに なっちゃった……'], ['normal', '日もちの短い材料は、使うぶんだけ 買うのが コツだにゃ。']],
   toy: [['happy', 'ねこじゃらしを みつけたにゃ！'], ['happy', 'みんなで あそんで、ごきげんに なったよ〜']],
 };
 const talkQ = [];
