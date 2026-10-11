@@ -37,10 +37,33 @@
   function load() {
     return new Promise((resolve, reject) => {
       const image = new Image();
-      image.onload = () => {
+      image.onload = async () => {
         const sprites = { grio: {}, ponta: {} };
         for (const key of Object.keys(meta)) {
           const [who, pose] = key.split('.'); sprites[who][pose] = frame(image, key);
+        }
+        if (window.CatDetail) {
+          const detail = await new Promise((ok, fail) => { const im = new Image(); im.onload=()=>ok(im); im.onerror=fail; im.src=CatDetail.src; });
+          for (const [key, [x,y,w,h]] of Object.entries(CatDetail.meta)) {
+            const c=document.createElement('canvas'); c.width=w; c.height=h;
+            c.getContext('2d').drawImage(detail,x,y,w,h,0,0,w,h);
+            c.artBounds=[0,0,w,h];
+            const [who,pose]=key.split('.'); sprites[who][who==='ponta'&&pose==='coffee'?'cake':pose]=c;
+          }
+          // Hold head/torso pixels fixed across four steps. Only the lower paws
+          // change phase; no face warping, scaling, or whole-body bob.
+          for (const who of ['grio','ponta']) {
+            const source=sprites[who].walk0;
+            for(let n=1;n<4;n++) {
+              const c=document.createElement('canvas');c.width=source.width;c.height=source.height;
+              const g=c.getContext('2d');g.drawImage(source,0,0);
+              const y=source.height-14, half=source.width/2, shift=[0,-2,0,2][n];
+              g.clearRect(0,y,c.width,14);
+              g.drawImage(source,0,y,half,14,shift,y,half,14);
+              g.drawImage(source,half,y,half,14,half-shift,y,half,14);
+              c.artBounds=[0,0,c.width,c.height]; sprites[who]['walk'+n]=c;
+            }
+          }
         }
         resolve(sprites);
       };

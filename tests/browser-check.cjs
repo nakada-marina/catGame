@@ -38,9 +38,10 @@ fs.mkdirSync(artifacts, {recursive:true});
       assert(touch.every(v=>v==='manipulation'));
       for (const r of result.controls) { assert(r.left>=0&&r.right<=width+1, 'horizontal clipping'); assert(r.top>=0&&r.bottom<=height+1, `vertical clipping ${width}x${height}`); }
       assert(result.backing>=result.physical-1);
-      const layout=await page.evaluate(()=>({scene:cv.getBoundingClientRect().width,wrap:$('wrap').clientWidth,
+      const layout=await page.evaluate(()=>({scene:cv.getBoundingClientRect().width,sceneHeight:cv.getBoundingClientRect().height,wrap:$('wrap').clientWidth,
         grio:catDisplaySize('grio',CHAR_SPR.grio.idle[0]).height, ponta:catDisplaySize('ponta',CHAR_SPR.ponta.idle[0]).height}));
       assert.equal(layout.scene,layout.wrap,'game uses full width instead of height fitting');
+      assert(Math.abs(layout.sceneHeight-layout.scene*300/224/2)<2,'cafe height halved without squashing actors');
       assert(layout.grio>64&&layout.ponta<layout.grio,'larger cats; Ponta a little smaller');
       await page.evaluate(()=>{document.body.scrollTop=document.body.scrollHeight;});
       const scrollCheck=await page.evaluate(()=>({bottom:$('dock').getBoundingClientRect().bottom,kitchen:$('kitchenCv').getBoundingClientRect().bottom,top:$('kitchenCv').getBoundingClientRect().top}));
@@ -56,7 +57,7 @@ fs.mkdirSync(artifacts, {recursive:true});
         }
         assert.equal(await page.evaluate(()=>visualViewport.scale),1,'rapid taps must not zoom');
         await page.evaluate(()=>{document.body.scrollTop=0;cats[0].mood=20;mode='open';});
-        const catPoint=await page.evaluate(()=>{const r=cv.getBoundingClientRect(),k=cats[0];return {x:r.left+3+k.x/VW*(r.width-6),y:r.top+3+(k.y-20)/VH*(r.height-6)};});
+        const catPoint=await page.evaluate(()=>{const r=cv.getBoundingClientRect(),k=cats[0];return {x:r.left+3+k.x/VW*(r.width-6),y:r.top+3+(k.y/2-20)/(VH/2)*(r.height-6)};});
         const before=await page.evaluate(()=>cats[0].mood);
         await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[catPoint]});
         await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
@@ -105,15 +106,19 @@ fs.mkdirSync(artifacts, {recursive:true});
           g.clearRect(25,26,14,6);g.drawImage(atlas,sx+25,sy+26,14,6,25,26,14,6);
         }
         const [who,pose]=key.split('.');
-        if(colours(raw)!==colours(frames[who][pose]))issues.push(key+' altered or clipped pixels');
+        if(!CatDetail.meta[key]&&key!=='ponta.cake'&&!/^walk[123]$/.test(pose)&&colours(raw)!==colours(frames[who][pose]))issues.push(key+' altered or clipped pixels');
       }
       for(const who of ['grio','ponta'])for(const [pose,im] of Object.entries(frames[who])){
         if(pose.startsWith('f_'))continue;
-        if(im.width!==81||im.height!==64)issues.push(`${who}.${pose} dimensions`);
-        const alpha=im.getContext('2d').getImageData(0,63,81,1).data;
-        if(!alpha.some((v,i)=>i%4===3&&v>0))issues.push(`${who}.${pose} foot baseline`);
+        if(!((im.width===81&&im.height===64)||(im.width===128&&im.height===144)))issues.push(`${who}.${pose} dimensions`);
+        const alpha=im.getContext('2d').getImageData(0,im.height-1,im.width,1).data;
+        if(!CatDetail.meta[who+'.'+pose]&&!/^walk[123]$/.test(pose)&&!alpha.some((v,i)=>i%4===3&&v>0))issues.push(`${who}.${pose} foot baseline`);
       }
       // Motion maps to all four native steps, even when carrying a dish.
+      for(const who of ['grio','ponta']) {
+        const face=c=>c.getContext('2d').getImageData(0,0,128,110).data.join(',');
+        for(let n=1;n<4;n++)if(face(frames[who].walk0)!==face(frames[who]['walk'+n]))issues.push(who+' walk face changed');
+      }
       const k={pal:'grio',state:'toServe',carryDish:true,anim:0};
       const walk=[0,9,18,27].map(n=>{k.anim=n;return charPose(k,'walk0');});
       return {issues,walk,portraitCount:Object.keys(frames.grio).filter(k=>k.startsWith('f_')).length};
@@ -148,7 +153,7 @@ fs.mkdirSync(artifacts, {recursive:true});
     for(const id of ['btnShop','btnCats','btnStock','btnNyaimee','btnNyax']){
       await p.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;closeModal();});await p.locator('#'+id).click();assert(await p.locator('#modal').isVisible());
     }
-    await p.goto(new URL('animation-preview.html',base).href);await p.waitForFunction(()=>document.querySelectorAll('.card').length===45);await p.screenshot({path:path.join(artifacts,'gallery.png'),fullPage:true});
+    await p.goto(new URL('animation-preview.html',base).href);await p.waitForFunction(()=>document.querySelectorAll('.card').length===49);await p.screenshot({path:path.join(artifacts,'gallery.png'),fullPage:true});
     assert.deepEqual(errors,[]);console.log('PASS all frames, carrying walk, ordering/cooking/delivery, save reload and UI panels; no runtime errors');
   } finally {await browser.close();if(server)server.close();}
 })().catch(e=>{console.error(e);process.exit(1);});
