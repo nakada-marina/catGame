@@ -3123,9 +3123,10 @@ function fitLayout() {
   const padY = parseFloat(rs.paddingTop) + parseFloat(rs.paddingBottom) + parseFloat(bs.paddingTop) + parseFloat(bs.paddingBottom);
   const H = Math.min(vv ? vv.height : innerHeight, document.documentElement.clientHeight) - padY, Wv = vv ? vv.width : innerWidth;
   const other = $('hud').offsetHeight + $('actions').offsetHeight + $('sub').offsetHeight;
-  const gaps = 6 * 4 + 14;                    // すき間・枠線
+  const gaps = (parseFloat(getComputedStyle(wrap).rowGap) || 7) * 4 + 18; // 実際の余白と枠線
   const ratio = 300 / 224 + 168 / 448;        // お店とキッチンの 高さ÷幅
-  const w = Math.floor(Math.min(Wv - 32, 640, (H - other - gaps) / ratio));
+  const horizontalPadding = parseFloat(bs.paddingLeft) + parseFloat(bs.paddingRight);
+  const w = Math.floor(Math.min(Wv - horizontalPadding, 640, Math.max(220, (H - other - gaps) / ratio)));
   wrap.style.width = Math.max(220, w) + 'px';
 }
 addEventListener('resize', fitLayout);
