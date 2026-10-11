@@ -307,7 +307,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
-<script src="./rear-walk.js?v=20261011-generated-rear"></script>
+<script src="./rear-walk.js?v=20261011-matched-facing"></script>
 <script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
 <script src="./character-detail.js?v=20261012-walk"></script>
@@ -1866,7 +1866,10 @@ function catImg(pal, pose, face, k) {
   const cs = CHAR_SPR[pal];
   if (k && ['back', 'front'].includes(k.walkFacing) && pose.startsWith('walk')) {
     const source = cs ? cs.walk0[0] : (pal === 'grio' || pal === 'ponta') ? null : CAT_SPR[pal][pose][0];
-    if (source) return RearWalk.cat(pal, Math.floor(Math.max(0, k.anim || 0) / 9) % 4, source, CAT_LOOK[pal], k.walkFacing);
+    if (source) {
+      const generated = RearWalk.cat(pal, Math.floor(Math.max(0, k.anim || 0) / 9) % 4, source, CAT_LOOK[pal], k.walkFacing);
+      if (generated) return generated;
+    }
   }
   if (cs) {
     const n = charPose(k, pose), s = cs[n] || cs.idle;

@@ -14,7 +14,10 @@ const document = { createElement: () => canvas() }, window = {};
 const back = canvas(); back.width = 96; back.height = 108;
 const GuestArt = { person: () => back };
 class FakeImage {
-  set src(value) { this.width = value.includes('rear-cats') ? 1254 : 1024; this.height = value.includes('rear-cats') ? 1254 : 1536; this.onload(); }
+  set src(value) {
+    const file = fs.readFileSync(path.join(__dirname, '..', value.split('?')[0]));
+    this.width = file.readUInt32BE(16); this.height = file.readUInt32BE(20); this.onload();
+  }
 }
 new Function('document','window','GuestArt','Image',rear)(document,window,GuestArt,FakeImage);
 const moveCode = html.slice(html.indexOf('function moveTo('),html.indexOf('const catNear ='));
@@ -35,32 +38,37 @@ const frames = [0,1,2,3].map(f=>window.RearWalk.cat('grio',f,original,fur));
 assert.equal(frames[0].width,128); assert.equal(frames[0].height,144);
 assert.equal(window.RearWalk.cat('grio',0,original,fur),frames[0],'cached sprite');
 assert.notDeepEqual(frames[0].operations,frames[1].operations,'feet animate');
-const upper = c=>c.operations.filter(op=>op[1]<80);
 function verifyAtlasFrame(frame) {
-  assert.equal(frame.generatedRear, true, 'generated artwork selected');
+  assert(frame.generatedCat || frame.generatedRear, 'generated artwork selected');
   assert.equal(frame.operations.length, 1, 'one complete sprite, without procedural body parts');
   const [type,image,sx,sy,sw,sh,dx,dy,dw,dh] = frame.operations[0];
   assert.equal(type,'image');
   assert(sx>=0&&sy>=0&&sx+sw<=image.width&&sy+sh<=image.height,'crop inside source atlas');
   assert(dx>=0&&dy>=0&&dx+dw<=frame.width&&dy+dh<=frame.height,'sprite inside destination frame');
   assert(Math.abs(dw/sw-dh/sh)<=1/sw+1/sh,'uniform scale with integer rounding');
+  assert.equal(dy+dh,frame.footAnchor,'same foot baseline');
 }
 for(const frame of frames) verifyAtlasFrame(frame);
-for(const pal of ['grio','ponta','mike','kuro','shiro','chacha'])
-  for(let f=0;f<4;f++) verifyAtlasFrame(window.RearWalk.cat(pal,f,original,fur));
+for(const pal of ['grio','ponta','mike','kuro','shiro','chacha']) for(const [width,height] of [[128,144],[76,53],[81,64]]) {
+  const source = { width, height }, reference = window.RearWalk.cat(pal,0,source,fur,'front');
+  for(const facing of ['front','back']) for(let f=0;f<4;f++) {
+    const im = window.RearWalk.cat(pal,f,source,fur,facing);
+    verifyAtlasFrame(im);
+    assert.equal(im.spriteScale,reference.spriteScale,'same scale for every front/back frame');
+    assert.equal(im.footAnchor,reference.footAnchor,'same baseline for every front/back frame');
+  }
+}
 const frontFrames = [0,1,2,3].map(f=>window.RearWalk.cat('grio',f,original,fur,'front'));
 assert.notDeepEqual(frontFrames[0].operations,frames[0].operations,'front and back have distinct faces');
 assert.notDeepEqual(frontFrames[0].operations,frontFrames[1].operations,'front feet animate');
-assert.deepEqual(upper(frontFrames[0]),upper(frontFrames[1]),'front face remains fixed');
-for (const frame of frontFrames) for (const [x,y,w,h] of frame.operations)
-  assert(x>=0&&y>=0&&x+w<=frame.width&&y+h<=frame.height,'front pixel inside frame');
+for(const frame of frontFrames) verifyAtlasFrame(frame);
 const look = { guest:0,pants:'#3a3a44' };
 const guests = [0,1,2,3].map(f=>window.RearWalk.guest(look,f));
 assert.equal(guests[0].logicalHeight,84); assert.equal(guests[0].logicalWidth,64);
 assert.notDeepEqual(guests[0].operations,guests[1].operations,'guest feet animate');
 for(let guest=0;guest<4;guest++) for(let frame=0;frame<4;frame++)
   verifyAtlasFrame(window.RearWalk.guest({guest,pants:'#3a3a44'},frame));
-assert.equal(guests[0].operations[0][7],guests[1].operations[0][7],'consistent vertical anchor');
+assert.equal(guests[0].footAnchor,guests[1].footAnchor,'consistent guest foot anchor');
 assert(html.includes('GuestArt.load, RearWalk.load'),'game waits for generated assets');
 const catCode = html.slice(html.indexOf('function catImg('),html.indexOf('// Display-scale only:'));
 const normal = {};
@@ -80,4 +88,12 @@ const drawCustomer = new Function('GuestArt','RearWalk','drawAt','floorShadow','
 for(const [facing,expected] of [['back',rearGuest],['front',frontGuest],['side',sideGuest]])
   { drawCustomer({state:'enter',look,walkFacing:facing,anim:0,x:0,y:0});assert.equal(drawn,expected,'guest facing '+facing); }
 for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) if(match[1].trim()) new Function(match[1]);
-console.log('PASS generated rear crops for six cats and four guests, direction, turns, arrival, caching, front poses and script syntax');
+const pending = [], waitingWindow = {};
+class DeferredImage { constructor() { pending.push(this); } set src(value) {} }
+new Function('document','window','GuestArt','Image',rear)(document,waitingWindow,GuestArt,DeferredImage);
+assert.equal(waitingWindow.RearWalk.cat('grio',0,original,fur,'front'),null,'no incomplete sprites before loading');
+pending[0].onload(); pending[1].onload();
+assert.equal(waitingWindow.RearWalk.cat('grio',0,original,fur,'front'),null,'wait for all three images');
+pending[2].onload();
+assert(waitingWindow.RearWalk.cat('grio',0,original,fur,'front'),'sprites ready after all three images');
+console.log('PASS six matched front/back cats at three display sizes, guest crops, common scale and feet, direction, loading and script syntax');
