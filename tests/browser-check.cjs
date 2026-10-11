@@ -25,6 +25,7 @@ fs.mkdirSync(artifacts, {recursive:true});
       page.on('pageerror', e => {errors.push(e.message);console.error('Runtime error:',e.message);});
       await page.goto(base); await page.evaluate(() => artworkReady);
       await page.locator('#mNew').click();
+      await page.evaluate(()=>finishFirstGuide(true));
       await page.waitForFunction(()=>talking!==null);
       const dialogue=await page.evaluate(()=>({bottom:$('talk').getBoundingClientRect().bottom,dockTop:$('dock').getBoundingClientRect().top,top:$('talk').getBoundingClientRect().top}));
       assert(dialogue.top>=0&&dialogue.bottom<=dialogue.dockTop,'dialogue visible above dock');
@@ -88,6 +89,45 @@ fs.mkdirSync(artifacts, {recursive:true});
       console.log(`PASS viewport ${width}x${height} DPR ${dpr}`);
       await page.close();
     }
+    const guided=await browser.newPage({viewport:{width:393,height:852}});
+    guided.on('pageerror',e=>errors.push(e.message));
+    await guided.goto(base);await guided.evaluate(()=>artworkReady);
+    await guided.locator('#mNew').click();
+    await guided.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;});
+    await guided.waitForFunction(()=>firstGuide?.step==='order');
+    const initial=await guided.evaluate(()=>({time:G.time,pat:customers[0].pat}));
+    async function clickGuidedCafe(){
+      const point=await guided.evaluate(()=>{
+        const s=firstGuide.customer.seat,r=cv.getBoundingClientRect();
+        return {x:r.left+3+s.x/VW*(r.width-6),y:r.top+3+(s.y/2-(s.counter?51:55)+8)/(VH/2)*(r.height-6)};
+      });await guided.mouse.click(point.x,point.y);
+    }
+    async function clickGuidedKitchen(ready=false){
+      await guided.locator('#kitchenCv').scrollIntoViewIfNeeded();
+      const point=await guided.evaluate(ready=>{
+        const r=kcv.getBoundingClientRect();
+        const slot=ready?passSlots()[0]:null,u=kitchenUnits().find(u=>u.st==='drink');
+        return {x:r.left+3+(slot?slot.x+14:u.x+u.w/2)/KW*(r.width-6),y:r.top+3+(slot?slot.y-4:u.y+35)/KH*(r.height-6)};
+      },ready);await guided.mouse.click(point.x,point.y);
+    }
+    await clickGuidedCafe();await guided.waitForFunction(()=>firstGuide?.step==='start');
+    assert(await guided.locator('#btnShop').isDisabled());
+    await clickGuidedKitchen();await guided.waitForFunction(()=>firstGuide?.step==='brew'||firstGuide?.step==='finish');
+    await guided.waitForFunction(()=>firstGuide?.step==='finish');
+    await guided.waitForTimeout(1200);
+    const held=await guided.evaluate(()=>({time:G.time,pat:customers[0].pat,count:customers.length,ratio:firstGuide.job.t/firstGuide.job.dur}));
+    assert.equal(held.time,initial.time);assert.equal(held.pat,initial.pat);assert.equal(held.count,1);assert(held.ratio>=.68&&held.ratio<=.86);
+    await clickGuidedKitchen();await guided.waitForFunction(()=>firstGuide?.step==='deliver');
+    await guided.waitForTimeout(1200);
+    assert.equal(await guided.evaluate(()=>firstGuide.job.readyT),0);
+    await clickGuidedKitchen(true);await guided.waitForFunction(()=>!firstGuide&&G.flags.firstCustomerDone);
+    assert(await guided.locator('#firstGuide').isHidden());assert(await guided.locator('#btnShop').isEnabled());
+    await guided.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;});
+    await guided.waitForFunction(()=>G.time>600);
+    await guided.reload();await guided.evaluate(()=>artworkReady);await guided.locator('#mCont').click();
+    assert.equal(await guided.evaluate(()=>firstGuide),null,'completed guide does not repeat');
+    await guided.close();
+    console.log('PASS guided first customer with real cafe/kitchen taps, held perfect timing, normal resume and save reload');
     const p=await browser.newPage({viewport:{width:393,height:852}});p.on('pageerror',e=>errors.push(e.message));
     await p.goto(base);await p.evaluate(()=>artworkReady);
     const spriteChecks=await p.evaluate(async()=>{
@@ -220,6 +260,7 @@ fs.mkdirSync(artifacts, {recursive:true});
     });
     fs.writeFileSync(path.join(artifacts,'bow-motion.png'),Buffer.from(bowSheet,'base64'));
     await p.locator('#mNew').click();
+    await p.evaluate(()=>finishFirstGuide(true));
     // No manual serve(): the manager must walk to the guest and create a job,
     // including while visiting/napping and while the human helper is hired.
     const autoOrders=await p.evaluate(()=>{

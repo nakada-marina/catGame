@@ -270,6 +270,10 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .make b { color: var(--chalk); font-weight: normal; }
 .make .zero { color: var(--bad); }
 #sub button { padding: 4px 10px; font-size: 12px; border-bottom-width: 2px; white-space: nowrap; }
+#firstGuide { position:sticky; top:0; z-index:5; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 8px; padding:10px; border:2px solid var(--butter); border-radius:8px; background:var(--board-2); font-size:13px; line-height:1.5; }
+#firstGuideStep { color:var(--butter); }
+#firstGuideText { grid-column:1; margin:0; }
+#firstGuideSkip { grid-column:2; grid-row:1 / span 2; align-self:center; font-size:12px; min-height:44px; padding:8px; }
 </style>
 <link rel="stylesheet" href="./visual-renewal.css?v=20261012-walk">
 </head>
@@ -280,6 +284,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
     <div class="money" id="hudMoney">¥0</div>
     <div class="stars" id="hudStars" aria-label="ひょうばん"></div>
   </div>
+  <aside id="firstGuide" hidden aria-label="はじめての接客の案内"><strong id="firstGuideStep"></strong><p id="firstGuideText" role="status" aria-live="polite"></p><button type="button" id="firstGuideSkip">スキップ</button></aside>
   <div id="stage">
     <canvas id="cafe" aria-label="カフェの店内"></canvas>
     <div id="talk" hidden role="dialog" aria-live="polite">
@@ -821,12 +826,87 @@ const PONTA_HOME = { x: 92, y: 108 };
 const PICKUP_X = { drink: 162, oven: 194, stove: 213 };
 let dayLog = null, weather = 'sun', dayFlags = {}, rushUntil = 0, vipNext = false;
 
+// ================= 最初のお客さんの操作案内 =================
+let firstGuide = null;
+function beginFirstGuide() {
+  firstGuide = G.day === 1 && G.flags.firstCustomerGuide && !G.flags.firstCustomerDone ?
+    { step: 'arrival', customer: null, job: null, shown: '' } : null;
+  if (firstGuide) { speed = 1; spawnTimer = 30; $('speedLabel').textContent = '×1'; }
+  refreshFirstGuide();
+}
+function refreshFirstGuide() {
+  const panel = $('firstGuide');
+  panel.hidden = !firstGuide;
+  for (const id of ['btnFood','btnStock','btnShop','btnNyaimee','btnNyax','btnSpeed']) $(id).disabled = !!firstGuide;
+  if (!firstGuide || firstGuide.shown === firstGuide.step) return;
+  firstGuide.shown = firstGuide.step;
+  const hints = {
+    arrival: ['はじめての接客', '最初のお客さんが来るよ。まずは席につくのを待とう。'],
+    order: ['1 / 3 注文をうける', 'お客さんのコーヒーのふきだしをタップしてね。'],
+    start: ['2 / 3 コーヒーをつくる', '下のキッチンで、光っているコーヒーマシンをタップしてね。'],
+    brew: ['2 / 3 コーヒーをつくる', 'みどりの線までたまるのを待とう。まだタップしなくて大丈夫。'],
+    finish: ['2 / 3 コーヒーをつくる', '今がちょうどいいタイミング！ コーヒーマシンをもう一度タップ。'],
+    deliver: ['3 / 3 料理をとどける', 'キッチン右の「できあがり」にあるコーヒーをタップしてね。']
+  };
+  $('firstGuideStep').textContent = hints[firstGuide.step][0];
+  $('firstGuideText').textContent = hints[firstGuide.step][1];
+  if (['start','brew','finish','deliver'].includes(firstGuide.step)) kcv.scrollIntoView({block:'nearest'});
+}
+function finishFirstGuide(skipped = false) {
+  if (!firstGuide) return;
+  firstGuide = null; G.flags.firstCustomerDone = true; G.flags.cook = true;
+  spawnTimer = 240;
+  refreshFirstGuide(); save();
+  if (skipped) toast('案内をスキップしました。カフェの営業を始めよう！');
+  else say([
+    ['happy', 'できたにゃ！ はじめてのコーヒーを とどけられたね。'],
+    ['normal', 'これからは ぼくも注文や配膳を手伝うよ。おみせを一緒に育てよう！']
+  ]);
+}
+function updateFirstGuide() {
+  if (!firstGuide.customer && --spawnTimer <= 0) spawnCustomer();
+  customers.forEach(updateCustomer);
+  if (firstGuide.customer?.state === 'order') firstGuide.step = 'order';
+  const job = firstGuide.job;
+  if (job?.state === 'cook') {
+    job.t = Math.min(job.t + 1, Math.ceil(job.dur * .75));
+    if (job.t / job.dur >= ZONE[0]) firstGuide.step = 'finish';
+  }
+  for (const k of cats) { if (k.jump > 0) k.jump--; if (k.petCool > 0) k.petCool--; }
+  updateKitchenFx();
+  for (const p of particles) { p.t++; p.y += p.vy; }
+  particles = particles.filter(p => p.t < p.life);
+  for (const c of customers) if (c.say && ++c.say.t > 170) c.say = null;
+  refreshFirstGuide();
+}
+function drawFirstGuideTarget() {
+  if (!firstGuide || firstGuide.step !== 'order') return;
+  const s = firstGuide.customer.seat, x = s.x * 2, y = s.y - (s.counter ? 102 : 110);
+  ctx.save(); ctx.fillStyle = '#f2c14e';
+  ctx.beginPath(); ctx.moveTo(x - 7, y - 14); ctx.lineTo(x + 7, y - 14); ctx.lineTo(x, y - 4); ctx.fill(); ctx.restore();
+}
+function drawFirstGuideKitchenTarget() {
+  if (!firstGuide) return;
+  let x, y;
+  if (['start','finish'].includes(firstGuide.step)) {
+    const u = kitchenUnits().find(u => u.st === 'drink' && (!firstGuide.job || firstGuide.job.unit === undefined || u.i === firstGuide.job.unit));
+    x = u.x + u.w / 2; y = u.y - 2;
+  } else if (firstGuide.step === 'deliver') {
+    const slot = passSlots().find(slot => slot.j === firstGuide.job);
+    if (!slot) return;
+    x = slot.x + 14; y = slot.y - 18;
+  } else return;
+  for (let i = 0; i < 6; i++) K('#d79527', x - 6 + i, y - 8 + i, 13 - i * 2, 1);
+}
+$('firstGuideSkip').onclick = () => finishFirstGuide(true);
+// ================= 最初のお客さんの操作案内ここまで =================
+
 function newSave() {
   return {
     day: 1, money: 8000, pop: 10, bowl: 6, staff: false, served: 0, legend: false,
     ponta: false, sns: { followers: 12, posts: [], unread: 0, seq: 0 }, furniture: { stool: 0, table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0, fridge: 0, rack: 0 },
     stock: { beans: [{ n: 16, day: 1 }], flour: [{ n: 12, day: 1 }] }, kitchen: { drink: 1, oven: 1, stove: 1 }, market: rollMarket(), pendingCost: 0,
-    menu: ['coffee', 'cookie'], flags: {},
+    menu: ['coffee', 'cookie'], flags: { firstCustomerGuide: true },
     cats: [{ name: 'ぐりお', pal: 'grio', mood: 70, hunger: 20 }],
   };
 }
@@ -977,6 +1057,7 @@ function spawnCustomer() {
   const c = { x: ENTRANCE.x + rnd(-8, 8), y: ENTRANCE.y, seat, state: 'enter', t: 0, spr: makePerson(look), look, anim: 0, order: null, pat: 0, maxPat: 0, visits: 0, vip: vipNext };
   vipNext = false;
   seat.cust = c; customers.push(c);
+  if (firstGuide) firstGuide.customer = c;
   sfx.doorbell(); addFx('text', ENTRANCE.x, ENTRANCE.y - 34, { text: 'カランコロン♪', color: '#fff2a0', life: 60 });
 }
 function chooseOrder() {
@@ -1000,6 +1081,7 @@ function moveTo(e, tx, ty, sp) {
 }
 const catNear = seat => cats.some(k => k.visit === seat && k.state === 'visit');
 function serve(c, byStaff) {
+  if (firstGuide && byStaff) return false;
   if (c.state !== 'order') return;
   if (!canMake(c.order)) {
     if (!byStaff) {
@@ -1012,7 +1094,8 @@ function serve(c, byStaff) {
   const job = { id: ++jobSeq, c, item: c.order, st: c.order.st, state: 'queue', t: 0, dur: c.order.time, q: 'normal', missed: false, readyT: 0 };
   jobs.push(job); c.job = job; c.state = 'wait'; c.patAtServe = c.pat;
   addFx('text', c.seat.x, c.seat.y - 40, { text: '注文うけたよ', color: '#ffffff', life: 40 }); job.waitT = 0;
-  if (!byStaff) { tone(988, 0.08, 'triangle', 0.5); event('cook'); }
+  if (firstGuide) { firstGuide.job = job; firstGuide.step = 'start'; refreshFirstGuide(); }
+  if (!byStaff) { tone(988, 0.08, 'triangle', 0.5); if (!firstGuide) event('cook'); }
   return true;
 }
 function cookTap(job, u) {
@@ -1020,6 +1103,7 @@ function cookTap(job, u) {
   if (job.state !== 'cook') return;
   if (job.missed) { if (u) kfx.push({ x: u.x + u.w / 2, y: u.y, text: 'できあがりを まってね', color: '#ffffff', t: 0 }); return; }
   const f = job.t / job.dur;
+  if (firstGuide && f < ZONE[0]) { toast('みどりの線までたまるのを待ってね'); return; }
   if (f >= ZONE[0] && f <= ZONE[1]) {
     job.q = 'perfect'; job.state = 'ready'; job.readyT = 0;
     if (u) kfx.push({ x: u.x + u.w / 2, y: u.y, text: 'パーフェクト！', color: '#3aa85a', t: 0 });
@@ -1031,8 +1115,10 @@ function cookTap(job, u) {
     addFx('text', job.c.seat.x, job.c.seat.y - 42, { text: 'はやすぎ…', color: '#ffb0a0', life: 50 });
     tone(220, 0.15, 'triangle', 0.5);
   }
+  if (firstGuide && job.state === 'ready') { firstGuide.step = 'deliver'; refreshFirstGuide(); }
 }
 function deliver(job, byStaff) {
+  if (firstGuide && byStaff) return;
   const c = job.c;
   jobs = jobs.filter(j => j !== job); c.job = null;
   if (job.readyT > COLD_AFTER && job.q !== 'perfect') job.q = 'cold';
@@ -1040,6 +1126,7 @@ function deliver(job, byStaff) {
   chat(c, job.q === 'perfect' ? ['できたて！', 'うわぁ、おいしそう！', 'きれい〜！'] : job.q === 'cold' ? ['あれ、ぬるい…'] : ['いただきます！', 'わーい', 'ありがとう'], job.q === 'normal' ? 0.5 : 1);
   addFx('spark', c.seat.x, c.seat.y - 24);
   if (!byStaff) sfx.serve();
+  if (firstGuide && job === firstGuide.job) finishFirstGuide();
 }
 function makePonta() { return { x: PONTA_HOME.x, y: PONTA_HOME.y, state: 'idle', t: 0, face: -1, anim: 0, job: null, carry: null, napCool: 900 }; }
 function updatePonta() {
@@ -1108,16 +1195,16 @@ function updateCustomer(c) {
     if (moveTo(c, s.x, s.y + 2, 0.7)) { c.state = 'sit'; c.t = 0; chat(c, ['ねこカフェ、きてみたかった！', 'ねこ、どこかな〜', 'いいにおい…', 'おちつくお店だね', 'なに たのもうかな'], 0.45); }
   } else if (c.state === 'sit') {
     if (c.t > 70) {
-      c.state = 'order'; c.t = 0; c.order = chooseOrder();
+      c.state = 'order'; c.t = 0; c.order = firstGuide ? MENU.find(m => m.id === 'coffee') : chooseOrder();
       c.maxPat = 760 + decor() * 40; c.pat = c.maxPat;
     }
   } else if (c.state === 'order') {
-    c.pat -= catNear(s) ? 0.5 : 1;
+    if (!firstGuide) c.pat -= catNear(s) ? 0.5 : 1;
     if (!c.saidWait && c.pat < c.maxPat * 0.35) { c.saidWait = true; chat(c, ['まだかな…', 'すみませーん！', 'ちゅうもん…', 'おなかすいた…']); }
     if (G.staff && !staffBusy && !c.orderTaker && c.t > 200 && canMake(c.order)) { staffBusy = 40; serve(c, true); }
     else if (c.pat <= 0) leaveAngry(c);
   } else if (c.state === 'wait') {
-    c.pat -= catNear(s) ? 0.2 : 0.4;
+    if (!firstGuide) c.pat -= catNear(s) ? 0.2 : 0.4;
     if (c.pat <= 0) leaveAngry(c);
   } else if (c.state === 'eat') {
     if (c.t === 170) chat(c, c.quality === 'cold' ? ['ちょっと さめてる…'] : ['おいしい！', 'しあわせ〜', 'ねこ見ながら たべるの さいこう', 'これ すき！'], 0.5);
@@ -1355,6 +1442,7 @@ function startDay() {
   G.todayEvent = G.day >= 2 && Math.random() < 0.55 ? pick(['rush', 'vip', 'toy']) : null;
   if (G.day === 2) event('day2');
   bgmOn = true;
+  beginFirstGuide();
   toast(weather === 'rain' ? `${G.day}日目 雨の日。お客さんは少なめかも` : `${G.day}日目 カフェ、オープン！`);
   updateHud();
 }
@@ -1418,6 +1506,7 @@ function reviewText(r) {
 function update() {
   if (mode !== 'open' && mode !== 'closing') return;
   tick++;
+  if (firstGuide) { updateFirstGuide(); return; }
   if (tick % 10 === 0 && G.time < CLOSE) { G.time++; snsTick(); if (G.time >= CLOSE) { mode = 'closing'; toast('閉店時間です。最後のお客さんを見送ろう'); } }
   if (mode === 'open' && --spawnTimer <= 0) {
     spawnCustomer();
@@ -2161,6 +2250,7 @@ function render() {
   sayBoxes.length = 0;
   for (const c of customers.slice().sort((a, b) => (a.say ? a.say.t : 0) - (b.say ? b.say.t : 0)).reverse()) if (c.say) compactAt(c.state === 'enter' || c.state === 'leave' ? c.y : c.seat.y, () => drawSay(c));
   drawParticles();
+  drawFirstGuideTarget();
 }
 
 // ================= キッチン画面（設備をタップして調理） =================
@@ -2187,9 +2277,11 @@ function kitchenUnits() {
 const unitJob = u => jobs.find(j => j.state === 'cook' && j.st === u.st && j.unit === u.i);
 const queued = st => jobs.filter(j => j.state === 'queue' && j.st === st);
 function startCook(u, byStaff) {
+  if (firstGuide && byStaff) return false;
   const j = queued(u.st)[0];
   if (!j) return false;
   j.state = 'cook'; j.unit = u.i; j.t = 0;
+  if (firstGuide) { firstGuide.step = 'brew'; refreshFirstGuide(); }
   if (!byStaff) tone(660, 0.08, 'triangle', 0.5);
   return true;
 }
@@ -2355,6 +2447,7 @@ function renderKitchen() {
     if (s.j.q === 'perfect') { K('#8affa0', s.x + 24, s.y - 4, 3, 3); }
     if (!cold && (tick >> 4) & 1) { K('#ffffff', s.x + 2, s.y, 1, 3); }
   }
+  drawFirstGuideKitchenTarget();
   // 文字の演出
   for (const f of kfx) { kctx.globalAlpha = Math.min(1, (60 - f.t) / 20); kctx.font = '12px "DotGothic16", monospace'; const hw = kctx.measureText(f.text).width / 2 + 3; KT(f.text, clamp(f.x, hw, KW - hw), Math.max(2, f.y - f.t * 0.4), 12, f.color); kctx.globalAlpha = 1; }
 }
@@ -2663,7 +2756,7 @@ function openTitle() {
   openModal(`
     <div class="kv-wrap" id="kvWrap"><img id="titleArt" class="title-art" src="keyvisual.webp" width="1248" height="1242" alt="ぐりおのねこカフェ"></div>
     <p>店長ねこ「ぐりお」といっしょに、小さなねこカフェを人気のお店にしよう。</p>
-    <p class="sub">・ふきだしをタップ → 注文をうける<br>・下のキッチンで設備をタップ → 調理。ちょうどいいときにもう一度タップでパーフェクト<br>・できあがり台の料理をタップ → はこぶ<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう<br>・料理の材料は「仕入れ」で。閉店後に買うとやすい</p>
+    <p class="sub">注文をうけて、料理をつくって、お客さんへ。はじめての方には、ぐりおが最初の接客をひとつずつ案内します。</p>
     <p class="sub">目標：ひょうばん ★5 と もちきん ¥100,000</p>
     <div class="actions-row">
       ${saved ? `<button type="button" id="mCont">つづきから（${saved.day}日目）</button>` : ''}
@@ -2856,18 +2949,8 @@ const NAMES = { grio: 'ぐりお', ponta: 'ぽんた' };
 // ================= 会話 =================
 const TALKS = {
   intro: [
-    ['surprise', '……にゃ？ きみが あたらしい オーナーさん？'],
-    ['normal', 'ぼくは ぐりお。この ねこカフェの てんちょう だにゃ。'],
-    ['sad', 'おみせは まだ ちいさくて、お客さんも すくないんだ……'],
-    ['happy', 'でも いつか、まちで いちばんの ねこカフェに したいにゃ！'],
-    ['normal', 'お客さんの ふきだしを タップすると、注文を うけられるよ。'],
-    ['normal', '注文は 下の キッチンに とどくにゃ。設備を タップして 調理してね。'],
-    ['normal', 'たべおわった おさらも タップして かたづけてね。'],
-    ['happy', 'それから…… ぼくたちを なでてくれると、げんきが でるにゃ〜'],
-    ['surprise', 'そうそう、料理には 材料が いるにゃ。'],
-    ['normal', 'コーヒーには コーヒー豆、クッキーには 小麦粉。なくなったら「仕入れ」で 買ってね。'],
-    ['normal', '営業中に 買うと おいそぎ便で たかいから、閉店後に まとめて 買うのが おトクだにゃ。'],
-    ['happy', 'さあ、かいてん しよう！'],
+    ['happy', 'ぼくは ぐりお。この ねこカフェの てんちょう だにゃ。'],
+    ['normal', 'まずは 最初のお客さんに コーヒーを とどけてみよう。ひとつずつ案内するね！'],
   ],
   day2: [
     ['happy', 'きのうは おつかれさまだにゃ！'],
