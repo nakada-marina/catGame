@@ -161,6 +161,28 @@ fs.mkdirSync(artifacts, {recursive:true});
     });
     fs.writeFileSync(path.join(artifacts,'bow-motion.png'),Buffer.from(bowSheet,'base64'));
     await p.locator('#mNew').click();
+    // No manual serve(): the manager must walk to the guest and create a job,
+    // including while visiting/napping and while the human helper is hired.
+    const autoOrders=await p.evaluate(()=>{
+      talking=null;talkQ.length=0;$('talk').hidden=true;const results=[];
+      for(const state of ['idle','walk','visit','toVisit','toSpot','nap']) {
+        G=newSave();G.staff=true;buildSeats();spawnCats();customers=[];jobs=[];ponta=null;mode='open';staffBusy=0;
+        const k=cats[0],seat=seats[0];k.state=state;k.t=900;k.tx=210;k.ty=288;
+        if(state==='nap'){k.spot=TOWER;k.x=TOWER.x+10;k.y=TOWER.top+2;}
+        const c={seat,x:seat.x,y:seat.y,state:'order',t:31,order:MENU.find(m=>m.id==='coffee'),pat:760,maxPat:760,spr:makePerson(randomLook()),anim:0};
+        seat.cust=c;customers=[c];let sawMove=false,sawOrder=false;
+        for(let i=0;i<650&&c.state==='order';i++){
+          updateCustomer(c);updateCat(k);
+          sawMove ||= k.state==='toOrder';sawOrder ||= k.state==='takeOrder';
+          if(i%30===0)render();
+        }
+        results.push({state,sawMove,sawOrder,received:c.state==='wait'&&jobs.length===1,released:!c.orderTaker&&!k.orderC});
+      }
+      G=newSave();buildSeats();spawnCats();customers=[];jobs=[];mode='open';
+      return results;
+    });
+    for(const r of autoOrders)assert(r.sawMove&&r.sawOrder&&r.received&&r.released,JSON.stringify(r));
+    console.log('PASS automatic cat orders from idle/walk/visit/nap, with human helper; reservation released');
     // Exercise the live simulation, including ordering, kitchen, and delivery.
     const simulation=await p.evaluate(()=>{
       talking=null;talkQ.length=0;$('talk').hidden=true;G.flags.intro=true;

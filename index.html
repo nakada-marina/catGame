@@ -306,8 +306,8 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-detail.js?v=20261011-gentle-bow"></script>
-<script src="./character-art.js?v=20261011-gentle-bow"></script>
+<script src="./character-detail.js?v=20261011-auto-orders"></script>
+<script src="./character-art.js?v=20261011-auto-orders"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -1234,7 +1234,7 @@ function updateCustomer(c) {
   } else if (c.state === 'order') {
     c.pat -= catNear(s) ? 0.5 : 1;
     if (!c.saidWait && c.pat < c.maxPat * 0.35) { c.saidWait = true; chat(c, ['まだかな…', 'すみませーん！', 'ちゅうもん…', 'おなかすいた…']); }
-    if (G.staff && !staffBusy && c.t > 200 && canMake(c.order)) { staffBusy = 40; serve(c, true); }
+    if (G.staff && !staffBusy && !c.orderTaker && c.t > 200 && canMake(c.order)) { staffBusy = 40; serve(c, true); }
     else if (c.pat <= 0) leaveAngry(c);
   } else if (c.state === 'wait') {
     c.pat -= catNear(s) ? 0.2 : 0.4;
@@ -1298,7 +1298,7 @@ function assignDeliver(k) {
 }
 // 注文を ねこが ききに行く（少し待っても だれも 行かないとき）
 function assignOrder(k) {
-  const list = seats.filter(s => s.cust && s.cust.state === 'order' && s.cust.t > 100 && !s.cust.orderTaker && canMake(s.cust.order));
+  const list = seats.filter(s => s.cust && s.cust.state === 'order' && s.cust.t > 30 && !s.cust.orderTaker && canMake(s.cust.order));
   if (!list.length) return false;
   const s = list.reduce((a, b) => b.cust.pat < a.cust.pat ? b : a);
   s.cust.orderTaker = k; k.orderC = s.cust; k.spot = null; k.visit = null; k.act = null;
@@ -1339,6 +1339,17 @@ function updateCat(k) {
   k.hunger = clamp(k.hunger + (k.temp ? 0 : 0.018), 0, 100);
   if (k.hunger > 80) k.mood = clamp(k.mood - 0.012, 0, 100);
   if (k.petCool > 0) k.petCool--;
+  // Dispatch pending work before optional wandering/visits. Random checks
+  // previously left orders unattended, and the human helper took them before
+  // the cat could arrive. Grio also answers orders during a nap.
+  const available = ['idle','walk','visit','toVisit','toSpot'].includes(k.state) || (k.pal === 'grio' && k.state === 'nap');
+  if (available) {
+    const onTower = k.state === 'nap' && k.spot === TOWER;
+    if (catWork(k)) {
+      if (onTower) { k.x = TOWER.x + 12; k.y = TOWER.base + 4; k.jump = 0; }
+      k.act = null;
+    }
+  }
   const sp = 0.45;
   switch (k.state) {
     case 'idle':
