@@ -22,12 +22,12 @@ fs.mkdirSync(artifacts, {recursive:true});
   try {
     for (const [width,height,dpr] of [[320,568,2],[375,667,2],[393,852,3],[430,932,3],[1280,900,1]]) {
       const page = await browser.newPage({viewport:{width,height},deviceScaleFactor:dpr,isMobile:width<500,hasTouch:width<500});
-      page.on('pageerror', e => errors.push(e.message));
+      page.on('pageerror', e => {errors.push(e.message);console.error('Runtime error:',e.message);});
       await page.goto(base); await page.evaluate(() => artworkReady);
       await page.locator('#mNew').click();
       await page.evaluate(() => { talking=null; talkQ.length=0; $('talk').hidden=true; fitLayout(); render(); renderKitchen(); });
       const result = await page.evaluate(() => {
-        const controls = [...$('actions').querySelectorAll('button'), ...$('sub').querySelectorAll('button'),$('kitchenCv')].map(el => el.getBoundingClientRect().toJSON());
+        const controls = [...$('actions').querySelectorAll('button'), ...$('sub').querySelectorAll('button')].map(el => el.getBoundingClientRect().toJSON());
         return {controls,width:innerWidth,height:innerHeight,backing:cv.width,physical:cv.getBoundingClientRect().width*devicePixelRatio,atlas:!!CHAR_SPR.grio && !!CHAR_SPR.ponta};
       });
       assert(result.atlas);
@@ -35,7 +35,52 @@ fs.mkdirSync(artifacts, {recursive:true});
       assert(touch.every(v=>v==='manipulation'));
       for (const r of result.controls) { assert(r.left>=0&&r.right<=width+1, 'horizontal clipping'); assert(r.top>=0&&r.bottom<=height+1, `vertical clipping ${width}x${height}`); }
       assert(result.backing>=result.physical-1);
+      const layout=await page.evaluate(()=>({scene:cv.getBoundingClientRect().width,wrap:$('wrap').clientWidth,
+        grio:catDisplaySize('grio',CHAR_SPR.grio.idle[0]).height, ponta:catDisplaySize('ponta',CHAR_SPR.ponta.idle[0]).height}));
+      assert.equal(layout.scene,layout.wrap,'game uses full width instead of height fitting');
+      assert(layout.grio>64&&layout.ponta<layout.grio,'larger cats; Ponta a little smaller');
+      await page.evaluate(()=>{document.body.scrollTop=document.body.scrollHeight;});
+      const scrollCheck=await page.evaluate(()=>({bottom:$('dock').getBoundingClientRect().bottom,kitchen:$('kitchenCv').getBoundingClientRect().bottom,top:$('kitchenCv').getBoundingClientRect().top}));
+      assert(scrollCheck.bottom<=height+1);assert(scrollCheck.kitchen<=height+1);assert(scrollCheck.top>=0,'kitchen reachable by scrolling');
       if (width===393) await page.screenshot({path:path.join(artifacts,'game.png')});
+      if(width===393){
+        const cdp=await page.context().newCDPSession(page);
+        const target=await page.locator('#btnSpeed').boundingBox();
+        for(const expected of [2,3,1]){
+          await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:target.x+target.width/2,y:target.y+target.height/2}]});
+          await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+          assert.equal(await page.evaluate(()=>speed),expected,'one action for each rapid button tap');
+        }
+        assert.equal(await page.evaluate(()=>visualViewport.scale),1,'rapid taps must not zoom');
+        await page.evaluate(()=>{document.body.scrollTop=0;cats[0].mood=20;mode='open';});
+        const catPoint=await page.evaluate(()=>{const r=cv.getBoundingClientRect(),k=cats[0];return {x:r.left+3+k.x/VW*(r.width-6),y:r.top+3+(k.y-20)/VH*(r.height-6)};});
+        const before=await page.evaluate(()=>cats[0].mood);
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[catPoint]});
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+        assert((await page.evaluate(()=>cats[0].mood))>before,'cafe tap still pets the enlarged cat');
+        const dragBefore=await page.evaluate(()=>cats[0].mood);
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[catPoint]});
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:catPoint.x,y:catPoint.y-90}]});
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+        assert((await page.evaluate(()=>cats[0].mood))<=dragBefore,'scroll must not pet the cat');
+        await page.evaluate(()=>{document.body.scrollTop=document.body.scrollHeight;});
+        // A second native tap is cancelled, while drags and two-finger gestures are left intact.
+        const gestures=await page.evaluate(()=>{
+          const target=$('btnSpeed');
+          const make=(type,touches,changed)=>new TouchEvent(type,{bubbles:true,cancelable:true,touches,changedTouches:changed});
+          const t=new Touch({identifier:1,target,clientX:30,clientY:30});
+          target.dispatchEvent(make('touchstart',[t],[t]));
+          const end=make('touchend',[],[t]);target.dispatchEvent(end);
+          target.dispatchEvent(make('touchstart',[t],[t]));
+          const moved=new Touch({identifier:1,target,clientX:30,clientY:80});target.dispatchEvent(make('touchmove',[moved],[moved]));
+          const drag=make('touchend',[],[moved]);target.dispatchEvent(drag);
+          const second=new Touch({identifier:2,target,clientX:70,clientY:30});target.dispatchEvent(make('touchstart',[t,second],[t,second]));
+          const pinch=make('touchend',[],[t,second]);target.dispatchEvent(pinch);
+          return {tap:end.defaultPrevented,drag:drag.defaultPrevented,pinch:pinch.defaultPrevented};
+        });
+        assert.deepEqual(gestures,{tap:true,drag:false,pinch:false});
+        console.log('PASS rapid touch buttons execute once; zoom default cancelled; scrolling/pinch preserved');
+      }
       console.log(`PASS viewport ${width}x${height} DPR ${dpr}`);
       await page.close();
     }

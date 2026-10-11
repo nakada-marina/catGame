@@ -271,7 +271,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .make .zero { color: var(--bad); }
 #sub button { padding: 4px 10px; font-size: 12px; border-bottom-width: 2px; white-space: nowrap; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261011-mouth-touch">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261011-big-taps">
 </head>
 <body>
 <div id="wrap">
@@ -288,6 +288,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
     </div>
   </div>
   <canvas id="kitchenCv" aria-label="キッチン：設備をタップして調理"></canvas>
+  <div id="dock">
   <div id="actions">
     <button type="button" id="btnFood">ごはん<small id="foodLeft">のこり0</small></button>
     <button type="button" id="btnStock">仕入れ<small id="stockInfo">ざいこ</small></button>
@@ -300,9 +301,11 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
     <span>ふきだし＝注文・設備＝調理・ねこ＝なでる</span>
     <span class="tools"><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
   </div>
+  </div>
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
+<script src="./touch-controls.js?v=20261011-tap-guard"></script>
 <script src="./character-art.js?v=20261011-mouth-touch"></script>
 <script>
 'use strict';
@@ -698,7 +701,7 @@ function shade0(hex, f) {
   return '#' + m(r) + m(g) + m(b);
 }
 // 前向きの人（幅24・高さ38、座りは上半身28）
-const PERSON_K = 1.5;   // お客さんの大きさ
+const PERSON_K = 1.65;   // お客さんの大きさ
 function makePersonFine(look, frame, apron, KS = PERSON_K) {
   const back = frame === 'back', seated = frame === 'sit' || frame === 'blink' || frame === 'eat' || frame === 'chew' || back;
   const W = Math.ceil(24 * KS), H = Math.ceil((seated ? 28 : 38) * KS), buf = Array.from({ length: H }, () => Array(W).fill(null));
@@ -1973,7 +1976,16 @@ function catImg(pal, pose, face, k) {
   if (pal === 'grio' || pal === 'ponta') return CHAR_PENDING;
   return CAT_SPR[pal][pose][face > 0 ? 0 : 1];
 }
-// 歩行中だけ軽い上下動を付ける。停止時は揺れをゼロに戻す。
+// Display-scale only: original pixels and common foot anchor stay unchanged.
+function catDisplaySize(pal, img) {
+  const scale = pal === 'grio' ? 1.35 : pal === 'ponta' ? 1.25 : 1;
+  return { width: Math.round(img.width * scale), height: Math.round(img.height * scale) };
+}
+function drawCatArtwork(img, x, y, size) {
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, Math.round(x), Math.round(y), size.width, size.height);
+}
+// 歩行の足元は固定。
 function catMotionOffset(k, pose) {
   // Authored steps already include motion. Keep the shared foot baseline fixed.
   return 0;
@@ -2021,9 +2033,10 @@ function drawPonta() {
   const p = ponta, moving = p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
   const pose = p.state === 'nap' ? sleepPose(p) : p.state === 'slack' ? groomPose() : moving ? walkPose(p) : sitPose(p);
   const img = catImg('ponta', pose, p.face, Object.assign(p, { pal: 'ponta' }));
-  const X = Math.round(p.x * 2 - img.width / 2), Y = Math.round(p.y * 2 - img.height + catMotionOffset(p, pose));
-  floorShadow(p.x * 2, p.y * 2 - 1, (CHAR_SPR['ponta'] ? 13 : Math.round(img.width * 0.32)), 3, 0.18);
-  drawAt(img, X, Y);
+  const size = catDisplaySize('ponta', img);
+  const X = Math.round(p.x * 2 - size.width / 2), Y = Math.round(p.y * 2 - size.height + catMotionOffset(p, pose));
+  floorShadow(p.x * 2, p.y * 2 - 1, (CHAR_SPR['ponta'] ? 16 : Math.round(img.width * 0.32)), 3, 0.18);
+  drawCatArtwork(img, X, Y, size);
   if (p.carry) drawAt(ICON2[p.carry.item.id], p.x * 2 - 8, Y - 18 + ((tick >> 3) & 1) * 2);
   else {
     const tx = Math.round(clamp(p.x * 2, 22, FW - 22)), ty = Math.max(1, Y - 15);
@@ -2047,11 +2060,12 @@ function drawCat(k) {
   else if (k.state === 'nap') pose = sleepPose(k);
   else if (k.state === 'idle' && k.act) pose = actPose(k);
   const img = catImg(k.pal, pose, k.face, k);
-  let Y = Math.round(k.y * 2 - img.height + catMotionOffset(k, pose));
+  const size = catDisplaySize(k.pal, img);
+  let Y = Math.round(k.y * 2 - size.height + catMotionOffset(k, pose));
   if (k.state === 'eat' && (k.t >> 4) & 1) Y += 2;
   if (k.jump > 0) Y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 12);
-  if (!(k.spot === TOWER && k.state === 'nap') && k.spot !== BOX) floorShadow(k.x * 2, k.y * 2 - 1, CHAR_SPR[k.pal] ? 13 : Math.round(img.width * 0.32), 3, 0.18);
-  drawAt(img, Math.round(k.x * 2 - img.width / 2), Y);
+  if (!(k.spot === TOWER && k.state === 'nap') && k.spot !== BOX) floorShadow(k.x * 2, k.y * 2 - 1, CHAR_SPR[k.pal] ? 18 : Math.round(img.width * 0.32), 3, 0.18);
+  drawCatArtwork(img, k.x * 2 - size.width / 2, Y, size);
   if (k.carry) drawAt(PLATE2, k.x * 2 - 9, Y - 10 + ((tick >> 3) & 1) * 2);
   if (k.carryDish && k.dish) drawAt(ICON2[k.dish.item.id], k.x * 2 - 8, Y - 16 + ((tick >> 3) & 1) * 2);
   if (k.temp && !k.carryDish && !k.carry) {
@@ -2726,11 +2740,21 @@ function openTitle() {
 }
 
 // ================= 入力 =================
+// Let a vertical drag scroll the enlarged room; act only on a completed tap.
+function onCafeTap(action) {
+  let down = null;
+  cv.addEventListener('pointerdown', e => { if (e.isPrimary) down = { x:e.clientX, y:e.clientY, id:e.pointerId }; });
+  cv.addEventListener('pointercancel', () => { down = null; });
+  cv.addEventListener('pointerup', e => {
+    const start = down; down = null;
+    if (start && e.pointerId === start.id && Math.hypot(e.clientX-start.x,e.clientY-start.y) <= 10) action(e);
+  });
+}
 function canvasPoint(e) {
   const r = cv.getBoundingClientRect(), b = 3;
   return { x: (e.clientX - r.left - b) / (r.width - b * 2) * VW, y: (e.clientY - r.top - b) / (r.height - b * 2) * VH };
 }
-cv.addEventListener('pointerdown', e => {
+onCafeTap(e => {
   e.preventDefault(); initAudio();
   if (!G || isPaused() || (mode !== 'open' && mode !== 'closing')) return;
   const { x, y } = canvasPoint(e);
@@ -2743,10 +2767,10 @@ cv.addEventListener('pointerdown', e => {
     if (s.dirty && Math.abs(x - s.itemX) < 12 && y > s.itemY - 13 && y < s.itemY + 9) { s.dirty = false; sfx.clean(); addFx('spark', s.itemX, s.itemY - 5); return; }
   }
   if (x >= 150 && y < 40) { openStock(); return; }
-  if (ponta) { const py = ponta.state === 'nap' ? ponta.y - 9 : ponta.y - 15; if (Math.hypot(x - ponta.x, y - py) < 19) { wakePonta(); return; } }
-  let best = null, bd = 22;
+  if (ponta) { const py = ponta.state === 'nap' ? ponta.y - 9 : ponta.y - 20; if (Math.hypot(x - ponta.x, y - py) < 24) { wakePonta(); return; } }
+  let best = null, bd = 26;
   for (const k of cats) {
-    const ky = k.state === 'nap' ? k.y - 9 : k.y - 15;
+    const ky = k.state === 'nap' ? k.y - 9 : k.y - 20;
     const d = Math.hypot(x - k.x, y - ky);
     if (d < bd) { bd = d; best = k; }
   }
@@ -3130,20 +3154,16 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 openTitle();
-// 画面の高さに合わせて、お店とキッチンの大きさを決める（ページはスクロールしない）
+// 店内は横幅いっぱい。操作ドックを残してページをスクロールする。
 function fitLayout() {
   const wrap = $('wrap'), vv = window.visualViewport, bs = getComputedStyle(document.body);
-  const height = vv ? vv.height : innerHeight;
   const width = vv ? vv.width : innerWidth;
-  const py = parseFloat(bs.paddingTop) + parseFloat(bs.paddingBottom);
   const px = parseFloat(bs.paddingLeft) + parseFloat(bs.paddingRight);
-  wrap.style.width = Math.floor(Math.min(width - px, 480)) + 'px';
-  wrap.style.height = Math.max(0, height - py) + 'px';
-  // UI keeps its full width. Only the cafe is fitted to the remaining height.
-  const gap = parseFloat(getComputedStyle(wrap).rowGap) || 7;
-  const other = $('hud').offsetHeight + $('kitchenCv').offsetHeight + $('actions').offsetHeight + $('sub').offsetHeight + gap * 4;
-  const available = Math.max(150, height - py - other - 8);
-  const sceneWidth = Math.floor(Math.min(wrap.clientWidth, available * VW / VH));
+  wrap.style.width = Math.floor(Math.min(width - px, 640)) + 'px';
+  wrap.style.height = 'auto';
+  // Never shrink the game to fit a short viewport. The page scrolls and
+  // the action dock stays visible; the cafe uses the full available width.
+  const sceneWidth = wrap.clientWidth;
   cv.style.width = sceneWidth + 'px';
   cv.style.height = Math.floor(sceneWidth * VH / VW) + 'px';
   // The game renders on a 448x600 pixel-art grid. Use an integer backing

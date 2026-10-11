@@ -126,3 +126,16 @@ body {
 html, body, #wrap, #stage, #talk, #actions, #sub, .panel, button {
   touch-action: manipulation;
 }
+
+/* Larger room and pixel characters: scrolling replaces fit-to-height shrink. */
+body {display:block;padding-inline:max(8px,env(safe-area-inset-left));padding-bottom:max(8px,env(safe-area-inset-bottom))}
+#wrap {max-width:640px;height:auto;margin-inline:auto}
+#stage {flex:0 0 auto;min-height:0;align-items:flex-start}
+#cafe {touch-action:pan-y}
+#dock {
+  position:sticky;bottom:0;z-index:10;background:#fff5e7;
+  display:flex;flex-direction:column;gap:7px;padding:8px 4px max(8px,env(safe-area-inset-bottom));
+  border:2px solid #dfc2a8;border-radius:14px;
+  box-shadow:0 -4px 16px rgba(79,47,29,.15);
+}
+#dock #actions button {min-height:48px}
