@@ -294,23 +294,23 @@ const CAT_POSE = {
     W: 52, H: 47,
     body: [[21, 33, 13, 11], [30, 29, 8, 11], [25, 37, 14, 8]], head: [33, 14, 10, 9], cheek: [33, 17, 11.5, 6],
     ears: [[[24, 9], [25, 0], [31, 5]], [[35, 5], [41, 0], [42, 9]]], earsIn: [[[26, 7], [26, 3], [29, 5]], [[37, 5], [40, 3], [40, 7]]],
-    legs: [[28, 30, 4, 14], [32, 31, 4, 13]], paws: [[30, 44, 2.6, 1.6], [34, 44, 2.6, 1.6], [13, 44, 4, 1.8]],
+    legs: [[29.5, 30, 29.5, 43, 1], [33.5, 31, 33.5, 43, 0]], paws: [[29.5, 44, 2.6, 1.6], [33.8, 44, 2.6, 1.6], [13, 44, 4, 1.8]],
     tail: [[9, 34], [5, 39], [9, 44], [20, 45.5], [30, 45.5]], eyes: [[29, 14], [37, 14]], nose: [33, 18],
     chest: [31, 29, 4.5, 8], bodyStripes: [[11, 25, 13, 35], [15, 23, 17, 34], [19, 22, 21, 33], [23, 23, 24, 31]], shadeY: 38, light: [19, 26, 8, 4], scarfY: 22,
   },
   walkA: {
     W: 56, H: 39,
-    body: [[24, 22, 16, 8], [37, 19, 6, 7]], head: [43, 13, 9, 8.5], cheek: [43, 16, 10, 5.5],
+    body: [[24, 21, 16, 7.5], [37, 19, 6, 7], [14, 23, 7, 6.5], [35, 22, 6, 6.5]], head: [43, 13, 9, 8.5], cheek: [43, 16, 10, 5.5],
     ears: [[[35, 8], [36, 0], [41, 4]], [[45, 4], [50, 0], [52, 9]]], earsIn: [[[37, 6], [37, 3], [39, 5]], [[47, 5], [49, 3], [50, 7]]],
-    legs: [[9, 26, 4, 11], [19, 27, 4, 10], [30, 26, 4, 11], [39, 27, 4, 10]], paws: [[11, 37, 2.6, 1.5], [21, 37, 2.6, 1.5], [32, 37, 2.6, 1.5], [41, 37, 2.6, 1.5]],
+    legs: [[11, 26, 8, 36, 1], [33, 26, 31, 36, 1], [16, 26, 19, 36, 0], [38, 26, 41, 36, 0]], paws: [[8, 36.5, 2.6, 1.5], [31, 36.5, 2.6, 1.5], [19, 36.5, 2.6, 1.5], [41, 36.5, 2.6, 1.5]],
     tail: [[9, 18], [4, 14], [3, 8], [6, 3]], eyes: [[39, 13], [47, 13]], nose: [43, 17],
     chest: [37, 23, 4, 5], bodyStripes: [[12, 15, 13, 26], [17, 14, 18, 27], [22, 14, 23, 28], [27, 15, 28, 27]], shadeY: 26, light: [22, 17, 10, 3], scarfY: 20,
   },
   walkB: {
     W: 56, H: 39,
-    body: [[24, 22, 16, 8], [37, 19, 6, 7]], head: [43, 13, 9, 8.5], cheek: [43, 16, 10, 5.5],
+    body: [[24, 21, 16, 7.5], [37, 19, 6, 7], [14, 23, 7, 6.5], [35, 22, 6, 6.5]], head: [43, 13, 9, 8.5], cheek: [43, 16, 10, 5.5],
     ears: [[[35, 8], [36, 0], [41, 4]], [[45, 4], [50, 0], [52, 9]]], earsIn: [[[37, 6], [37, 3], [39, 5]], [[47, 5], [49, 3], [50, 7]]],
-    legs: [[13, 26, 4, 11], [16, 27, 4, 10], [33, 26, 4, 11], [36, 27, 4, 10]], paws: [[15, 37, 2.6, 1.5], [18, 37, 2.6, 1.5], [35, 37, 2.6, 1.5], [38, 37, 2.6, 1.5]],
+    legs: [[12, 26, 14, 36, 1], [34, 26, 36, 36, 1], [15, 26, 12, 36, 0], [37, 26, 34, 36, 0]], paws: [[14, 36.5, 2.6, 1.5], [36, 36.5, 2.6, 1.5], [12, 36.5, 2.6, 1.5], [34, 36.5, 2.6, 1.5]],
     tail: [[9, 18], [3, 15], [1, 9], [3, 4]], eyes: [[39, 13], [47, 13]], nose: [43, 17],
     chest: [37, 23, 4, 5], bodyStripes: [[12, 15, 13, 26], [17, 14, 18, 27], [22, 14, 23, 28], [27, 15, 28, 27]], shadeY: 26, light: [22, 17, 10, 3], scarfY: 20,
   },
@@ -348,12 +348,16 @@ function makeCatFine(L, P0) {
   // しっぽ
   thick(P0.tail, L.long ? 2.4 : 1.6, (i, f) => (L.tabby && ((i * 7 + Math.round(f * 6)) % 4 === 0)) ? L.stripe : (L.patches && i >= P0.tail.length - 2 ? L.patches[1] : L.base));
   // 足
-  for (const [x, y, w, h] of P0.legs) for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) set(xx, yy, yy > y + h - 3 && L.paws ? L.white : (xx === x ? L.shade : L.base));
+  for (const far of [1, 0]) for (const [x0, y0, x1, y1, f] of P0.legs) {
+    if (f !== far) continue;
+    thick([[x0, y0], [x1, y1]], 1.7, (i, t) => t > 0.78 && L.paws ? L.white : far ? L.shade : L.base);
+  }
   // 体と頭
   each((fx, fy, x, y) => {
     if (inBody(fx, fy)) buf[y][x] = fy > P0.shadeY ? L.shade : ell(fx, fy, ...P0.light) ? L.light : L.base;
     if (inHead(fx, fy)) buf[y][x] = fy < P0.head[1] - 4 && (x + y) % 3 === 0 ? L.light : L.base;
   });
+  if (P0.body.length > 2 && P0.legs.length > 2) for (const [cx, cy, rx, ry] of P0.body.slice(2)) each((fx, fy, x, y) => { if (ell(fx, fy, cx, cy, rx, ry) && !ell(fx, fy, cx - 1, cy, rx, ry - 0.5) && fy > cy) buf[y][x] = L.shade; });
   for (const [cx, cy, rx, ry] of P0.paws) each((fx, fy, x, y) => { if (ell(fx, fy, cx, cy, rx, ry)) buf[y][x] = L.paws ? L.white : L.base; });
   // 耳
   each((fx, fy, x, y) => {
@@ -432,7 +436,8 @@ for (const pal in CAT_LOOK) {
   for (const pose in CAT_POSE) { const s = makeCatFine(CAT_LOOK[pal], CAT_POSE[pose]); CAT_SPR[pal][pose] = [s, flipH(s)]; }
 }
 // 2倍の細かさの絵を、論理座標で描く
-function drawFine(img, x, y) { ctx.drawImage(img, Math.round(x * 2) / 2, Math.round(y * 2) / 2, img.width / 2, img.height / 2); }
+// 画面は 2倍の細かさ（論理座標 ×2）で描く
+function drawAt(img, X, Y) { ctx.drawImage(img, Math.round(X), Math.round(Y)); }
 // Scale2x：ドット絵の輪郭をなめらかに2倍にする
 function scale2x(src) {
   const w = src.width, h = src.height, d = src.getContext('2d').getImageData(0, 0, w, h).data;
@@ -449,19 +454,7 @@ function scale2x(src) {
   return out;
 }
 
-// ================= ドット絵：お客さん =================
-const PERSON_TOP_SHORT = [
-  '...oooooo...', '..ohhhhhho..', '.ohhhhhhhho.', '.ohhhhhhhho.', '.ohkkkkkkho.', '.okkekkekko.',
-  '.okkkkkkkko.', '..okrkkrko..', '...okkkko...', '..osssssso..', '.osssssssso.', 'okssssssssko',
-  'okssssssssko', '.odssssssdo.',
-];
-const PERSON_TOP_LONG = [
-  '...oooooo...', '..ohhhhhho..', '.ohhhhhhhho.', '.ohhhhhhhho.', 'ohhkkkkkkhho', 'ohkkekkekkho',
-  'ohkkkkkkkkho', 'ohokrkkrkoho', 'ohhokkkkohho', '.ohssssssho.', '.osssssssso.', 'okssssssssko',
-  'okssssssssko', '.odssssssdo.',
-];
-const LEGS_A = ['..oppppppo..', '..opp..ppo..', '..opp..ppo..', '..off..ffo..', '...oo..oo...'];
-const LEGS_B = ['..oppppppo..', '..opp..ppo..', '..off..ppo..', '...oo..ffo..', '........oo..'];
+// ================= お客さん（2倍の細かさ） =================
 const LOOKS = {
   hair: ['#2a1e18', '#5a3a22', '#8a5a2a', '#d8b060', '#3a3a44', '#a04a3a', '#6a6a7a'],
   skin: ['#f8dcc0', '#eebc94', '#c8936a'],
@@ -473,19 +466,56 @@ function shade(hex, f) {
   const m = v => clamp(Math.round(v * f), 0, 255).toString(16).padStart(2, '0');
   return '#' + m(r) + m(g) + m(b);
 }
-function makePerson(look) {
-  const pal = { o: '#2a2220', h: look.hair, k: look.skin, e: '#2a2a2a', r: '#e8a0a0', s: look.shirt, d: shade(look.shirt, 0.75), p: look.pants, f: '#3a2a20' };
-  const top = look.long ? PERSON_TOP_LONG : PERSON_TOP_SHORT;
-  return { a: scale2x(sprite(top.concat(LEGS_A), pal)), b: scale2x(sprite(top.concat(LEGS_B), pal)), sit: scale2x(sprite(top, pal)) };
+// 前向きの人（幅24・高さ38、座りは上半身28）
+function makePersonFine(look, frame, apron) {
+  const W = 24, H = frame === 'sit' ? 28 : 38, buf = Array.from({ length: H }, () => Array(W).fill(null));
+  const set = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H) buf[y][x] = c; };
+  const rect = (x, y, w, h, c) => { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) set(xx, yy, c); };
+  const ell = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+  const each = fn => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) fn(x + 0.5, y + 0.5, x, y); };
+  const skinS = shade(look.skin, 0.86), shirtS = shade(look.shirt, 0.78), shirtL = shade(look.shirt, 1.12), hairL = shade(look.hair, 1.4), pantsS = shade(look.pants, 0.75);
+  // 長い髪（うしろ）
+  if (look.long) each((fx, fy, x, y) => { if (fx > 3.5 && fx < 20.5 && fy > 8 && fy < 24 && ell(fx, fy, 12, 14, 8.5, 10)) set(x, y, look.hair); });
+  // 体と腕
+  each((fx, fy, x, y) => { if (fy >= 18 && fy < 30 && fx >= 6 && fx <= 18 && !(fy < 20 && (fx < 7.5 || fx > 16.5))) set(x, y, fx > 15 ? shirtS : look.shirt); });
+  rect(4, 20, 2, 7, shirtS); rect(18, 20, 2, 7, shirtS); rect(5, 19, 1, 1, shirtS); rect(18, 19, 1, 1, shirtS);
+  rect(4, 27, 2, 2, look.skin); rect(18, 27, 2, 2, skinS);
+  rect(10, 17, 4, 2, skinS); set(11, 19, look.skin); set(12, 19, look.skin);
+  rect(7, 20, 3, 1, shirtL);
+  if (apron) { rect(8, 22, 8, 8, '#c8643a'); rect(8, 22, 8, 1, '#e08a5a'); set(8, 21, '#c8643a'); set(15, 21, '#c8643a'); rect(10, 25, 4, 2, '#a85030'); }
+  if (frame !== 'sit') {
+    rect(7, 29, 10, 4, look.pants); rect(15, 29, 2, 4, pantsS); rect(11, 31, 2, 2, pantsS);
+    const legs = frame === 'a' ? [[7, 33, 4, 3], [13, 33, 4, 3]] : [[7, 33, 4, 2], [13, 33, 4, 3]];
+    for (const [x, y, w, h] of legs) { rect(x, y, w, h, look.pants); rect(x, y + h, w, 2, '#3a2a20'); set(x, y + h, '#5a4a40'); }
+  }
+  // 頭
+  each((fx, fy, x, y) => { if (ell(fx, fy, 12, 10, 7.5, 8)) set(x, y, fy > 15.5 || fx > 17 ? skinS : look.skin); });
+  rect(4, 10, 1, 3, look.skin); rect(19, 10, 1, 3, skinS);
+  // 髪
+  each((fx, fy, x, y) => {
+    if (ell(fx, fy, 12, 7.5, 8.2, 6.5) && (fy < 7 || (fy < 9 + (x % 3 === 0 ? 1 : 0) && fx > 5 && fx < 19) || fx < 5.5 || fx > 18.5)) set(x, y, look.hair);
+  });
+  each((fx, fy, x, y) => { if (ell(fx, fy, 9, 3.5, 3, 1.2)) set(x, y, hairL); });
+  if (look.long) { rect(4, 9, 2, 13, look.hair); rect(18, 9, 2, 13, look.hair); }
+  // 顔
+  rect(8, 11, 2, 3, '#2a2420'); rect(14, 11, 2, 3, '#2a2420'); set(8, 11, '#ffffff'); set(14, 11, '#ffffff');
+  rect(6, 14, 2, 1, '#f0a0a0'); rect(16, 14, 2, 1, '#f0a0a0');
+  rect(11, 15, 2, 1, '#b8605a');
+  // ふちどり
+  const out = buf.map(r => r.slice());
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (buf[y][x]) continue;
+    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => buf[y + dy] && buf[y + dy][x + dx])) out[y][x] = '#2a2220';
+  }
+  const c = mk(W, H), g = c.getContext('2d');
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (out[y][x]) { g.fillStyle = out[y][x]; g.fillRect(x, y, 1, 1); }
+  return c;
 }
+function makePerson(look) { return { a: makePersonFine(look, 'a'), b: makePersonFine(look, 'b'), sit: makePersonFine(look, 'sit') }; }
 function randomLook() {
   return { hair: pick(LOOKS.hair), skin: pick(LOOKS.skin), shirt: pick(LOOKS.shirt), pants: pick(LOOKS.pants), long: Math.random() < 0.45 };
 }
-const STAFF_SPR = (() => {
-  const pal = { o: '#2a2220', h: '#3a2a20', k: '#f8dcc0', e: '#2a2a2a', r: '#e8a0a0', s: '#f4f0e8', d: '#c86a4a', p: '#3a3a44', f: '#3a2a20' };
-  const top = PERSON_TOP_SHORT.slice(0, 11).concat(['okddddddddko', 'okddddddddko', '.oddddddddo.']);
-  return scale2x(sprite(top.concat(LEGS_A), pal));
-})();
+const STAFF_SPR = makePersonFine({ hair: '#3a2a20', skin: '#f8dcc0', shirt: '#f4f0e8', pants: '#3a3a44', long: false }, 'a', true);
 
 // ================= ドット絵：メニューと小物 =================
 const ICON_DEFS = {
@@ -510,6 +540,10 @@ const HEART = sprite(['.oo.oo.', 'orrorro', 'orrrrro', '.orrro.', '..oro..', '..
 const FUR = sprite(['..o.o..', '.ogogo.', 'oggggg.', '.ogggo.', '..o.o..'], { o: '#9a9aa6', g: '#d6d6de' });
 const PLATE = sprite(['..ooooo..', '.owwwwwo.', 'owwcwwcwo', '.owwwwwo.', '..ooooo..'], { o: '#8a8a9a', w: '#f4f4f8', c: '#b88a5a' });
 
+const ICON2 = {};
+for (const k in ICON) ICON2[k] = scale2x(ICON[k]);
+const HEART2 = scale2x(HEART), FUR2 = scale2x(FUR), PLATE2 = scale2x(PLATE);
+
 // ================= データ =================
 const MENU = [
   { id: 'coffee', name: 'コーヒー', price: 400, unlock: 0, st: 'drink', time: 150, need: { beans: 1 } },
@@ -532,7 +566,8 @@ const INGR = [
   { id: 'cream', name: '生クリーム', base: 90, life: 2, icon: [['...w....', '..www...', '.owwwo..', 'owwwwwo.', 'oyyyyyo.', '.oyyyo..', '..ooo...', '........'], { o: '#a09070', w: '#ffffff', y: '#f0e0b0' }] },
 ];
 const INGR_IMG = {};
-for (const it of INGR) INGR_IMG[it.id] = sprite(it.icon[0], it.icon[1]).toDataURL();
+const INGR_SPR = {};
+for (const it of INGR) { INGR_SPR[it.id] = sprite(it.icon[0], it.icon[1]); INGR_IMG[it.id] = INGR_SPR[it.id].toDataURL(); }
 const RUSH_RATE = 1.5;
 const STATIONS = {
   drink: { name: 'コーヒーマシン', price: 6000 },
@@ -1054,262 +1089,373 @@ function update() {
   if (mode === 'closing' && customers.length === 0) { seats.forEach(s => { s.dirty = false; }); endDay(); }
 }
 
-// ================= 描画 =================
-function skyColor(t) {
+// ================= 描画（すべて 2倍の細かさ：論理座標 ×2 で描く） =================
+const FW = VW * 2, FH = VH * 2;
+function skyColors(t) {
   const f = (t - OPEN) / (CLOSE - OPEN);
-  if (weather === 'rain') return f < 0.7 ? '#9aa8b8' : '#6a6a8a';
-  if (f < 0.6) return '#8cc8f0';
-  if (f < 0.85) return '#f0b878';
-  return '#7a6aa8';
+  if (weather === 'rain') return f < 0.7 ? ['#8a98aa', '#9aa8b8', '#aab6c4'] : ['#5a5a7a', '#6a6a8a', '#7a7a98'];
+  if (f < 0.6) return ['#6ab4ea', '#8cc8f0', '#b4dcf6'];
+  if (f < 0.85) return ['#e89a6a', '#f0b878', '#f8d49a'];
+  return ['#4a4a88', '#7a6aa8', '#c08aa8'];
+}
+function paw(x, y, c) { P(c, x, y, 4, 3); P(c, x + 1, y + 3, 2, 1); P(c, x - 2, y - 3, 2, 2); P(c, x + 1, y - 4, 2, 2); P(c, x + 4, y - 3, 2, 2); }
+function cloudBlob(x, y, s) {
+  ellipse(x, y + 1, 8 * s, 3 * s, '#dce8f4'); ellipse(x - 5 * s, y, 5 * s, 3 * s, '#ffffff');
+  ellipse(x + 2 * s, y - 2 * s, 6 * s, 4 * s, '#ffffff'); ellipse(x + 7 * s, y, 4 * s, 3 * s, '#ffffff');
+}
+function drawWindow(time) {
+  const x0 = 24, y0 = 18, w = 96, h = 70, sky = skyColors(time);
+  // カーテンレール
+  P('#4e321c', x0 - 16, y0 - 12, w + 32, 4); P('#8a5e3a', x0 - 16, y0 - 12, w + 32, 1);
+  P('#4e321c', x0 - 19, y0 - 13, 4, 6); P('#4e321c', x0 + w + 15, y0 - 13, 4, 6);
+  // わく
+  P('#4e321c', x0 - 5, y0 - 5, w + 10, h + 10); P('#9a6a42', x0 - 4, y0 - 4, w + 8, h + 8); P('#b88454', x0 - 4, y0 - 4, w + 8, 1);
+  // 空
+  for (let i = 0; i < h; i++) P(sky[Math.min(2, Math.floor(i / h * 3))], x0, y0 + i, w, 1);
+  if (weather === 'sun' && time < OPEN + 320) { cloudBlob(x0 + 22, y0 + 16, 1); cloudBlob(x0 + 70, y0 + 40, 0.8); }
+  if (weather === 'sun' && time >= OPEN + 320) { ellipse(x0 + 74, y0 + 52, 7, 7, '#ffe6a0'); ellipse(x0 + 74, y0 + 52, 5, 5, '#fff4c8'); }
+  if (weather === 'rain') for (let i = 0; i < 14; i++) { const rx = x0 + ((i * 23 + tick * 2) % (w - 2)), ry = y0 + ((i * 11 + tick * 4) % (h - 6)); P('#e4ecf8', rx, ry, 1, 5); }
+  // 遠くの街なみ
+  const town = time > OPEN + 420 ? '#5a5a7a' : '#7a9ab0';
+  [[0, 18], [10, 26], [22, 14], [34, 22], [48, 30], [62, 16], [74, 24], [86, 20]].forEach(([dx, hh]) => P(town, x0 + dx, y0 + h - hh / 2, 10, hh / 2));
+  // 桟とガラスの反射
+  P('#9a6a42', x0 + w / 2 - 2, y0, 4, h); P('#9a6a42', x0, y0 + h / 2 - 2, w, 4); P('#b88454', x0, y0 + h / 2 - 2, w, 1);
+  ctx.globalAlpha = 0.35; for (let i = 0; i < 10; i++) { P('#ffffff', x0 + 6 + i, y0 + 22 - i, 1, 1); P('#ffffff', x0 + 56 + i, y0 + 22 - i, 1, 1); } ctx.globalAlpha = 1;
+  // 窓台
+  P('#f6f0e2', x0 - 10, y0 + h + 4, w + 20, 5); P('#d8ccb4', x0 - 10, y0 + h + 8, w + 20, 2);
+  // カーテン（ひだ と タッセル）
+  for (const [cx, dir] of [[x0 - 4, 1], [x0 + w + 4, -1]]) {
+    for (let y = y0 - 9; y < y0 + 74; y++) {
+      const tie = y0 + 48, t = Math.abs(y - tie);
+      const half = y < tie ? 9 - Math.min(5, (y - (y0 - 9)) / 12) : 4 + Math.min(6, t / 3);
+      for (let x = -half; x <= half; x++) {
+        const fold = Math.floor((x + 20) / 3) % 2;
+        P(fold ? '#e48a9a' : '#cc6e80', Math.round(cx + x * dir * 0.9), y, 1, 1);
+      }
+    }
+    P('#f2c14e', cx - 5, y0 + 47, 10, 3); P('#c8963a', cx - 5, y0 + 49, 10, 1);
+  }
+}
+function drawFloor() {
+  const tones = ['#c99a68', '#c2915e', '#cfa274', '#c6965f'];
+  for (let y = 132, i = 0; y < FH; y += 16, i++) {
+    const base = tones[i % 4];
+    P(base, 0, y, FW, 16); P('#d8ae80', 0, y, FW, 1); P('#a8784a', 0, y + 15, FW, 1);
+    for (let k = 0; k < 6; k++) { const gx = (i * 53 + k * 79) % FW; P('#b88a58', gx, y + 4 + (k % 3) * 4, 24 + (k * 7) % 20, 1); }
+    for (let x = (i % 2) * 80 + 36; x < FW; x += 160) { P('#9a6a40', x, y + 1, 1, 14); P('#d8ae80', x + 1, y + 1, 1, 14); }
+    const kx = (i * 97) % FW; ellipse(kx, y + 8, 2, 1, '#a8784a');
+  }
+  ctx.fillStyle = 'rgba(40,20,0,0.18)'; ctx.fillRect(0, 132, FW, 4); ctx.fillStyle = 'rgba(40,20,0,0.08)'; ctx.fillRect(0, 136, FW, 4);
 }
 function drawWallAndFloor(time) {
-  P('#e9dcc0', 0, 0, VW, 66);
-  for (let y = 6, r = 0; y < 52; y += 12, r++) for (let x = (r % 2) * 12 + 6; x < VW; x += 24) {
-    P('#dccaa6', x, y, 3, 2); P('#dccaa6', x - 2, y - 2); P('#dccaa6', x + 4, y - 2); P('#dccaa6', x, y - 3); P('#dccaa6', x + 2, y - 3);
-  }
-  P('#8a5e3a', 0, 54, VW, 12); P('#a2724a', 0, 54, VW, 2); P('#6e4628', 0, 64, VW, 2);
-  for (let x = 8; x < VW; x += 20) P('#7a5232', x, 57, 1, 7);
-  const sky = skyColor(time);
-  for (const wx of [12]) {
-    P('#5a3a22', wx - 2, 8, 52, 38); P(sky, wx, 10, 48, 34);
-    if (weather === 'sun' && time < OPEN + 320) { P('#ffffff', wx + 6, 16, 10, 3); P('#ffffff', wx + 8, 14, 6, 2); P('#ffffff', wx + 30, 24, 8, 2); }
-    if (weather === 'rain') for (let i = 0; i < 7; i++) { const rx = wx + ((i * 13 + tick * 2) % 46), ry = 10 + ((i * 7 + tick * 3) % 30); P('#dfe8f8', rx, ry, 1, 3); }
-    P('#5a3a22', wx + 23, 10, 2, 34); P('#5a3a22', wx, 26, 48, 2);
-    P('#f6f0e2', wx - 4, 46, 56, 3);
-    P('#e88a9a', wx - 4, 6, 8, 28); P('#e88a9a', wx + 44, 6, 8, 28); P('#c86a7a', wx + 2, 6, 2, 28); P('#c86a7a', wx + 44, 6, 2, 28);
-  }
-  const plank = ['#c99a68', '#c2925f', '#cfa274'];
-  for (let y = 66, i = 0; y < VH; y += 8, i++) {
-    P(plank[i % 3], 0, y, VW, 8); P('#a8784a', 0, y + 7, VW, 1);
-    for (let x = (i % 2) * 40 + 18; x < VW; x += 80) P('#a8784a', x, y, 1, 7);
-  }
-  P('#00000018', 0, 66, VW, 3);
+  P('#ece0c4', 0, 0, FW, 132);
+  for (let x = 0; x < FW; x += 16) P('#e6d8ba', x, 0, 3, 108);
+  for (let y = 16, r = 0; y < 100; y += 26, r++) for (let x = (r % 2) * 24 + 10; x < FW; x += 48) paw(x, y, '#ddcca8');
+  // 腰板
+  P('#7a5232', 0, 106, FW, 26); P('#a2724a', 0, 106, FW, 3); P('#5e3c22', 0, 109, FW, 1);
+  for (let x = 4; x < FW; x += 40) { P('#6a4528', x, 113, 34, 15); P('#86603c', x, 113, 34, 1); P('#86603c', x, 113, 1, 15); P('#523420', x, 127, 34, 1); }
+  P('#4e321c', 0, 130, FW, 2);
+  drawWindow(time);
+  drawFloor();
 }
-function drawRoom() {
-  drawWallAndFloor(G.time);
-  // 黒板メニュー
-  P('#5a3a22', 74, 8, 52, 40); P('#2a3a32', 76, 10, 48, 36);
-  MENU.filter(m => G.menu.includes(m.id)).forEach((m, i) => ctx.drawImage(ICON[m.id], 78 + (i % 4) * 11, 14 + Math.floor(i / 4) * 14));
-  P('#efe9dc', 80, 42, 18, 1); P('#efe9dc', 102, 42, 12, 1);
-  if (G.furniture.shelf) {
-    P('#5a3a22', 131, 14, 18, 40); P('#7a5232', 132, 15, 16, 38);
-    const bc = ['#c85a5a', '#5a8ac8', '#e8c060', '#6aa86a', '#9a6ac8', '#e89a5a'];
-    for (let r = 0; r < 3; r++) { P('#5a3a22', 132, 27 + r * 12, 16, 1); for (let b = 0; b < 5; b++) P(bc[(b + r * 2) % 6], 133 + b * 3, 18 + r * 12, 2, 9 - (b % 2)); }
-  }
-  P('#6a8a6a', 92, 290, 40, 10); P('#7aa07a', 94, 292, 36, 6);
-  if (G.furniture.rug) { ellipse(112, 262, 40, 13, '#b05a6a'); ellipse(112, 262, 36, 10, '#e8c8a0'); ellipse(112, 262, 25, 7, '#d8a8a0'); }
-  drawPantry();
-  // カウンター
-  P('#3a2616', 152, 56, 72, 40);
-  drawAppliances();
-  if (G.staff) drawFine(STAFF_SPR, 172, 38 + ((tick >> 5) & 1));
-  P('#c08858', 154, 56, 70, 8); P('#d8a070', 154, 56, 70, 2);
-  P('#8a5a34', 154, 64, 70, 30);
-  for (let x = 162; x < VW; x += 18) P('#74482a', x, 66, 1, 26);
-  if (G.furniture.lamp) {
-    const evening = G.time > OPEN + 330;
-    for (const lx of [69, 128]) {
-      P('#3a2a20', lx, 0, 1, 14); ellipse(lx, 17, 6, 3, '#2e5a4a'); P('#2e5a4a', lx - 6, 17, 13, 2);
-      P(evening ? '#fff2a0' : '#f0e0a0', lx - 2, 19, 5, 2);
+function drawChalkboard() {
+  P('#4e321c', 146, 14, 108, 84); P('#8a5e3a', 148, 16, 104, 80); P('#a2724a', 148, 16, 104, 1);
+  P('#243630', 154, 22, 92, 68); P('#2c3e36', 156, 24, 88, 4);
+  ctx.globalAlpha = 0.25; P('#efe9dc', 168, 72, 30, 6); P('#efe9dc', 210, 30, 20, 4); ctx.globalAlpha = 1;
+  ctx.font = '12px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = '#efe9dc';
+  ctx.fillText('MENU', 200, 25);
+  MENU.filter(m => G.menu.includes(m.id)).forEach((m, i) => drawAt(ICON2[m.id], 160 + (i % 4) * 21, 42 + Math.floor(i / 4) * 22));
+  // ねこのらくがき
+  [[230, 78], [233, 75], [236, 78], [230, 79], [236, 79], [231, 82], [235, 82], [232, 83], [233, 83], [234, 83]].forEach(([x, y]) => P('#efe9dc', x, y, 1, 1));
+  P('#a2724a', 150, 94, 100, 3); P('#ffffff', 166, 92, 6, 2); P('#f2c14e', 176, 92, 5, 2);
+  P('#3a2616', 160, 8, 1, 8); P('#3a2616', 240, 8, 1, 8);
+}
+function drawBookshelf() {
+  const x0 = 262, y0 = 26;
+  P('#4e321c', x0, y0, 36, 82); P('#8a5e3a', x0 + 2, y0 + 2, 32, 78); P('#6a4528', x0 + 3, y0 + 3, 30, 76);
+  const bc = ['#c85a5a', '#5a8ac8', '#e8c060', '#6aa86a', '#9a6ac8', '#e89a5a', '#4a9a9a'];
+  for (let r = 0; r < 3; r++) {
+    const sy = y0 + 4 + r * 26;
+    let x = x0 + 4;
+    for (let b = 0; x < x0 + 31; b++) {
+      const w = 3 + ((b + r) % 3 === 0 ? 2 : 1), hh = 16 + ((b * 5 + r) % 5), c = bc[(b + r * 3) % 7];
+      if (x + w > x0 + 32) break;
+      P(c, x, sy + 22 - hh, w, hh); P(shade(c, 1.25), x, sy + 22 - hh, 1, hh); P(shade(c, 0.7), x, sy + 22 - hh + 4, w, 1);
+      x += w + ((b % 4 === 3) ? 2 : 0);
     }
+    P('#8a5e3a', x0 + 2, sy + 22, 32, 3); P('#a2724a', x0 + 2, sy + 22, 32, 1);
   }
+  // 上の小さな植木
+  P('#c8784a', x0 + 12, y0 - 7, 10, 7); ellipse(x0 + 17, y0 - 11, 6, 4, '#3a8a4a'); ellipse(x0 + 15, y0 - 13, 3, 2, '#5ab06a');
 }
-// 材料だな：在庫の量がそのまま見える
 function pantryMark(x, id) {
   const n = stockOf(id), dl = daysLeft(id), blink = (tick >> 4) & 1;
-  if (!n && blink) { P('#e8483a', x, 0, 2, 3); P('#e8483a', x, 4, 2, 1); }
-  else if (dl === 1 && blink) { P('#f2c14e', x, 0, 2, 3); P('#f2c14e', x, 4, 2, 1); }
+  const c = !n ? '#e8483a' : dl === 1 ? '#f2c14e' : null;
+  if (c && blink) { ellipse(x, 6, 4, 4, '#ffffff'); ellipse(x, 6, 3, 3, c); P('#ffffff', x, 4, 1, 3); P('#ffffff', x, 8, 1, 1); }
 }
 function drawPantry() {
-  const x0 = 153;
-  P('#d6c4a0', x0, 2, 70, 36);
+  const x0 = 306;
+  P('#d6c4a0', x0, 2, 142, 76); P('#c8b490', x0, 2, 142, 2);
   // 上の段：乾物のびん
-  [['beans', '#5a3420', '#2e1a0e'], ['flour', '#f4ecd8', '#d6c6a4'], ['leaf', '#4a8a3a', '#2a5a22'], ['rice', '#fbfbf6', '#d0d0c4']].forEach(([id, c1, c2], i) => {
-    const x = x0 + 2 + i * 17, n = stockOf(id), h = Math.round(11 * Math.min(1, n / 20));
-    P('#8aa0a8', x, 6, 15, 13); P('#e6f2f4', x + 1, 7, 13, 12);
-    if (h) { P(c1, x + 1, 19 - h, 13, h); for (let k = 0; k < h * 3; k++) P(c2, x + 1 + (k * 5 + (k >> 2)) % 13, 19 - h + (k * 7) % h, 1, 1); }
-    P('#ffffff', x + 2, 8, 1, 7); P('#ffffff', x + 3, 8, 1, 2);
-    P('#6a4a30', x + 2, 4, 11, 2); P('#8a6a4a', x + 3, 4, 9, 1);
-    pantryMark(x + 6, id);
+  [['beans', '#5a3420', '#2e1a0e', '#7a4a2a'], ['flour', '#f4ecd8', '#d6c6a4', '#ffffff'], ['leaf', '#4a8a3a', '#2a5a22', '#6aaa5a'], ['rice', '#fbfbf6', '#d0d0c4', '#ffffff']].forEach(([id, c1, c2, c3], i) => {
+    const x = x0 + 4 + i * 35, n = stockOf(id), hh = Math.round(22 * Math.min(1, n / 20));
+    P('#7a90a0', x, 12, 30, 27); P('#e6f2f4', x + 1, 13, 28, 25);
+    if (hh) { P(c1, x + 1, 38 - hh, 28, hh); for (let k = 0; k < hh * 5; k++) P((k % 3) ? c2 : c3, x + 1 + (k * 7 + (k >> 2)) % 28, 38 - hh + (k * 11) % hh, 1, 1); }
+    ctx.globalAlpha = 0.6; P('#ffffff', x + 3, 15, 2, 18); P('#ffffff', x + 6, 15, 1, 6); ctx.globalAlpha = 1;
+    P('#5a3a22', x + 3, 6, 24, 6); P('#8a6a4a', x + 4, 6, 22, 2); P('#4a2e18', x + 3, 11, 24, 1);
+    P('#f6f0e2', x + 6, 22, 18, 6); P('#c8b490', x + 6, 27, 18, 1);
+    drawAt(INGR_SPR[id], x + 11, 21);
+    pantryMark(x + 26, id);
   });
+  P('#7a5232', x0 - 2, 39, 146, 4); P('#a2724a', x0 - 2, 39, 146, 1); P('#4e321c', x0 - 2, 43, 146, 1);
   // 下の段：冷やしだな
-  P('#8ab0c0', x0, 21, 70, 16); P('#dcf0f6', x0 + 1, 22, 68, 15);
-  for (let i = 1; i < 4; i++) P('#a8c8d4', x0 + i * 17 + 1, 22, 1, 15);
-  const cx = i => x0 + 2 + i * 17;
-  // 牛乳びん（2こで1本）
-  { const n = Math.min(5, Math.ceil(stockOf('milk') / 2)); for (let j = 0; j < n; j++) { const x = cx(0) + j * 3; P('#5a8ad0', x, 28, 2, 1); P('#ffffff', x, 29, 2, 7); P('#c8d8e8', x + 1, 30, 1, 5); } pantryMark(cx(0) + 6, 'milk'); }
-  // たまごパック
-  { const n = Math.min(10, stockOf('egg')); if (n) P('#c8a878', cx(1), 33, 15, 3); for (let j = 0; j < n; j++) { const x = cx(1) + 1 + (j % 5) * 3, y = j < 5 ? 31 : 28; P('#fff8ec', x, y, 2, 2); P('#e8dcc4', x + 1, y + 1); } pantryMark(cx(1) + 6, 'egg'); }
-  // いちご
-  { const n = Math.min(10, stockOf('berry')); if (n) { P('#e8e0d0', cx(2), 34, 15, 2); } for (let j = 0; j < n; j++) { const x = cx(2) + 1 + (j % 5) * 3, y = j < 5 ? 31 : 28; P('#e02040', x, y + 1, 2, 2); P('#3a8a3a', x, y, 2, 1); } pantryMark(cx(2) + 6, 'berry'); }
-  // 生クリーム（2こで1パック）
-  { const n = Math.min(4, Math.ceil(stockOf('cream') / 2)); for (let j = 0; j < n; j++) { const x = cx(3) + j * 4; P('#ffffff', x, 30, 3, 6); P('#f0a0b0', x, 32, 3, 2); P('#d0c8c0', x, 30, 3, 1); } pantryMark(cx(3) + 6, 'cream'); }
-  // たな板
-  for (const by of [19, 37]) { P('#7a5232', x0 - 1, by, 72, 2); P('#5a3a22', x0 - 1, by + 2, 72, 1); }
+  P('#6a90a0', x0, 44, 142, 32); P('#d4ecf4', x0 + 2, 46, 138, 28);
+  for (let i = 1; i < 4; i++) P('#9ab8c4', x0 + i * 35 + 1, 46, 2, 28);
+  const cx = i => x0 + 4 + i * 35;
+  { const n = Math.min(5, Math.ceil(stockOf('milk') / 2)); for (let j = 0; j < n; j++) { const x = cx(0) + j * 6; P('#3a6ab0', x + 1, 54, 4, 2); P('#ffffff', x, 56, 6, 16); P('#c8d8ea', x + 4, 57, 1, 14); P('#5a8ad0', x, 61, 6, 4); P('#ffffff', x + 1, 62, 2, 1); } pantryMark(cx(0) + 26, 'milk'); }
+  { const n = Math.min(10, stockOf('egg')); if (n) { P('#b89868', cx(1), 66, 30, 6); P('#d0b080', cx(1), 66, 30, 1); }
+    for (let j = 0; j < n; j++) { const x = cx(1) + 3 + (j % 5) * 6, y = j < 5 ? 62 : 56; ellipse(x, y, 2, 3, '#e8dcc4'); ellipse(x - 0.5, y - 0.5, 2, 2, '#fff8ec'); } pantryMark(cx(1) + 26, 'egg'); }
+  { const n = Math.min(10, stockOf('berry')); if (n) { P('#e8e0d0', cx(2), 68, 30, 4); P('#c8c0b0', cx(2), 71, 30, 1); }
+    for (let j = 0; j < n; j++) { const x = cx(2) + 3 + (j % 5) * 6, y = j < 5 ? 64 : 58; ellipse(x, y, 2.5, 3, '#d01838'); P('#ff6a7a', x - 1, y - 1, 1, 1); P('#3a8a3a', x - 2, y - 4, 5, 2); P('#ffc0c8', x, y + 1, 1, 1); } pantryMark(cx(2) + 26, 'berry'); }
+  { const n = Math.min(4, Math.ceil(stockOf('cream') / 2)); for (let j = 0; j < n; j++) { const x = cx(3) + j * 7; P('#ffffff', x, 58, 6, 14); P('#d8d0c8', x + 5, 58, 1, 14); P('#f0a0b0', x, 62, 6, 4); P('#e0d8d0', x + 1, 55, 4, 3); } pantryMark(cx(3) + 26, 'cream'); }
+  ctx.globalAlpha = 0.35; for (let i = 0; i < 18; i++) P('#ffffff', x0 + 10 + i, 70 - i, 1, 1); ctx.globalAlpha = 1;
+  P('#7a5232', x0 - 2, 75, 146, 4); P('#a2724a', x0 - 2, 75, 146, 1); P('#4e321c', x0 - 2, 79, 146, 1);
 }
 function drawAppliances() {
   const busy = st => jobs.some(j => j.st === st && j.state === 'cook');
   const ready = st => jobs.some(j => j.st === st && j.state === 'ready');
   const b = (tick >> 3) & 1;
   // コーヒーマシン
-  P('#4a5a6a', 155, 40, 15, 17); P('#6a7a8a', 156, 41, 13, 15); P('#9aaaba', 157, 42, 11, 5);
-  P(busy('drink') ? (b ? '#ff6a4a' : '#ffb04a') : '#4a8a4a', 166, 43, 1, 1);
-  P('#2a2a2a', 160, 49, 5, 2); P('#f4f4f4', 160, 52, 5, 4); P('#7a4426', 161, 53, 3, 1);
-  if (busy('drink')) for (let i = 0; i < 3; i++) P('#ffffff', 160 + i * 2, 36 - ((tick >> 2) + i * 3) % 6, 1, 2);
+  P('#2e3a46', 310, 80, 32, 34); P('#5a6a7a', 311, 81, 30, 32); P('#7a8a9a', 311, 81, 30, 3); P('#8a9aaa', 313, 86, 26, 9);
+  P('#2a2a30', 315, 88, 10, 5); P(busy('drink') ? (b ? '#ff6a4a' : '#ffb04a') : '#4ac86a', 332, 89, 3, 3);
+  P('#3a3a44', 318, 96, 14, 3); P('#2a2a30', 330, 96, 8, 2);
+  P('#ffffff', 319, 102, 9, 8); P('#d8d8e0', 326, 102, 2, 8); P('#7a4426', 320, 103, 7, 2); P('#ffffff', 328, 104, 2, 3);
+  P('#2a2a30', 314, 110, 24, 3);
+  if (busy('drink')) for (let i = 0; i < 4; i++) { ctx.globalAlpha = 0.7; P('#ffffff', 320 + i * 2, 96 - ((tick >> 2) + i * 4) % 14, 1, 3); ctx.globalAlpha = 1; }
   // オーブン
-  P('#5a4a3a', 186, 41, 17, 16); P('#8a7a6a', 187, 42, 15, 14); P('#3a2a20', 189, 45, 11, 8);
-  P(busy('oven') ? (b ? '#ff9a3a' : '#ffc060') : '#4a3a2a', 190, 46, 9, 6);
-  P('#c8c0b0', 189, 43, 3, 1); P('#c8c0b0', 194, 43, 3, 1);
+  P('#3a2e24', 370, 82, 38, 32); P('#7a6a5a', 371, 83, 36, 30); P('#8a7a6a', 371, 83, 36, 2);
+  P('#2a2018', 375, 90, 28, 18);
+  if (busy('oven')) { P(b ? '#ff8a2a' : '#ffa040', 376, 91, 26, 16); P('#ffd070', 380, 95, 18, 8); }
+  else P('#3a2e24', 376, 91, 26, 16);
+  ctx.globalAlpha = 0.3; P('#ffffff', 378, 92, 6, 1); ctx.globalAlpha = 1;
+  P('#c8c0b0', 376, 86, 26, 2); [380, 388, 396].forEach(x => { ellipse(x, 86, 1.5, 1.5, '#4a3a2a'); });
   // コンロ
-  P('#4a4a52', 205, 51, 18, 6); P('#2a2a30', 206, 50, 16, 1);
-  P('#3a3a40', 207, 46, 14, 4); P('#5a5a64', 208, 45, 12, 1); P('#3a3a40', 220, 47, 3, 1);
-  if (busy('stove')) { P(b ? '#ff8a2a' : '#ffd040', 209, 50, 2, 1); P(b ? '#ffd040' : '#ff8a2a', 213, 50, 2, 1); P(b ? '#ff8a2a' : '#ffd040', 217, 50, 2, 1); for (let i = 0; i < 2; i++) P('#ffffff', 211 + i * 4, 42 - ((tick >> 2) + i * 2) % 5, 1, 2); }
-  // 2台目のしるし
-  [['drink', 155], ['oven', 186], ['stove', 205]].forEach(([st, x]) => { if (G.kitchen[st] > 1) { P('#f2c14e', x, 38, 5, 3); P('#3a2a10', x + 1, 39, 1, 1); P('#3a2a10', x + 3, 39, 1, 1); } });
-  if (ready('drink') && b) P('#f2c14e', 162, 34, 2, 2);
-  if (ready('oven') && b) P('#f2c14e', 194, 36, 2, 2);
-  if (ready('stove') && b) P('#f2c14e', 213, 38, 2, 2);
+  P('#2e2e36', 410, 100, 36, 14); P('#4a4a54', 411, 101, 34, 2); P('#3a3a44', 411, 103, 34, 10);
+  ellipse(427, 98, 12, 4, '#1e1e24'); ellipse(427, 96, 11, 3, '#4a4a54'); ellipse(427, 96, 9, 2, '#2a2a30'); P('#2a2a30', 438, 95, 8, 2); P('#6a4a2a', 442, 94, 5, 3);
+  if (busy('stove')) {
+    for (let i = 0; i < 7; i++) { const fx = 418 + i * 3, fh = 2 + ((tick >> 2) + i) % 3; P(i % 2 ? '#ffd040' : '#ff8a2a', fx, 101 - fh, 2, fh); P('#5a8aff', fx, 101, 2, 1); }
+    for (let i = 0; i < 3; i++) { ctx.globalAlpha = 0.7; P('#ffffff', 422 + i * 5, 88 - ((tick >> 2) + i * 3) % 10, 1, 3); ctx.globalAlpha = 1; }
+  }
+  // 2台目のしるし・できあがりの光
+  [['drink', 310], ['oven', 370], ['stove', 410]].forEach(([st, x]) => {
+    if (G.kitchen[st] > 1) { ellipse(x + 4, 80, 5, 4, '#f2c14e'); ctx.font = '8px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = '#3a2a10'; ctx.fillText('2', x + 4, 76); }
+  });
+  if (b) [['drink', 324, 74], ['oven', 388, 76], ['stove', 427, 84]].forEach(([st, x, y]) => { if (ready(st)) { P('#fff2a0', x - 1, y - 4, 2, 9); P('#fff2a0', x - 4, y - 1, 9, 2); } });
+}
+function drawCounter() {
+  P('#3a2616', 304, 112, 144, 80);
+  drawAppliances();
+  if (G.staff) drawAt(STAFF_SPR, 344, 76 + ((tick >> 5) & 1) * 2);
+  P('#b07a4a', 306, 112, 142, 14); P('#c8925a', 306, 112, 142, 2); P('#9a6838', 306, 124, 142, 2);
+  for (let k = 0; k < 5; k++) P('#bc8650', 312 + k * 27, 115 + (k % 3) * 3, 20, 1);
+  P('#8a5a34', 306, 126, 142, 58);
+  for (let x = 310; x < FW - 4; x += 36) { P('#7a4e2c', x, 132, 30, 46); P('#9a6a40', x, 132, 30, 1); P('#9a6a40', x, 132, 1, 46); P('#6a4226', x + 29, 132, 1, 46); P('#6a4226', x, 177, 30, 1); }
+  P('#5a3a20', 306, 184, 142, 8);
+  P('#6e4628', 304, 112, 3, 80);
+}
+function drawLamps() {
+  const evening = G.time > OPEN + 330;
+  for (const lx of [138, 256]) {
+    P('#3a2a20', lx, 0, 1, 24);
+    if (evening) { ctx.globalAlpha = 0.18; ellipse(lx, 44, 22, 14, '#fff2a0'); ctx.globalAlpha = 1; }
+    ellipse(lx, 30, 11, 6, '#24483a'); P('#24483a', lx - 11, 30, 23, 4); P('#3a6a54', lx - 8, 26, 10, 2);
+    P(evening ? '#fff6b0' : '#f0e0a0', lx - 4, 34, 9, 3);
+  }
+}
+function drawRoom() {
+  drawWallAndFloor(G.time);
+  drawChalkboard();
+  if (G.furniture.shelf) drawBookshelf();
+  // 入口マット
+  P('#4a6a4a', 182, 578, 84, 22); P('#6a8a6a', 184, 580, 80, 18); P('#7aa07a', 188, 584, 72, 10);
+  for (let x = 186; x < 262; x += 4) P('#5a7a5a', x, 584, 2, 10);
+  if (G.furniture.rug) {
+    ellipse(224, 524, 82, 27, '#8a3a4a'); ellipse(224, 524, 78, 24, '#b05a6a'); ellipse(224, 524, 70, 20, '#e8c8a0');
+    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; ellipse(Math.round(224 + Math.cos(a) * 62), Math.round(524 + Math.sin(a) * 17), 2, 1, '#b05a6a'); }
+    ellipse(224, 524, 48, 13, '#d8a8a0'); ellipse(224, 524, 30, 8, '#e8c8a0'); ellipse(224, 524, 10, 3, '#b05a6a');
+    for (let y = 516; y < 534; y += 2) { P('#e8d8b8', 140, y, 3, 1); P('#e8d8b8', 305, y, 3, 1); }
+  }
+  drawPantry();
+  drawCounter();
+  if (G.furniture.lamp) drawLamps();
 }
 function drawTable(x, y) {
-  P('#5a3a20', x - 1, y - 9, 3, 9); P('#4a2e18', x - 6, y - 1, 13, 2);
-  ellipse(x, y - 12, 14, 4, '#6a4020'); ellipse(x, y - 13, 13, 3, '#a8703e'); P('#c88e56', x - 7, y - 15, 10, 1);
+  const X = x * 2, Y = y * 2;
+  ctx.globalAlpha = 0.18; ellipse(X, Y + 1, 18, 4, '#000000'); ctx.globalAlpha = 1;
+  P('#3a2412', X - 3, Y - 18, 6, 17); P('#6a4426', X - 2, Y - 18, 2, 17);
+  ellipse(X, Y - 1, 12, 3, '#3a2412'); ellipse(X, Y - 2, 11, 2, '#6a4426');
+  ellipse(X, Y - 23, 29, 8, '#4a2e18'); ellipse(X, Y - 25, 28, 8, '#8a5a30'); ellipse(X, Y - 26, 27, 7, '#b07a44');
+  ellipse(X - 6, Y - 29, 13, 2, '#c8925a'); P('#d8a870', X - 14, Y - 30, 8, 1);
 }
 function drawChair(x, y) {
-  P('#5a3a20', x - 5, y - 22, 10, 2); P('#6e4828', x - 4, y - 20, 1, 12); P('#6e4828', x + 3, y - 20, 1, 12); P('#6e4828', x - 1, y - 20, 2, 12);
-  P('#7a5232', x - 6, y - 8, 12, 3);
+  const X = x * 2, Y = y * 2;
+  P('#3a2412', X - 11, Y - 47, 22, 5); P('#7a4e2c', X - 10, Y - 46, 20, 2);
+  P('#3a2412', X - 10, Y - 42, 4, 28); P('#3a2412', X + 6, Y - 42, 4, 28); P('#6e4828', X - 9, Y - 42, 2, 28); P('#6e4828', X + 7, Y - 42, 2, 28);
+  P('#5a3820', X - 3, Y - 42, 2, 22); P('#5a3820', X + 1, Y - 42, 2, 22);
+  P('#3a2412', X - 13, Y - 18, 26, 7); P('#8a5a34', X - 12, Y - 18, 24, 3); P('#a06a40', X - 12, Y - 18, 24, 1);
 }
 function drawPlant(x, y) {
-  P('#8a5a3a', x - 5, y - 8, 10, 8); P('#a06a44', x - 6, y - 9, 12, 2);
-  ellipse(x, y - 15, 7, 6, '#2e6e3a'); ellipse(x - 3, y - 17, 4, 4, '#3a8a4a'); ellipse(x + 3, y - 16, 4, 4, '#4aa85a'); ellipse(x, y - 21, 3, 3, '#4aa85a');
+  const X = x * 2, Y = y * 2;
+  ctx.globalAlpha = 0.18; ellipse(X, Y, 12, 3, '#000000'); ctx.globalAlpha = 1;
+  for (let i = 0; i < 16; i++) { const w = 9 - Math.floor(i / 5); P(i < 3 ? '#b86a40' : '#9a5432', X - w, Y - 16 + i, w * 2, 1); }
+  P('#d0805a', X - 11, Y - 19, 22, 4); P('#e09a70', X - 11, Y - 19, 22, 1);
+  const leaves = [[-9, -32, 8, 5, '#2e6e3a'], [8, -30, 8, 5, '#2e6e3a'], [-4, -40, 7, 6, '#3a8a4a'], [5, -42, 7, 6, '#4aa85a'], [0, -50, 5, 7, '#4aa85a'], [-12, -24, 7, 4, '#3a8a4a'], [12, -24, 7, 4, '#3a8a4a']];
+  for (const [dx, dy, rx, ry, c] of leaves) { ellipse(X + dx, Y + dy, rx, ry, c); P(shade(c, 1.3), X + dx - 1, Y + dy - ry + 2, 2, ry); }
+  P('#2a5a30', X, Y - 46, 1, 28);
 }
 function drawTower() {
-  const x = TOWER.x;
-  P('#d8c090', x + 8, TOWER.top + 4, 6, TOWER.base - TOWER.top - 4);
-  for (let y = TOWER.top + 6; y < TOWER.base; y += 3) P('#a8905a', x + 8, y, 6, 1);
-  P('#d8c090', x - 2, TOWER.top + 34, 5, 26); for (let y = TOWER.top + 36; y < TOWER.base; y += 3) P('#a8905a', x - 2, y, 5, 1);
-  ellipse(x + 2, TOWER.top + 34, 11, 3, '#9a4a6a'); ellipse(x + 2, TOWER.top + 33, 10, 2, '#c87a9a');
-  ellipse(x + 10, TOWER.top + 3, 13, 4, '#9a4a6a'); ellipse(x + 10, TOWER.top + 2, 12, 3, '#c87a9a');
-  ellipse(x + 6, TOWER.base, 18, 4, '#9a4a6a'); ellipse(x + 6, TOWER.base - 1, 17, 3, '#c87a9a');
-  P('#f2c14e', x + 20, TOWER.top + 6, 1, 8); ellipse(x + 20, TOWER.top + 16, 2, 2, '#f2c14e');
+  const X = TOWER.x * 2, top = TOWER.top * 2, base = TOWER.base * 2;
+  const rope = (x, y0, y1, w) => { P('#b89a60', x, y0, w, y1 - y0); for (let y = y0; y < y1; y += 3) { P('#d8c090', x, y, w, 2); P('#a08850', x + w - 1, y, 1, 2); } };
+  rope(X + 16, top + 6, base, 12);
+  rope(X - 4, top + 68, base, 10);
+  const plat = (cx, cy, rx) => { ellipse(cx, cy + 2, rx, 5, '#6a2e4a'); ellipse(cx, cy, rx, 5, '#9a4a6a'); ellipse(cx, cy - 1, rx - 1, 4, '#c87a9a'); for (let i = -rx + 3; i < rx - 2; i += 4) P('#d890aa', cx + i, cy - 2, 2, 1); };
+  plat(X + 4, top + 68, 22);
+  plat(X + 20, top + 4, 26);
+  ellipse(X + 12, base + 2, 36, 7, '#6a2e4a'); ellipse(X + 12, base, 35, 6, '#9a4a6a'); ellipse(X + 12, base - 1, 33, 5, '#c87a9a');
+  P('#e8d8b0', X + 40, top + 8, 1, 18); ellipse(X + 40, top + 29, 4, 4, '#f2c14e'); P('#fff2a0', X + 39, top + 27, 2, 2);
 }
-function drawCushion(x, y) { ellipse(x, y, 11, 4, '#b8607a'); ellipse(x, y - 1, 10, 3, '#e88aa0'); ellipse(x, y - 1, 4, 1, '#f4b0c0'); }
+function drawCushion(x, y) {
+  const X = x * 2, Y = y * 2;
+  ctx.globalAlpha = 0.2; ellipse(X, Y + 2, 22, 5, '#000000'); ctx.globalAlpha = 1;
+  ellipse(X, Y, 22, 8, '#9a4a62'); ellipse(X, Y - 2, 21, 7, '#e48aa0'); ellipse(X - 4, Y - 4, 12, 3, '#f4b0c0');
+  ellipse(X, Y - 2, 2, 1, '#9a4a62');
+  [[-14, -1], [14, -1], [0, -7], [0, 4]].forEach(([dx, dy]) => P('#c86a84', X + dx, Y + dy, 2, 1));
+}
 function drawBowl() {
-  const { x, y } = BOWL;
-  ellipse(x, y, 8, 3, '#2e6aa8'); ellipse(x, y - 1, 7, 2, G.bowl > 0 ? '#b07840' : '#ccd8e8');
-  if (G.bowl > 0) { P('#c88a50', x - 3, y - 2, 2, 1); P('#c88a50', x + 2, y - 2, 2, 1); }
-  P('#2e6aa8', x - 8, y, 17, 2);
+  const X = BOWL.x * 2, Y = BOWL.y * 2;
+  ctx.globalAlpha = 0.2; ellipse(X, Y + 3, 17, 3, '#000000'); ctx.globalAlpha = 1;
+  ellipse(X, Y, 16, 6, '#1e4a80'); ellipse(X, Y - 1, 15, 5, '#3a7ac0'); ellipse(X, Y - 2, 13, 3, G.bowl > 0 ? '#9a6430' : '#c8d8e8');
+  if (G.bowl > 0) for (let i = 0; i < 10; i++) P(i % 2 ? '#c8884a' : '#7a4a20', X - 10 + (i * 7) % 20, Y - 4 + (i * 3) % 3, 2, 2);
+  P('#ffffff', X - 12, Y + 1, 4, 1);
 }
+function catImg(pal, pose, face) { return CAT_SPR[pal][pose][face > 0 ? 0 : 1]; }
 function drawPonta() {
-  const p = ponta, spr = CAT_SPR.ponta, moving = p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
+  const p = ponta, moving = p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
   const pose = p.state === 'nap' ? 'sleep' : moving ? ((p.anim >> 3) & 1 ? 'walkA' : 'walkB') : 'sit';
-  const right = p.face > 0, img = spr[pose][right ? 0 : 1];
-  const x0 = Math.round(p.x - img.width / 4), y0 = Math.round(p.y - img.height / 2) + (p.state === 'slack' && (tick >> 4) & 1 ? 1 : 0);
-  drawFine(img, x0, y0);
-  if (p.carry) ctx.drawImage(ICON[p.carry.item.id], Math.round(p.x - 4), y0 - 9 + ((tick >> 3) & 1));
+  const img = catImg('ponta', pose, p.face);
+  const X = Math.round(p.x * 2 - img.width / 2), Y = Math.round(p.y * 2 - img.height) + (p.state === 'slack' && (tick >> 4) & 1 ? 2 : 0);
+  drawAt(img, X, Y);
+  if (p.carry) drawAt(ICON2[p.carry.item.id], p.x * 2 - 8, Y - 18 + ((tick >> 3) & 1) * 2);
   else {
-    // 名札
-    const tx = Math.round(p.x), ty = y0 - 8;
-    ctx.font = '7px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    P('#2e7a4e', tx - 11, ty, 22, 8); P('#5ab07a', tx - 11, ty, 22, 1);
-    ctx.fillStyle = '#ffffff'; ctx.fillText('ぽんた', tx, ty);
+    const tx = Math.round(p.x * 2), ty = Y - 15;
+    P('#1e5a36', tx - 21, ty, 42, 13); P('#2e7a4e', tx - 20, ty + 1, 40, 11); P('#5ab07a', tx - 20, ty + 1, 40, 1);
+    ctx.font = '11px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = '#ffffff'; ctx.fillText('ぽんた', tx, ty + 1);
   }
-  // 1日のはじめと、ぽんたの話をしているときは ▼ で知らせる
   const talkingAbout = talking && talking.lines.some(l => l[2] === 'ponta' || /ぽんた/.test(l[1]));
   if ((tick < 360 || talkingAbout) && (tick >> 4) & 1) {
-    const ax = Math.round(p.x), ay = y0 - (p.carry ? 20 : 18);
-    P('#f2c14e', ax - 3, ay, 7, 2); P('#f2c14e', ax - 2, ay + 2, 5, 1); P('#f2c14e', ax - 1, ay + 3, 3, 1); P('#f2c14e', ax, ay + 4, 1, 1);
+    const ax = Math.round(p.x * 2), ay = Y - (p.carry ? 34 : 30);
+    for (let i = 0; i < 6; i++) P('#f2c14e', ax - 6 + i, ay + i, 13 - i * 2, 1);
   }
-  if (p.state === 'nap') {
-    ctx.font = '7px "DotGothic16", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#5a6aa0';
-    const k = (tick >> 4) % 3; ctx.fillText('z', p.x + 8, p.y - 10 - k * 2); if (k > 0) ctx.fillText('Z', p.x + 12, p.y - 15 - k);
-  }
+  if (p.state === 'nap') drawZzz(p.x * 2 + 18, p.y * 2 - 20);
+}
+function drawZzz(x, y) {
+  ctx.font = '12px "DotGothic16", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#5a6aa0';
+  const k = (tick >> 4) % 3; ctx.fillText('z', x, y - k * 3); if (k > 0) { ctx.font = '15px "DotGothic16", monospace'; ctx.fillText('Z', x + 8, y - 10 - k * 2); }
 }
 function drawCat(k) {
-  const spr = CAT_SPR[k.pal];
   let pose = 'sit';
   if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink'].includes(k.state)) pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB';
   else if (k.state === 'nap') pose = 'sleep';
-  const img = spr[pose][k.face > 0 ? 0 : 1];
-  let y = Math.round(k.y - img.height / 2);
-  if (k.state === 'eat' && (k.t >> 4) & 1) y += 1;
-  if (k.jump > 0) y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 6);
-  drawFine(img, Math.round(k.x - img.width / 4), y);
-  if (k.carry) ctx.drawImage(PLATE, Math.round(k.x - 4), y - 5 + ((tick >> 3) & 1));
-  if (k.state === 'pickup' && (tick >> 3) & 1) P('#ffffff', Math.round(k.x + k.face * 6), y + 2, 1, 1);
-  if (k.state === 'nap' && (tick >> 5) % 3 === 0) { ctx.font = '7px "DotGothic16", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#5a6aa0'; ctx.fillText('z', k.x + 9, k.y - 10); }
+  const img = catImg(k.pal, pose, k.face);
+  let Y = Math.round(k.y * 2 - img.height);
+  if (k.state === 'eat' && (k.t >> 4) & 1) Y += 2;
+  if (k.jump > 0) Y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 12);
+  drawAt(img, Math.round(k.x * 2 - img.width / 2), Y);
+  if (k.carry) drawAt(PLATE2, k.x * 2 - 9, Y - 10 + ((tick >> 3) & 1) * 2);
+  if (k.state === 'pickup' && (tick >> 3) & 1) { P('#ffffff', k.x * 2 + k.face * 12, Y + 4, 2, 2); }
+  if (k.state === 'nap' && (tick >> 5) % 3 === 0) drawZzz(k.x * 2 + 18, k.y * 2 - 18);
 }
 function drawCustomer(c) {
   if (c.state === 'enter' || c.state === 'leave') {
     const img = (c.anim >> 3) & 1 ? c.spr.a : c.spr.b;
-    drawFine(img, c.x - 6, c.y - img.height / 2);
-    if (c.vip) drawCrown(Math.round(c.x), Math.round(c.y - img.height / 2) - 5);
+    const Y = Math.round(c.y * 2 - img.height);
+    drawAt(img, c.x * 2 - 12, Y);
+    if (c.vip) drawCrown(c.x * 2, Y - 8);
   } else {
-    drawFine(c.spr.sit, c.seat.x - 6, c.seat.y - 19);
-    if (c.vip && c.state !== 'order') drawCrown(c.seat.x, c.seat.y - 24);
+    drawAt(c.spr.sit, c.seat.x * 2 - 12, (c.seat.y - 19) * 2);
+    if (c.vip && c.state !== 'order') drawCrown(c.seat.x * 2, (c.seat.y - 19) * 2 - 8);
   }
 }
-function drawCrown(x, y) {
-  P('#8a6010', x - 4, y, 9, 4); P('#f2c14e', x - 3, y + 1, 7, 2);
-  P('#f2c14e', x - 3, y - 1); P('#f2c14e', x, y - 2); P('#f2c14e', x + 3, y - 1); P('#e84a5a', x, y + 1);
+function drawCrown(X, Y) {
+  X = Math.round(X); Y = Math.round(Y);
+  P('#6a4a08', X - 8, Y, 17, 8); P('#f2c14e', X - 7, Y + 1, 15, 6); P('#ffe08a', X - 7, Y + 1, 15, 1);
+  for (const dx of [-7, -1, 6]) { P('#6a4a08', X + dx - 1, Y - 4, 4, 4); P('#f2c14e', X + dx, Y - 3, 2, 3); }
+  P('#e84a5a', X - 1, Y + 3, 3, 2); P('#4a9ae8', X - 6, Y + 3, 2, 2); P('#4a9ae8', X + 5, Y + 3, 2, 2);
 }
 function drawTableItems(s) {
-  const ix = s.tx + s.side * 5 - 4, iy = s.ty - 20;
-  if (s.cust && s.cust.state === 'eat') ctx.drawImage(ICON[s.cust.order.id], ix, iy);
-  if (s.dirty) { ctx.drawImage(PLATE, ix - 1, iy + 3); if ((tick >> 4) & 1) P('#ffffff', ix + 7, iy - 1, 1, 1); }
+  const IX = (s.tx + s.side * 5) * 2 - 8, IY = s.ty * 2 - 42;
+  if (s.cust && s.cust.state === 'eat') drawAt(ICON2[s.cust.order.id], IX, IY);
+  if (s.dirty) { drawAt(PLATE2, IX - 1, IY + 6); if ((tick >> 4) & 1) { P('#ffffff', IX + 15, IY + 1, 1, 3); P('#ffffff', IX + 14, IY + 2, 3, 1); } }
+}
+function bubbleBox(X, Y, bg) {
+  P('#3a3030', X + 2, Y, 32, 32); P('#3a3030', X, Y + 2, 36, 28);
+  P(bg, X + 2, Y + 2, 32, 28); P(bg, X + 1, Y + 3, 34, 26);
+  P(shade(bg, 0.9), X + 2, Y + 27, 32, 3);
+  P('#3a3030', X + 14, Y + 31, 8, 2); P('#3a3030', X + 16, Y + 33, 4, 2); P(bg, X + 15, Y + 30, 6, 2); P(bg, X + 17, Y + 32, 2, 1);
+}
+function gauge(X, Y, f, col, zone) {
+  P('#8a8080', X, Y, 28, 6); P('#d8d0d0', X + 1, Y + 1, 26, 4);
+  if (zone) P('#4fbf6a', X + 1 + Math.round(26 * zone[0]), Y + 1, Math.max(2, Math.round(26 * (zone[1] - zone[0]))), 4);
+  P(col, X + 1, Y + 2, Math.max(1, Math.round(26 * Math.min(1, f))), zone ? 2 : 3);
 }
 function drawBubble(c) {
-  const s = c.seat, x = s.x - 9, y = s.y - 40;
-  if (c.state === 'wait' && c.job) { drawCookBubble(c, c.job, x, y); return; }
-  P('#3a3030', x, y + 1, 18, 14); P('#3a3030', x + 1, y, 16, 16);
-  P('#ffffff', x + 1, y + 1, 16, 14); P('#3a3030', x + 7, y + 16, 4, 2); P('#ffffff', x + 8, y + 15, 2, 2);
-  ctx.drawImage(ICON[c.order.id], x + 5, y + 2);
-  if (c.vip) drawCrown(x + 9, y - 5);
-  if (!canMake(c.order)) { P('#e8483a', x + 11, y + 1, 6, 6); P('#ffffff', x + 12, y + 2, 1, 1); P('#ffffff', x + 15, y + 2, 1, 1); P('#ffffff', x + 13, y + 3, 2, 2); P('#ffffff', x + 12, y + 5, 1, 1); P('#ffffff', x + 15, y + 5, 1, 1); }
+  const s = c.seat, X = (s.x - 9) * 2, Y = (s.y - 40) * 2;
+  if (c.state === 'wait' && c.job) { drawCookBubble(c, c.job, X, Y); return; }
+  bubbleBox(X, Y, '#ffffff');
+  drawAt(ICON2[c.order.id], X + 10, Y + 4);
+  if (c.vip) drawCrown(X + 18, Y - 8);
+  if (!canMake(c.order)) { ellipse(X + 30, Y + 5, 6, 6, '#ffffff'); ellipse(X + 30, Y + 5, 5, 5, '#e8483a'); for (let i = -2; i <= 2; i++) { P('#ffffff', X + 30 + i, Y + 5 + i, 1, 1); P('#ffffff', X + 30 + i, Y + 5 - i, 1, 1); } }
   const f = c.pat / c.maxPat;
-  P('#d8d0d0', x + 2, y + 12, 14, 2); P(f > 0.5 ? '#5ac85a' : f > 0.25 ? '#f0c040' : '#e85a4a', x + 2, y + 12, Math.max(1, Math.round(14 * f)), 2);
-  if (f < 0.25 && (tick >> 3) & 1) P('#e85a4a', x + 17, y - 2, 2, 5);
+  gauge(X + 4, Y + 22, f, f > 0.5 ? '#5ac85a' : f > 0.25 ? '#f0c040' : '#e85a4a');
+  if (f < 0.25 && (tick >> 3) & 1) { P('#e85a4a', X + 36, Y - 6, 3, 9); P('#e85a4a', X + 36, Y + 5, 3, 3); }
 }
-function drawCookBubble(c, j, x, y) {
+function drawCookBubble(c, j, X, Y) {
   const ready = j.state === 'ready', blink = (tick >> 3) & 1;
-  const bg = ready ? (blink ? '#fff2a8' : '#ffe070') : '#f4f0e8';
-  P('#3a3030', x, y + 1, 18, 14); P('#3a3030', x + 1, y, 16, 16);
-  P(bg, x + 1, y + 1, 16, 14); P('#3a3030', x + 7, y + 16, 4, 2); P(bg, x + 8, y + 15, 2, 2);
-  ctx.globalAlpha = j.state === 'queue' ? 0.45 : 1; ctx.drawImage(ICON[j.item.id], x + 5, y + 1); ctx.globalAlpha = 1;
+  bubbleBox(X, Y, ready ? (blink ? '#fff2a8' : '#ffe070') : '#f4f0e8');
+  ctx.globalAlpha = j.state === 'queue' ? 0.45 : 1; drawAt(ICON2[j.item.id], X + 10, Y + 3); ctx.globalAlpha = 1;
   if (j.state === 'cook') {
-    const f = j.t / j.dur;
-    P('#c8c0b8', x + 2, y + 11, 14, 3);
-    if (!j.missed) P('#4fbf6a', x + 2 + Math.round(14 * ZONE[0]), y + 11, Math.max(1, Math.round(14 * (ZONE[1] - ZONE[0]))), 3);
-    P('#e8702a', x + 2, y + 12, Math.max(1, Math.round(14 * f)), 1);
-    if ((tick >> 4) & 1) { P('#ffffff', x + 13, y - 2, 1, 2); P('#ffffff', x + 15, y - 3, 1, 2); }
+    gauge(X + 4, Y + 21, j.t / j.dur, '#e8702a', j.missed ? null : ZONE);
+    if ((tick >> 4) & 1) { ctx.globalAlpha = 0.8; P('#ffffff', X + 28, Y - 4, 1, 4); P('#ffffff', X + 32, Y - 6, 1, 4); ctx.globalAlpha = 1; }
   } else if (j.state === 'queue') {
-    for (let i = 0; i < 3; i++) if ((tick >> 4) % 4 > i) P('#8a8a8a', x + 5 + i * 3, y + 12, 2, 2);
+    for (let i = 0; i < 3; i++) if ((tick >> 4) % 4 > i) ellipse(X + 12 + i * 6, Y + 24, 2, 2, '#8a8a8a');
   } else if (ready) {
-    P('#e8483a', x + 15, y - 3, 2, 5); P('#e8483a', x + 15, y + 3, 2, 2);
+    P('#e8483a', X + 31, Y - 6, 3, 9); P('#e8483a', X + 31, Y + 5, 3, 3);
     const cold = j.readyT / COLD_AFTER;
-    P('#c8c0b8', x + 2, y + 12, 14, 2); P(cold < 1 ? '#6aa0d8' : '#8a8aa0', x + 2, y + 12, Math.max(1, Math.round(14 * Math.min(1, cold))), 2);
+    gauge(X + 4, Y + 22, cold, cold < 1 ? '#6aa0d8' : '#8a8aa0');
   }
-  if (c.vip) drawCrown(x + 9, y - 5);
+  if (c.vip) drawCrown(X + 18, Y - 8);
 }
 function drawParticles() {
   for (const p of particles) {
     if (p.t < 0) continue;
+    const X = p.x * 2, Y = p.y * 2;
     ctx.globalAlpha = Math.min(1, (1 - p.t / p.life) * 2);
-    if (p.type === 'heart') ctx.drawImage(HEART, Math.round(p.x - 3), Math.round(p.y));
-    else if (p.type === 'spark') { for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + p.t / 10, r = 4 + p.t / 4; P('#fff6a0', Math.round(p.x + Math.cos(a) * r), Math.round(p.y + Math.sin(a) * r), 2, 2); } }
-    else if (p.type === 'anger') { P('#e83a3a', p.x - 3, p.y, 2, 6); P('#e83a3a', p.x + 1, p.y, 2, 6); P('#e83a3a', p.x - 4, p.y - 1, 8, 2); }
+    if (p.type === 'heart') drawAt(HEART2, X - 7, Y);
+    else if (p.type === 'spark') { for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + p.t / 10, r = 8 + p.t / 2, sx = Math.round(X + Math.cos(a) * r), sy = Math.round(Y + Math.sin(a) * r); P('#fff6a0', sx - 1, sy, 3, 1); P('#fff6a0', sx, sy - 1, 1, 3); } }
+    else if (p.type === 'anger') { P('#e83a3a', X - 6, Y, 4, 12); P('#e83a3a', X + 2, Y, 4, 12); P('#e83a3a', X - 8, Y - 2, 16, 4); P('#ff8a8a', X - 5, Y + 1, 1, 8); }
     else if (p.type === 'text') {
-      ctx.font = '8px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillStyle = '#2a1e10'; ctx.fillText(p.text, Math.round(p.x) + 1, Math.round(p.y) + 1);
-      ctx.fillStyle = p.color; ctx.fillText(p.text, Math.round(p.x), Math.round(p.y));
+      ctx.font = '16px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = '#2a1e10'; ctx.fillText(p.text, Math.round(X) + 2, Math.round(Y) + 2);
+      ctx.fillStyle = p.color; ctx.fillText(p.text, Math.round(X), Math.round(Y));
     }
     ctx.globalAlpha = 1;
   }
 }
 function render() {
-  ctx.setTransform(S, 0, 0, S, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(S / 2, 0, 0, S / 2, 0, 0); ctx.imageSmoothingEnabled = false;
   if (!G) { drawWallAndFloor(OPEN); return; }
   drawRoom();
-  for (const f of furs) ctx.drawImage(FUR, f.x - 3, f.y - 3);
+  for (const f of furs) drawAt(FUR2, f.x * 2 - 7, f.y * 2 - 5);
   const list = [];
   for (let i = 0; i < G.furniture.cushion; i++) { const [x, y] = CUSHION_POS[i]; list.push({ y: y - 2, d: () => drawCushion(x, y) }); }
   for (let i = 0; i < G.furniture.plant; i++) { const [x, y] = PLANT_POS[i]; list.push({ y, d: () => drawPlant(x, y) }); }
@@ -1327,7 +1473,7 @@ function render() {
   for (const c of customers) if (c.state === 'order' || c.state === 'wait') drawBubble(c);
   drawParticles();
   const f = (G.time - OPEN) / (CLOSE - OPEN);
-  if (f > 0.65) { ctx.fillStyle = `rgba(255,140,60,${Math.min(0.16, (f - 0.65) * 0.6)})`; ctx.fillRect(0, 0, VW, VH); }
+  if (f > 0.65) { ctx.fillStyle = `rgba(255,140,60,${Math.min(0.16, (f - 0.65) * 0.6)})`; ctx.fillRect(0, 0, FW, FH); }
 }
 
 // ================= キッチン列 =================
