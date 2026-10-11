@@ -324,26 +324,29 @@ const CAT_POSE = {
     chest: null, bodyStripes: [[10, 11, 12, 20], [15, 10, 16, 21], [20, 9, 21, 21], [25, 10, 26, 20]], shadeY: 22, light: [20, 12, 10, 3], scarfY: 21,
   },
 };
-function makeCatFine(L, P0) {
-  const W = P0.W, H = P0.H, buf = Array.from({ length: H }, () => Array(W).fill(null));
-  const set = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < W && y < H) buf[y][x] = c; };
+const CAT_K = 1.35;   // ねこの大きさ
+function makeCatFine(L, P0, KS = CAT_K) {
+  const W = Math.ceil(P0.W * KS), H = Math.ceil(P0.H * KS), buf = Array.from({ length: H }, () => Array(W).fill(null));
+  const setR = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < W && y < H) buf[y][x] = c; };
+  const set = (x, y, c) => setR(x * KS, y * KS, c);
   const ell = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
   const tri = (x, y, a, b, c) => {
     const sg = (p, q, r) => (p[0] - r[0]) * (q[1] - r[1]) - (q[0] - r[0]) * (p[1] - r[1]);
     const d1 = sg([x, y], a, b), d2 = sg([x, y], b, c), d3 = sg([x, y], c, a);
     return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
   };
-  const each = fn => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) fn(x + 0.5, y + 0.5, x, y); };
+  const each = fn => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) fn((x + 0.5) / KS, (y + 0.5) / KS, x, y); };
   const thick = (pts, r, colFn) => {
+    r *= KS;
     for (let i = 0; i < pts.length - 1; i++) {
-      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2);
+      const x0 = pts[i][0] * KS, y0 = pts[i][1] * KS, x1 = pts[i + 1][0] * KS, y1 = pts[i + 1][1] * KS, n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2);
       for (let k = 0; k <= n; k++) {
         const x = x0 + (x1 - x0) * k / n, y = y0 + (y1 - y0) * k / n;
-        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + 0.5) set(x + dx, y + dy, colFn(i, k / n));
+        for (let dy = -Math.ceil(r); dy <= r; dy++) for (let dx = -Math.ceil(r); dx <= r; dx++) if (dx * dx + dy * dy <= r * r + 0.5) setR(x + dx, y + dy, colFn(i, k / n));
       }
     }
   };
-  const line = (x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2; for (let i = 0; i <= n; i++) set(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, c); };
+  const line = (x0, y0, x1, y1, c) => { const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2 * KS); for (let i = 0; i <= n; i++) set(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, c); };
   const inBody = (fx, fy) => P0.body.some(([cx, cy, rx, ry]) => ell(fx, fy, cx, cy, rx, ry));
   const inHead = (fx, fy) => ell(fx, fy, ...P0.head) || ell(fx, fy, ...P0.cheek);
   // しっぽ
@@ -425,7 +428,7 @@ function makeCatFine(L, P0) {
   }
   // ひげ
   if (!P0.closed) [[-5, 2, -10, 1], [-5, 3, -10, 4], [5, 2, 10, 1], [5, 3, 10, 4]].forEach(([a, b, c, d]) => {
-    for (let i = 0; i <= 5; i++) { const x = Math.round(nx + a + (c - a) * i / 5), y = Math.round(ny + b + (d - b) * i / 5); if (x >= 0 && x < W && y >= 0 && y < H && !buf[y][x]) out[y][x] = 'rgba(255,255,255,0.75)'; }
+    for (let i = 0; i <= 7; i++) { const x = Math.round((nx + a + (c - a) * i / 7) * KS), y = Math.round((ny + b + (d - b) * i / 7) * KS); if (x >= 0 && x < W && y >= 0 && y < H && !buf[y][x]) out[y][x] = 'rgba(255,255,255,0.75)'; }
   });
   const c = mk(W, H), g = c.getContext('2d');
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (out[y][x]) { g.fillStyle = out[y][x]; g.fillRect(x, y, 1, 1); }
@@ -468,40 +471,47 @@ function shade(hex, f) {
   return '#' + m(r) + m(g) + m(b);
 }
 // 前向きの人（幅24・高さ38、座りは上半身28）
-function makePersonFine(look, frame, apron) {
-  const W = 24, H = frame === 'sit' ? 28 : 38, buf = Array.from({ length: H }, () => Array(W).fill(null));
-  const set = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H) buf[y][x] = c; };
-  const rect = (x, y, w, h, c) => { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) set(xx, yy, c); };
+const PERSON_K = 1.5;   // お客さんの大きさ
+function makePersonFine(look, frame, apron, KS = PERSON_K) {
+  const back = frame === 'back', seated = frame === 'sit' || back;
+  const W = Math.ceil(24 * KS), H = Math.ceil((seated ? 28 : 38) * KS), buf = Array.from({ length: H }, () => Array(W).fill(null));
+  // 設計図は 24×38 の座標。1マスを KS 倍の大きさで塗る
+  const setR = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H) buf[y][x] = c; };
+  const set = (x, y, c) => { for (let yy = Math.round(y * KS); yy < Math.round((y + 1) * KS); yy++) for (let xx = Math.round(x * KS); xx < Math.round((x + 1) * KS); xx++) setR(xx, yy, c); };
+  const rect = (x, y, w, h, c) => { for (let yy = Math.round(y * KS); yy < Math.round((y + h) * KS); yy++) for (let xx = Math.round(x * KS); xx < Math.round((x + w) * KS); xx++) setR(xx, yy, c); };
   const ell = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
-  const each = fn => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) fn(x + 0.5, y + 0.5, x, y); };
+  const each = fn => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) fn((x + 0.5) / KS, (y + 0.5) / KS, x, y); };
   const skinS = shade(look.skin, 0.86), shirtS = shade(look.shirt, 0.78), shirtL = shade(look.shirt, 1.12), hairL = shade(look.hair, 1.4), pantsS = shade(look.pants, 0.75);
   // 長い髪（うしろ）
-  if (look.long) each((fx, fy, x, y) => { if (fx > 3.5 && fx < 20.5 && fy > 8 && fy < 24 && ell(fx, fy, 12, 14, 8.5, 10)) set(x, y, look.hair); });
+  if (look.long) each((fx, fy, x, y) => { if (fx > 3.5 && fx < 20.5 && fy > 8 && fy < 24 && ell(fx, fy, 12, 14, 8.5, 10)) setR(x, y, look.hair); });
   // 体と腕
-  each((fx, fy, x, y) => { if (fy >= 18 && fy < 30 && fx >= 6 && fx <= 18 && !(fy < 20 && (fx < 7.5 || fx > 16.5))) set(x, y, fx > 15 ? shirtS : look.shirt); });
+  each((fx, fy, x, y) => { if (fy >= 18 && fy < 30 && fx >= 6 && fx <= 18 && !(fy < 20 && (fx < 7.5 || fx > 16.5))) setR(x, y, fx > 15 ? shirtS : look.shirt); });
   rect(4, 20, 2, 7, shirtS); rect(18, 20, 2, 7, shirtS); rect(5, 19, 1, 1, shirtS); rect(18, 19, 1, 1, shirtS);
   rect(4, 27, 2, 2, look.skin); rect(18, 27, 2, 2, skinS);
   rect(10, 17, 4, 2, skinS); set(11, 19, look.skin); set(12, 19, look.skin);
   rect(7, 20, 3, 1, shirtL);
   if (apron) { rect(8, 22, 8, 8, '#c8643a'); rect(8, 22, 8, 1, '#e08a5a'); set(8, 21, '#c8643a'); set(15, 21, '#c8643a'); rect(10, 25, 4, 2, '#a85030'); }
-  if (frame !== 'sit') {
+  if (!seated) {
     rect(7, 29, 10, 4, look.pants); rect(15, 29, 2, 4, pantsS); rect(11, 31, 2, 2, pantsS);
     const legs = frame === 'a' ? [[7, 33, 4, 3], [13, 33, 4, 3]] : [[7, 33, 4, 2], [13, 33, 4, 3]];
     for (const [x, y, w, h] of legs) { rect(x, y, w, h, look.pants); rect(x, y + h, w, 2, '#3a2a20'); set(x, y + h, '#5a4a40'); }
   }
   // 頭
-  each((fx, fy, x, y) => { if (ell(fx, fy, 12, 10, 7.5, 8)) set(x, y, fy > 15.5 || fx > 17 ? skinS : look.skin); });
+  each((fx, fy, x, y) => { if (ell(fx, fy, 12, 10, 7.5, 8)) setR(x, y, fy > 15.5 || fx > 17 ? skinS : look.skin); });
   rect(4, 10, 1, 3, look.skin); rect(19, 10, 1, 3, skinS);
   // 髪
-  each((fx, fy, x, y) => {
-    if (ell(fx, fy, 12, 7.5, 8.2, 6.5) && (fy < 7 || (fy < 9 + (x % 3 === 0 ? 1 : 0) && fx > 5 && fx < 19) || fx < 5.5 || fx > 18.5)) set(x, y, look.hair);
+  if (back) each((fx, fy, x, y) => { if (ell(fx, fy, 12, 9.5, 7.8, 8.2) && fy < 15.5) setR(x, y, (x + y) % 5 ? look.hair : hairL); });
+  if (!back) each((fx, fy, x, y) => {
+    if (ell(fx, fy, 12, 7.5, 8.2, 6.5) && (fy < 7 || (fy < 9 + (x % 3 === 0 ? 1 : 0) && fx > 5 && fx < 19) || fx < 5.5 || fx > 18.5)) setR(x, y, look.hair);
   });
-  each((fx, fy, x, y) => { if (ell(fx, fy, 9, 3.5, 3, 1.2)) set(x, y, hairL); });
+  each((fx, fy, x, y) => { if (ell(fx, fy, 9, 3.5, 3, 1.2)) setR(x, y, hairL); });
   if (look.long) { rect(4, 9, 2, 13, look.hair); rect(18, 9, 2, 13, look.hair); }
   // 顔
+  if (!back) {
   rect(8, 11, 2, 3, '#2a2420'); rect(14, 11, 2, 3, '#2a2420'); set(8, 11, '#ffffff'); set(14, 11, '#ffffff');
   rect(6, 14, 2, 1, '#f0a0a0'); rect(16, 14, 2, 1, '#f0a0a0');
   rect(11, 15, 2, 1, '#b8605a');
+  }
   // ふちどり
   const out = buf.map(r => r.slice());
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -512,7 +522,7 @@ function makePersonFine(look, frame, apron) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (out[y][x]) { g.fillStyle = out[y][x]; g.fillRect(x, y, 1, 1); }
   return c;
 }
-function makePerson(look) { return { a: makePersonFine(look, 'a'), b: makePersonFine(look, 'b'), sit: makePersonFine(look, 'sit') }; }
+function makePerson(look) { return { a: makePersonFine(look, 'a'), b: makePersonFine(look, 'b'), sit: makePersonFine(look, 'sit'), back: makePersonFine(look, 'back') }; }
 function randomLook() {
   return { hair: pick(LOOKS.hair), skin: pick(LOOKS.skin), shirt: pick(LOOKS.shirt), pants: pick(LOOKS.pants), long: Math.random() < 0.45 };
 }
@@ -579,6 +589,7 @@ const ZONE = [0.68, 0.86];   // パーフェクトになるタイミング
 const COLD_AFTER = 420;      // できてから冷めるまで
 const FURNITURE = [
   { id: 'table', name: 'テーブル席', price: 5000, max: 6, desc: 'お客さんの席が2つふえる' },
+  { id: 'stool', name: 'カウンター席', price: 3000, max: 3, desc: 'カウンターの前に席が1つふえる' },
   { id: 'cushion', name: 'ねこクッション', price: 1500, max: 4, desc: 'ねこがお昼寝できる。ごきげんUP' },
   { id: 'tower', name: 'キャットタワー', price: 8000, max: 1, desc: 'ねこが大よろこび。ごきげんUP' },
   { id: 'plant', name: 'かんようしょくぶつ', price: 2500, max: 3, desc: 'おしゃれ度 +1', decor: 1 },
@@ -601,7 +612,8 @@ const TABLE_POS = [[54, 140], [114, 140], [54, 206], [114, 206], [184, 156], [18
 const CUSHION_POS = [[22, 270], [50, 288], [176, 288], [204, 270]];
 const PLANT_POS = [[70, 74], [124, 74], [214, 296]];
 const TOWER = { x: 12, base: 116, top: 58 };
-const BOWL = { x: 150, y: 104 };
+const BOWL = { x: 138, y: 112 };
+const STOOL_POS = [[166, 108], [188, 108], [210, 108]];
 const ENTRANCE = { x: 112, y: 312 };
 const SAVE_KEY = 'grio-cafe-v1';
 
@@ -617,7 +629,7 @@ let dayLog = null, weather = 'sun', dayFlags = {}, rushUntil = 0, vipNext = fals
 function newSave() {
   return {
     day: 1, money: 8000, pop: 10, bowl: 6, staff: false, served: 0, legend: false,
-    ponta: false, furniture: { table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0, fridge: 0, rack: 0 },
+    ponta: false, furniture: { stool: 0, table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0, fridge: 0, rack: 0 },
     stock: { beans: [{ n: 16, day: 1 }], flour: [{ n: 12, day: 1 }] }, kitchen: { drink: 1, oven: 1, stove: 1 }, market: rollMarket(), pendingCost: 0,
     menu: ['coffee', 'cookie'], flags: {},
     cats: [{ name: 'ぐりお', pal: 'grio', mood: 70, hunger: 20 }],
@@ -679,8 +691,15 @@ function buildSeats() {
     const [x, y] = TABLE_POS[i];
     for (const side of [-1, 1]) {
       const prev = old.find(s => s.ti === i && s.side === side);
-      seats.push(prev || { ti: i, side, tx: x, ty: y, x: x + side * 9, y: y - 8, cust: null, dirty: false, dirtyT: 0 });
+      seats.push(prev || { ti: i, side, tx: x, ty: y, x: x + side * 10, y: y - 8, cust: null, dirty: false, dirtyT: 0,
+        itemX: x + side * 6, itemY: y - 13, catX: x + side * 16, catY: y + 6 });
     }
+  }
+  for (let i = 0; i < (G.furniture.stool || 0); i++) {
+    const [x, y] = STOOL_POS[i];
+    const prev = old.find(s => s.counter && s.ci === i);
+    seats.push(prev || { ti: -1, ci: i, counter: true, side: 1, tx: x, ty: y, x, y, cust: null, dirty: false, dirtyT: 0,
+      itemX: x, itemY: 61, catX: x + 11, catY: y + 6 });
   }
 }
 function makeCat(c, x, y) {
@@ -828,7 +847,7 @@ function updatePonta() {
       const j = p.carry;
       if (!jobs.includes(j)) { p.carry = p.job = null; p.state = 'idle'; break; }
       const s = j.c.seat;
-      if (moveTo(p, s.tx + s.side * 14, s.ty + 6, sp)) { deliver(j, true); tone(1175, 0.08, 'triangle', 0.4); p.carry = p.job = null; p.state = 'idle'; }
+      if (moveTo(p, s.catX, s.catY, sp)) { deliver(j, true); tone(1175, 0.08, 'triangle', 0.4); p.carry = p.job = null; p.state = 'idle'; }
       break;
     }
     case 'nap': case 'slack':
@@ -921,7 +940,7 @@ function assignClean(k) {
   if (!dirty.length) return false;
   const s = dirty.reduce((a, b) => Math.hypot(a.tx - k.x, a.ty - k.y) < Math.hypot(b.tx - k.x, b.ty - k.y) ? a : b);
   s.cleaner = k; k.clean = s; k.spot = null; k.visit = null;
-  k.state = 'toClean'; k.tx = s.tx + s.side * 13; k.ty = s.ty + 5;
+  k.state = 'toClean'; k.tx = s.catX; k.ty = s.catY - 1;
   return true;
 }
 function catThink(k) {
@@ -929,7 +948,7 @@ function catThink(k) {
   if (k.hunger > 60 && G.bowl > 0) { k.state = 'toBowl'; k.tx = BOWL.x + rnd(-6, 6); k.ty = BOWL.y + 6; return; }
   if (r < 0.65 && assignClean(k)) return;
   const guests = seats.filter(s => s.cust && (s.cust.state === 'order' || s.cust.state === 'eat') && !cats.some(o => o !== k && o.visit === s));
-  if (guests.length && r < 0.35) { const s = pick(guests); k.visit = s; k.state = 'toVisit'; k.tx = s.tx + s.side * 14; k.ty = s.ty + 10; return; }
+  if (guests.length && r < 0.35) { const s = pick(guests); k.visit = s; k.state = 'toVisit'; k.tx = s.catX; k.ty = s.catY + 4; return; }
   const freeCush = CUSHION_POS.slice(0, G.furniture.cushion).filter(p => !cats.some(o => o.spot === p));
   if (freeCush.length && r < 0.55) { const p = pick(freeCush); k.spot = p; k.state = 'toSpot'; k.tx = p[0]; k.ty = p[1] - 1; return; }
   if (G.furniture.tower && r < 0.68 && !cats.some(o => o.spot === TOWER)) { k.spot = TOWER; k.state = 'toSpot'; k.tx = TOWER.x + 10; k.ty = TOWER.base + 2; return; }
@@ -1261,7 +1280,7 @@ function drawAppliances() {
 function drawCounter() {
   P('#3a2616', 304, 112, 144, 80);
   drawAppliances();
-  if (G.staff) drawAt(STAFF_SPR, 344, 76 + ((tick >> 5) & 1) * 2);
+  if (G.staff) drawAt(STAFF_SPR, 356 - STAFF_SPR.width / 2, 116 - STAFF_SPR.height + ((tick >> 5) & 1) * 2);
   P('#b07a4a', 306, 112, 142, 14); P('#c8925a', 306, 112, 142, 2); P('#9a6838', 306, 124, 142, 2);
   for (let k = 0; k < 5; k++) P('#bc8650', 312 + k * 27, 115 + (k % 3) * 3, 20, 1);
   P('#8a5a34', 306, 126, 142, 58);
@@ -1300,7 +1319,7 @@ function drawTable(x, y) {
   ctx.globalAlpha = 0.18; ellipse(X, Y + 1, 18, 4, '#000000'); ctx.globalAlpha = 1;
   P('#3a2412', X - 3, Y - 18, 6, 17); P('#6a4426', X - 2, Y - 18, 2, 17);
   ellipse(X, Y - 1, 12, 3, '#3a2412'); ellipse(X, Y - 2, 11, 2, '#6a4426');
-  ellipse(X, Y - 23, 29, 8, '#4a2e18'); ellipse(X, Y - 25, 28, 8, '#8a5a30'); ellipse(X, Y - 26, 27, 7, '#b07a44');
+  ellipse(X, Y - 23, 32, 8, '#4a2e18'); ellipse(X, Y - 25, 31, 8, '#8a5a30'); ellipse(X, Y - 26, 30, 7, '#b07a44');
   ellipse(X - 6, Y - 29, 13, 2, '#c8925a'); P('#d8a870', X - 14, Y - 30, 8, 1);
 }
 function drawChair(x, y) {
@@ -1309,6 +1328,12 @@ function drawChair(x, y) {
   P('#3a2412', X - 10, Y - 42, 4, 28); P('#3a2412', X + 6, Y - 42, 4, 28); P('#6e4828', X - 9, Y - 42, 2, 28); P('#6e4828', X + 7, Y - 42, 2, 28);
   P('#5a3820', X - 3, Y - 42, 2, 22); P('#5a3820', X + 1, Y - 42, 2, 22);
   P('#3a2412', X - 13, Y - 18, 26, 7); P('#8a5a34', X - 12, Y - 18, 24, 3); P('#a06a40', X - 12, Y - 18, 24, 1);
+}
+function drawStool(x, y) {
+  const X = x * 2, Y = y * 2;
+  ctx.globalAlpha = 0.18; ellipse(X, Y + 1, 12, 3, '#000000'); ctx.globalAlpha = 1;
+  P('#3a3a44', X - 9, Y - 14, 2, 14); P('#3a3a44', X + 7, Y - 14, 2, 14); P('#5a5a64', X - 6, Y - 6, 12, 2);
+  ellipse(X, Y - 16, 12, 4, '#5a2e22'); ellipse(X, Y - 18, 11, 4, '#a84a3a'); ellipse(X - 3, Y - 19, 5, 1, '#d87a6a');
 }
 function drawPlant(x, y) {
   const X = x * 2, Y = y * 2;
@@ -1385,11 +1410,12 @@ function drawCustomer(c) {
   if (c.state === 'enter' || c.state === 'leave') {
     const img = (c.anim >> 3) & 1 ? c.spr.a : c.spr.b;
     const Y = Math.round(c.y * 2 - img.height);
-    drawAt(img, c.x * 2 - 12, Y);
+    drawAt(img, c.x * 2 - img.width / 2, Y);
     if (c.vip) drawCrown(c.x * 2, Y - 8);
   } else {
-    drawAt(c.spr.sit, c.seat.x * 2 - 12, (c.seat.y - 19) * 2);
-    if (c.vip && c.state !== 'order') drawCrown(c.seat.x * 2, (c.seat.y - 19) * 2 - 8);
+    const img = c.seat.counter ? c.spr.back : c.spr.sit, top = c.seat.y * 2 - (c.seat.counter ? 18 : 10) - img.height;
+    drawAt(img, c.seat.x * 2 - img.width / 2, top);
+    if (c.vip && c.state !== 'order') drawCrown(c.seat.x * 2, top - 8);
   }
 }
 function drawCrown(X, Y) {
@@ -1399,7 +1425,7 @@ function drawCrown(X, Y) {
   P('#e84a5a', X - 1, Y + 3, 3, 2); P('#4a9ae8', X - 6, Y + 3, 2, 2); P('#4a9ae8', X + 5, Y + 3, 2, 2);
 }
 function drawTableItems(s) {
-  const IX = (s.tx + s.side * 5) * 2 - 8, IY = s.ty * 2 - 42;
+  const IX = s.itemX * 2 - 8, IY = s.itemY * 2 - 16;
   if (s.cust && s.cust.state === 'eat') drawAt(ICON2[s.cust.order.id], IX, IY);
   if (s.dirty) { drawAt(PLATE2, IX - 1, IY + 6); if ((tick >> 4) & 1) { P('#ffffff', IX + 15, IY + 1, 1, 3); P('#ffffff', IX + 14, IY + 2, 3, 1); } }
 }
@@ -1415,7 +1441,7 @@ function gauge(X, Y, f, col, zone) {
   P(col, X + 1, Y + 2, Math.max(1, Math.round(26 * Math.min(1, f))), zone ? 2 : 3);
 }
 function drawBubble(c) {
-  const s = c.seat, X = (s.x - 9) * 2, Y = (s.y - 40) * 2;
+  const s = c.seat, X = s.x * 2 - 18, Y = s.y * 2 - (s.counter ? 102 : 94);
   if (c.state === 'wait' && c.job) { drawCookBubble(c, c.job, X, Y); return; }
   bubbleBox(X, Y, '#ffffff');
   drawAt(ICON2[c.order.id], X + 10, Y + 4);
@@ -1469,9 +1495,10 @@ function render() {
   list.push({ y: BOWL.y, d: drawBowl });
   for (let i = 0; i < G.furniture.table; i++) {
     const [x, y] = TABLE_POS[i];
-    list.push({ y: y - 8.5, d: () => { drawChair(x - 9, y); drawChair(x + 9, y); } });
+    list.push({ y: y - 8.5, d: () => { drawChair(x - 10, y); drawChair(x + 10, y); } });
     list.push({ y, d: () => { drawTable(x, y); seats.filter(s => s.ti === i).forEach(drawTableItems); } });
   }
+  for (let i = 0; i < (G.furniture.stool || 0); i++) { const [x, y] = STOOL_POS[i]; list.push({ y: y - 0.5, d: () => drawStool(x, y) }); }
   for (const c of customers) list.push({ y: c.state === 'enter' || c.state === 'leave' ? c.y : c.seat.y - 0.2, d: () => drawCustomer(c) });
   if (ponta) list.push({ y: ponta.y, d: drawPonta });
   for (const k of cats) list.push({ y: k.spot === TOWER && k.state === 'nap' ? TOWER.base + 1 : k.y, d: () => drawCat(k) });
@@ -1745,7 +1772,7 @@ function buy(id) {
     G.money -= st.price; G.kitchen[key]++; toast(`${st.name}をもう1台おきました`);
   } else if (kind === 'f') {
     const f = FURNITURE.find(x => x.id === key); if (G.money < f.price || G.furniture[key] >= f.max) return;
-    G.money -= f.price; G.furniture[key]++; if (key === 'table') buildSeats();
+    G.money -= f.price; G.furniture[key]++; if (key === 'table' || key === 'stool') buildSeats();
     toast(`${f.name}をおきました`);
   } else if (kind === 'm') {
     const m = MENU.find(x => x.id === key); if (G.money < m.unlock || G.menu.includes(key)) return;
@@ -1869,16 +1896,16 @@ cv.addEventListener('pointerdown', e => {
   for (const c of customers) {
     if (c.state !== 'order' && c.state !== 'wait') continue;
     const s = c.seat;
-    if (x > s.x - 14 && x < s.x + 14 && y > s.y - 44 && y < s.y - 2) { if (c.state === 'order') serve(c, false); else if (c.job && c.job.state === 'ready') deliver(c.job, false); else if (c.job) toast('下のキッチンで 設備をタップして 調理してね'); return; }
+    if (x > s.x - 14 && x < s.x + 14 && y > s.y - (s.counter ? 52 : 48) && y < s.y - 2) { if (c.state === 'order') serve(c, false); else if (c.job && c.job.state === 'ready') deliver(c.job, false); else if (c.job) toast('下のキッチンで 設備をタップして 調理してね'); return; }
   }
   for (const s of seats) {
-    if (s.dirty && Math.abs(x - (s.tx + s.side * 5)) < 12 && y > s.ty - 26 && y < s.ty - 4) { s.dirty = false; sfx.clean(); addFx('spark', s.tx + s.side * 5, s.ty - 18); return; }
+    if (s.dirty && Math.abs(x - s.itemX) < 12 && y > s.itemY - 13 && y < s.itemY + 9) { s.dirty = false; sfx.clean(); addFx('spark', s.itemX, s.itemY - 5); return; }
   }
   if (x >= 150 && y < 40) { openStock(); return; }
-  if (ponta) { const py = ponta.state === 'nap' ? ponta.y - 7 : ponta.y - 11; if (Math.hypot(x - ponta.x, y - py) < 15) { wakePonta(); return; } }
-  let best = null, bd = 18;
+  if (ponta) { const py = ponta.state === 'nap' ? ponta.y - 9 : ponta.y - 15; if (Math.hypot(x - ponta.x, y - py) < 19) { wakePonta(); return; } }
+  let best = null, bd = 22;
   for (const k of cats) {
-    const ky = k.state === 'nap' ? k.y - 7 : k.y - 11;
+    const ky = k.state === 'nap' ? k.y - 9 : k.y - 15;
     const d = Math.hypot(x - k.x, y - ky);
     if (d < bd) { bd = d; best = k; }
   }
