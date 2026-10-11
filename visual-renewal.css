@@ -148,3 +148,9 @@ body {display:block;padding-inline:max(8px,env(safe-area-inset-left));padding-bo
   width:min(calc(100% - 24px),620px);max-height:min(40dvh,240px);z-index:15;
 }
 #modal {z-index:30}
+
+/* Art panels use their intrinsic dimensions; never force rectangular sprites square. */
+#cafe {aspect-ratio:448 / 300}
+#face {height:auto;aspect-ratio:1 / 1;object-fit:contain}
+.catrow canvas,.nya-card canvas {height:auto;aspect-ratio:auto;object-fit:contain}
+.nx-body img,.title-art {height:auto;object-fit:contain}

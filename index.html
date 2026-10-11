@@ -65,7 +65,7 @@ body {
   display: block;
   width: 100%;
   max-width: 100%;
-  aspect-ratio: 224 / 300;
+  aspect-ratio: 448 / 300;
   image-rendering: pixelated;
   border: 3px solid #0f1814;
   border-radius: 6px;
@@ -271,7 +271,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .make .zero { color: var(--bad); }
 #sub button { padding: 4px 10px; font-size: 12px; border-bottom-width: 2px; white-space: nowrap; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261011-half-room">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261011-ratio">
 </head>
 <body>
 <div id="wrap">
@@ -305,9 +305,10 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
+<script src="./cafe-art.js?v=20261011-renew"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-detail.js?v=20261011-auto-orders"></script>
-<script src="./character-art.js?v=20261011-auto-orders"></script>
+<script src="./character-detail.js?v=20261011-renew"></script>
+<script src="./character-art.js?v=20261011-renew"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -703,57 +704,10 @@ function shade0(hex, f) {
 }
 // 前向きの人（幅24・高さ38、座りは上半身28）
 const PERSON_K = 1.65;   // お客さんの大きさ
-function makePersonFine(look, frame, apron, KS = PERSON_K) {
-  const back = frame === 'back', seated = frame === 'sit' || frame === 'blink' || frame === 'eat' || frame === 'chew' || back;
-  const W = Math.ceil(24 * KS), H = Math.ceil((seated ? 28 : 38) * KS), buf = Array.from({ length: H }, () => Array(W).fill(null));
-  // 設計図は 24×38 の座標。1マスを KS 倍の大きさで塗る
-  const setR = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H) buf[y][x] = c; };
-  const set = (x, y, c) => { for (let yy = Math.round(y * KS); yy < Math.round((y + 1) * KS); yy++) for (let xx = Math.round(x * KS); xx < Math.round((x + 1) * KS); xx++) setR(xx, yy, c); };
-  const rect = (x, y, w, h, c) => { for (let yy = Math.round(y * KS); yy < Math.round((y + h) * KS); yy++) for (let xx = Math.round(x * KS); xx < Math.round((x + w) * KS); xx++) setR(xx, yy, c); };
-  const ell = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
-  const each = fn => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) fn((x + 0.5) / KS, (y + 0.5) / KS, x, y); };
-  const skinS = shade(look.skin, 0.86), shirtS = shade(look.shirt, 0.78), shirtL = shade(look.shirt, 1.12), hairL = shade(look.hair, 1.4), pantsS = shade(look.pants, 0.75);
-  // 長い髪（うしろ）
-  if (look.long) each((fx, fy, x, y) => { if (fx > 3.5 && fx < 20.5 && fy > 8 && fy < 24 && ell(fx, fy, 12, 14, 8.5, 10)) setR(x, y, look.hair); });
-  // 体と腕
-  each((fx, fy, x, y) => { if (fy >= 18 && fy < 30 && fx >= 6 && fx <= 18 && !(fy < 20 && (fx < 7.5 || fx > 16.5))) setR(x, y, fx > 15 ? shirtS : look.shirt); });
-  // うでふり（前に出した手は 少し上に見える）
-  const la = frame === 'c' ? 1 : 0, ra = frame === 'b' ? 1 : 0, eat = frame === 'eat';
-  rect(4, 20, 2, 7 - la, shirtS); rect(5, 19, 1, 1, shirtS); rect(4, 27 - la, 2, 2, look.skin);
-  if (eat) { rect(17, 19, 2, 3, shirtS); rect(16, 17, 2, 2, shirtS); }
-  else { rect(18, 20, 2, 7 - ra, shirtS); rect(18, 19, 1, 1, shirtS); rect(18, 27 - ra, 2, 2, skinS); }
-  rect(10, 17, 4, 2, skinS); set(11, 19, look.skin); set(12, 19, look.skin);
-  rect(7, 20, 3, 1, shirtL);
-  if (apron) { rect(8, 22, 8, 8, '#c8643a'); rect(8, 22, 8, 1, '#e08a5a'); set(8, 21, '#c8643a'); set(15, 21, '#c8643a'); rect(10, 25, 4, 2, '#a85030'); }
-  if (!seated) {
-    rect(7, 29, 10, 4, look.pants); rect(15, 29, 2, 4, pantsS); rect(11, 31, 2, 2, pantsS);
-    const legs = frame === 'b' ? [[7, 33, 4, 2], [13, 33, 4, 3]] : frame === 'c' ? [[7, 33, 4, 3], [13, 33, 4, 2]] : [[7, 33, 4, 3], [13, 33, 4, 3]];
-    for (const [x, y, w, h] of legs) { rect(x, y, w, h, look.pants); rect(x, y + h, w, 2, '#3a2a20'); set(x, y + h, '#5a4a40'); }
-  }
-  // 頭
-  each((fx, fy, x, y) => { if (ell(fx, fy, 12, 10, 7.5, 8)) setR(x, y, fy > 15.5 || fx > 17 ? skinS : look.skin); });
-  rect(4, 10, 1, 3, look.skin); rect(19, 10, 1, 3, skinS);
-  // 髪
-  if (back) each((fx, fy, x, y) => { if (ell(fx, fy, 12, 9.5, 7.8, 8.2) && fy < 15.5) setR(x, y, (x + y) % 5 ? look.hair : hairL); });
-  if (!back) each((fx, fy, x, y) => {
-    if (ell(fx, fy, 12, 7.5, 8.2, 6.5) && (fy < 7 || (fy < 9 + (x % 3 === 0 ? 1 : 0) && fx > 5 && fx < 19) || fx < 5.5 || fx > 18.5)) setR(x, y, look.hair);
-  });
-  each((fx, fy, x, y) => { if (ell(fx, fy, 9, 3.5, 3, 1.2)) setR(x, y, hairL); });
-  if (look.long) { rect(4, 9, 2, 13, look.hair); rect(18, 9, 2, 13, look.hair); }
-  // 顔
-  if (!back) {
-  if (frame === 'blink') { rect(8, 13, 2, 1, '#2a2420'); rect(14, 13, 2, 1, '#2a2420'); }
-  else { rect(8, 11, 2, 3, '#2a2420'); rect(14, 11, 2, 3, '#2a2420'); set(8, 11, '#ffffff'); set(14, 11, '#ffffff'); }
-  rect(6, 14, 2, 1, '#f0a0a0'); rect(16, 14, 2, 1, '#f0a0a0');
-  if (frame === 'eat') rect(11, 15, 2, 2, '#7a3030'); else if (frame === 'chew') rect(10, 15, 4, 1, '#b8605a'); else rect(11, 15, 2, 1, '#b8605a');
-  if (frame === 'eat') { const sk = shade(look.skin, 0.66); rect(15, 16, 2, 1, shirtS); rect(13, 14, 3, 2, look.skin); rect(13, 16, 3, 1, sk); rect(16, 14, 1, 2, sk); rect(13, 13, 3, 1, sk); rect(12, 11, 1, 4, '#d8d8e0'); set(12, 10, '#ffffff'); }
-  }
-  // ふちどり（しあげ）
-  const out = polish(buf, W, H, '#2a2220');
-  const c = mk(W, H), g = c.getContext('2d');
-  putBuf(g, out, W, H);
-  return c;
+function makePersonFine(look, frame, apron) {
+  return CafeArt.person(look, frame, apron);
 }
+
 const PERSON_FRAMES = ['a', 'b', 'c', 'sit', 'blink', 'eat', 'chew', 'back'];
 // 歩きのコマだけ先に描いて、すわりのコマは 使うときに描く
 function makePerson(look) {
@@ -1607,26 +1561,29 @@ function drawWindow(time) {
 }
 function drawFloor() {
   const tones = ['#c99a68', '#c2915e', '#cfa274', '#c6965f'];
-  for (let y = 132, i = 0; y < FH; y += 16, i++) {
+  for (let y = 104, i = 0; y < FH / 2; y += 16, i++) {
     const base = tones[i % 4];
     P(base, 0, y, FW, 16); P('#d8ae80', 0, y, FW, 1); P('#a8784a', 0, y + 15, FW, 1);
     for (let k = 0; k < 6; k++) { const gx = (i * 53 + k * 79) % FW; P('#b88a58', gx, y + 4 + (k % 3) * 4, 24 + (k * 7) % 20, 1); }
     for (let x = (i % 2) * 80 + 36; x < FW; x += 160) { P('#9a6a40', x, y + 1, 1, 14); P('#d8ae80', x + 1, y + 1, 1, 14); }
     const kx = (i * 97) % FW; ellipse(kx, y + 8, 2, 1, '#a8784a');
   }
-  ctx.fillStyle = 'rgba(40,20,0,0.18)'; ctx.fillRect(0, 132, FW, 4); ctx.fillStyle = 'rgba(40,20,0,0.08)'; ctx.fillRect(0, 136, FW, 4);
+  ctx.fillStyle = 'rgba(40,20,0,0.18)'; ctx.fillRect(0, 104, FW, 4); ctx.fillStyle = 'rgba(40,20,0,0.08)'; ctx.fillRect(0, 108, FW, 4);
+}
+function sceneAsset(scale, tx, ty, draw) {
+  ctx.save(); ctx.translate(tx, ty); ctx.scale(scale, scale); draw(); ctx.restore();
 }
 function drawWallAndFloor(time) {
-  P('#ece0c4', 0, 0, FW, 132);
-  for (let x = 0; x < FW; x += 16) P('#e6d8ba', x, 0, 3, 108);
-  for (let y = 16, r = 0; y < 100; y += 26, r++) for (let x = (r % 2) * 24 + 10; x < FW; x += 48) paw(x, y, '#ddcca8');
-  // 腰板
-  P('#7a5232', 0, 106, FW, 26); P('#a2724a', 0, 106, FW, 3); P('#5e3c22', 0, 109, FW, 1);
-  for (let x = 4; x < FW; x += 40) { P('#6a4528', x, 113, 34, 15); P('#86603c', x, 113, 34, 1); P('#86603c', x, 113, 1, 15); P('#523420', x, 127, 34, 1); }
-  P('#4e321c', 0, 130, FW, 2);
-  drawWindow(time);
+  P('#eee1c8',0,0,FW,104);
+  for(let x=0;x<FW;x+=20)P('#e6d6b8',x,0,2,86);
+  for(let y=20;y<78;y+=26)for(let x=12;x<300;x+=52)paw(x,y,'#ddcbae');
+  P('#765039',0,86,FW,18);P('#b2895c',0,86,FW,3);
+  for(let x=4;x<FW;x+=32){P('#896444',x,92,26,9);P('#a37a52',x,92,26,1);}
+  P('#503a2c',0,102,FW,2);
+  sceneAsset(.85,0,0,()=>drawWindow(time));
   drawFloor();
 }
+
 function drawChalkboard() {
   P('#4e321c', 146, 14, 88, 84); P('#8a5e3a', 148, 16, 84, 80); P('#a2724a', 148, 16, 84, 1);
   P('#243630', 154, 22, 72, 68); P('#2c3e36', 156, 24, 68, 4);
@@ -1762,21 +1719,19 @@ function drawLamps() {
 }
 function drawRoom() {
   drawWallAndFloor(G.time);
-  drawChalkboard();
-  if (G.furniture.shelf) drawBookshelf();
-  // 入口マット
-  P('#4a6a4a', 182, 578, 84, 22); P('#6a8a6a', 184, 580, 80, 18); P('#7aa07a', 188, 584, 72, 10);
-  for (let x = 186; x < 262; x += 4) P('#5a7a5a', x, 584, 2, 10);
-  if (G.furniture.rug) {
-    ellipse(224, 524, 82, 27, '#8a3a4a'); ellipse(224, 524, 78, 24, '#b05a6a'); ellipse(224, 524, 70, 20, '#e8c8a0');
-    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; ellipse(Math.round(224 + Math.cos(a) * 62), Math.round(524 + Math.sin(a) * 17), 2, 1, '#b05a6a'); }
-    ellipse(224, 524, 48, 13, '#d8a8a0'); ellipse(224, 524, 30, 8, '#e8c8a0'); ellipse(224, 524, 10, 3, '#b05a6a');
-    for (let y = 516; y < 534; y += 2) { P('#e8d8b8', 140, y, 3, 1); P('#e8d8b8', 305, y, 3, 1); }
+  sceneAsset(.85,0,0,drawChalkboard);
+  if(G.furniture.shelf)sceneAsset(.85,0,0,drawBookshelf);
+  P('#486149',182,278,84,20);P('#789372',184,280,80,16);P('#b1bf90',188,282,72,1);
+  for(let x=188;x<260;x+=4)P('#5d7758',x,284,1,10);
+  if(G.furniture.rug){
+    ellipse(224,259,82,26,'#895363');ellipse(224,258,78,23,'#bc8b91');ellipse(224,258,69,19,'#ecd2a8');
+    ellipse(224,258,48,12,'#cdaba1');ellipse(224,258,28,7,'#ecd2a8');
   }
-  drawPantry();
-  ctx.save(); ctx.scale(1,2); ctx.translate(0,-96); drawCounter(); ctx.restore();
-  if (G.furniture.lamp) drawLamps();
+  sceneAsset(.68,FW*(1-.68),0,drawPantry);
+  sceneAsset(.68,FW*(1-.68),0,drawCounter);
+  if(G.furniture.lamp)sceneAsset(.85,0,0,drawLamps);
 }
+
 function rawTable(x, y) {
   const X = x * 2, Y = y * 2;
   P('#3a2412', X - 3, Y - 18, 6, 17); P('#6a4426', X - 2, Y - 18, 2, 17);
@@ -1851,9 +1806,10 @@ function placeBaked(key, x, y, bx, by, l, t, w, h, raw) {
   ctx.drawImage(b.img, Math.round(x * 2 - l), Math.round(y * 2 - t));
 }
 function floorShadow(X, Y, rx, ry, a = 0.2) { ctx.globalAlpha = a; ellipse(Math.round(X), Math.round(Y), rx, ry, '#2a1808'); ctx.globalAlpha = 1; }
-function drawTable(x, y) { floorShadow(x * 2, y * 2 + 1, 20, 4); placeBaked('table', x, y, 60, 60, 36, 40, 72, 46, rawTable); }
-function drawChair(x, y) { floorShadow(x * 2, y * 2 - 4, 13, 3, 0.14); placeBaked('chair', x, y, 60, 60, 16, 50, 32, 54, rawChair); }
-function drawStool(x, y) { floorShadow(x * 2, y * 2 + 1, 12, 3); placeBaked('stool', x, y, 60, 60, 16, 26, 32, 30, rawStool); }
+function drawTable(x,y){const im=CafeArt.table();floorShadow(x*2,y*2,34,4,.14);drawAt(im,x*2-im.width/2,y*2-49);}
+function drawChair(x,y){const im=CafeArt.chair();floorShadow(x*2,y*2,14,3,.13);drawAt(im,x*2-im.width/2,y*2-56);}
+function drawStool(x,y){const im=CafeArt.stool();floorShadow(x*2,y*2,12,3,.13);drawAt(im,x*2-im.width/2,y*2-32);}
+
 function drawPlant(x, y) { floorShadow(x * 2, y * 2, 13, 3); placeBaked('plant', x, y, 60, 60, 24, 62, 48, 66, rawPlant); }
 function drawCushion(x, y) { floorShadow(x * 2, y * 2 + 3, 23, 5); placeBaked('cushion', x, y, 60, 60, 26, 14, 52, 22, rawCushion); }
 function drawBowl() { floorShadow(BOWL.x * 2, BOWL.y * 2 + 3, 18, 3); const full = G.bowl > 0; placeBaked('bowl' + full, BOWL.x, BOWL.y, BOWL.x, BOWL.y, 20, 10, 40, 16, () => rawBowl(full)); }
@@ -1904,7 +1860,7 @@ function drawBox(part) {
 function drawPawTrail() {
   ctx.globalAlpha = 0.35;
   for (let i = 0; i < 9; i++) {
-    const x = (112 + (i % 2 ? 5 : -5) - i * 1.6) * 2, y = (296 - i * 12) * 2;
+    const x = (112 + (i % 2 ? 5 : -5) - i * 1.6) * 2, y = 296 - i * 12;
     P('#8a5e3a', x - 2, y, 5, 4); P('#8a5e3a', x - 3, y - 3, 2, 2); P('#8a5e3a', x, y - 4, 2, 2); P('#8a5e3a', x + 3, y - 3, 2, 2);
   }
   ctx.globalAlpha = 1;
@@ -1916,9 +1872,9 @@ function drawSunbeam() {
   if (weather !== 'sun' || f > 0.82) return;
   const warm = f > 0.58, len = 70 + f * 110, slant = 0.25 + f * 0.9;
   ctx.globalAlpha = warm ? 0.2 : 0.15; ctx.fillStyle = warm ? '#ffb060' : '#fff4c8';
-  for (let y = 132; y < 132 + len; y += 2) { const d = y - 132; ctx.fillRect(Math.round(28 + d * slant), y, 88, 2); }
+  for (let y = 104; y < 104 + len; y += 2) { const d = y - 104; ctx.fillRect(Math.round(28 + d * slant), y, 88, 2); }
   ctx.fillStyle = warm ? '#ffcf90' : '#ffffff'; ctx.globalAlpha = warm ? 0.12 : 0.1;
-  for (let y = 132; y < 132 + len; y += 2) { const d = y - 132; ctx.fillRect(Math.round(28 + d * slant + 44), y, 4, 2); }
+  for (let y = 104; y < 104 + len; y += 2) { const d = y - 104; ctx.fillRect(Math.round(28 + d * slant + 44), y, 4, 2); }
   ctx.globalAlpha = 1;
 }
 function drawLighting() {
@@ -2113,7 +2069,7 @@ function drawCat(k) {
 function drawCustomer(c) {
   if (c.state === 'enter' || c.state === 'leave') {
     const f = (c.anim >> 2) & 3, img = c.spr[['a', 'b', 'a', 'c'][f]];
-    const Y = Math.round(c.y * 2 - img.height) - (f & 1);
+    const Y = Math.round(c.y * 2 - img.height);
     floorShadow(c.x * 2, c.y * 2 - 1, 11, 3, 0.2);
     drawAt(img, c.x * 2 - img.width / 2, Y);
     if (c.vip) drawCrown(c.x * 2, Y - 8);
@@ -2220,6 +2176,7 @@ function drawClock() {
 function drawParticles() {
   for (const p of particles) {
     if (p.t < 0) continue;
+    ctx.save();ctx.translate(0,-Math.round(p.y));
     const X = p.x * 2, Y = p.y * 2;
     ctx.globalAlpha = Math.min(1, (1 - p.t / p.life) * 2);
     if (p.type === 'heart') drawAt(HEART2, X - 7, Y);
@@ -2231,7 +2188,7 @@ function drawParticles() {
       ctx.fillStyle = '#2a1e10'; ctx.fillText(p.text, TX + 2, TY + 2);
       ctx.fillStyle = p.color; ctx.fillText(p.text, TX, TY);
     }
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1;ctx.restore();
   }
 }
 // Keep simulation/save coordinates unchanged; compact only the view.
@@ -2241,9 +2198,10 @@ function compactAt(y, draw) {
 function render() {
   const unit = cv.width / FW;
   ctx.setTransform(unit, 0, 0, unit, 0, 0); ctx.imageSmoothingEnabled = false;
-  ctx.save(); ctx.scale(1, .5);
-  if (!G) { drawWallAndFloor(OPEN); ctx.restore(); return; }
-  drawRoom(); drawSunbeam(); drawPawTrail(); ctx.restore();
+  if (!G) { drawWallAndFloor(OPEN); return; }
+  drawRoom();
+  drawSunbeam();
+  drawPawTrail();
   for (const f of furs) compactAt(f.y, () => drawAt(FUR2, f.x * 2 - 7, f.y * 2 - 5));
   const list = [];
   list.push({ y: SIGN.y, d: drawSign }, { y: UMBRELLA.y, d: drawUmbrella }, { y: BOX.y - 7, d: () => drawBox('back') }, { y: BOX.y, d: () => drawBox('front') });
@@ -2267,7 +2225,7 @@ function render() {
   for (const c of customers) if (c.state === 'order' || c.state === 'wait') compactAt(c.seat.y, () => drawBubble(c));
   sayBoxes.length = 0;
   for (const c of customers.slice().sort((a, b) => (a.say ? a.say.t : 0) - (b.say ? b.say.t : 0)).reverse()) if (c.say) compactAt(c.state === 'enter' || c.state === 'leave' ? c.y : c.seat.y, () => drawSay(c));
-  ctx.save(); ctx.scale(1,.5); drawParticles(); ctx.restore();
+  drawParticles();
 }
 
 // ================= キッチン画面（設備をタップして調理） =================
@@ -2797,7 +2755,7 @@ onCafeTap(e => {
   for (const s of seats) {
     if (s.dirty && Math.abs(x - s.itemX) < 12 && y > s.itemY / 2 - 13 && y < s.itemY / 2 + 9) { s.dirty = false; sfx.clean(); addFx('spark', s.itemX, s.itemY - 5); return; }
   }
-  if (x >= 150 && y < 20) { openStock(); return; }
+  if (x >= 168 && y < 26) { openStock(); return; }
   if (ponta) { const py = ponta.state === 'nap' ? ponta.y / 2 - 9 : ponta.y / 2 - 20; if (Math.hypot(x - ponta.x, y - py) < 24) { wakePonta(); return; } }
   let best = null, bd = 26;
   for (const k of cats) {
@@ -3074,7 +3032,7 @@ const SNS_NAMES = ['ねこすき子', 'カフェめぐり部', 'もふもふ太�
 const SNS_HANDLES = ['nekosukiko', 'cafe_meguri', 'mofumofu_taro', 'nikukyu_club', 'nuko_kacho', 'shippo_lab', 'milktea_party', 'amaimono_d', 'nekojima', 'hinata_bocco'];
 function snsState() { if (!G.sns) G.sns = { followers: 12, posts: [], unread: 0, seq: 0 }; return G.sns; }
 function snapCafe() {
-  const c = mk(180, 240), g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.drawImage(cv, 0, 0, 180, 240);
+  const c = mk(180, Math.round(180 * cv.height / cv.width)), g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(cv, 0, 0, c.width, c.height);
   try { return c.toDataURL('image/jpeg', 0.75); } catch (_) { return null; }
 }
 const REPLIES = ['いきたい！', 'かわいすぎる…', 'こんど行きます！', 'ねこちゃん〜', 'おいしそう', 'え、ねこが運んでくれるの？', 'このねこ だれですか', 'フォローしました！'];

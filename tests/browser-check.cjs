@@ -142,6 +142,25 @@ fs.mkdirSync(artifacts, {recursive:true});
       return {issues,walk,portraitCount:Object.keys(frames.grio).filter(k=>k.startsWith('f_')).length};
     });
     assert.deepEqual(spriteChecks.issues,[]);assert.deepEqual(spriteChecks.walk,['walk0','walk1','walk2','walk3']);assert.equal(spriteChecks.portraitCount,8);
+    const newArtwork=await p.evaluate(()=>{
+      const look={hair:'#5a3a22',skin:'#f8dcc0',shirt:'#80a890',pants:'#4a4a58',long:true};
+      const im=PERSON_FRAMES.map(f=>CafeArt.person(look,f));
+      const head=c=>c.getContext('2d').getImageData(0,0,48,35).data.join(',');
+      const sheet=document.createElement('canvas');sheet.width=480;sheet.height=210;const sg=sheet.getContext('2d');sg.fillStyle='#fff0d8';sg.fillRect(0,0,480,210);
+      for(let n=0;n<im.length;n++)sg.drawImage(im[n],n*58+5,72-im[n].height);
+      const short={...look,hair:'#342a24',skin:'#c8936a',shirt:'#ce8e78',long:false};PERSON_FRAMES.forEach((f,n)=>{const c=CafeArt.person(short,f);sg.drawImage(c,n*58+5,150-c.height);});
+      sg.drawImage(CafeArt.table(),10,156);sg.drawImage(CafeArt.chair(),110,151);sg.drawImage(CafeArt.stool(),164,175);
+      const transforms=[];sceneAsset(.85,0,0,()=>{const m=ctx.getTransform();transforms.push([m.a,m.d]);});
+      sceneAsset(.68,143,0,()=>{const m=ctx.getTransform();transforms.push([m.a,m.d]);});
+      return {sheet:sheet.toDataURL().split(',')[1],frames:im.map(c=>[c.width,c.height]),heads:[head(im[0])===head(im[1]),head(im[0])===head(im[2])],transforms,
+        furniture:[CafeArt.table(),CafeArt.chair(),CafeArt.stool()].map(c=>[c.width,c.height])};
+    });
+    fs.writeFileSync(path.join(artifacts,'cafe-assets.png'),Buffer.from(newArtwork.sheet,'base64'));
+    assert(newArtwork.heads.every(Boolean),'walking people keep identical face');
+    assert(newArtwork.transforms.every(([x,y])=>x===y),'decor uniformly scaled');
+    assert.deepEqual(newArtwork.frames,[[48,72],[48,72],[48,72],[48,54],[48,54],[48,54],[48,54],[48,54]]);
+    assert.deepEqual(newArtwork.furniture,[[88,52],[38,58],[34,34]]);
+    console.log('PASS native people all 8 frames; stable walking faces; decor aspect ratios');
     const bowSheet=await p.evaluate(()=>{
       const sheet=document.createElement('canvas');sheet.width=720;sheet.height=520;
       const g=sheet.getContext('2d'),keep=ctx;ctx=g;
@@ -211,6 +230,17 @@ fs.mkdirSync(artifacts, {recursive:true});
     for(const id of ['btnShop','btnCats','btnStock','btnNyaimee','btnNyax']){
       await p.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;closeModal();});await p.locator('#'+id).click();assert(await p.locator('#modal').isVisible());
     }
+    await p.evaluate(()=>{
+      closeModal();talking=null;talkQ.length=0;$('talk').hidden=true;
+      Object.assign(G.furniture,{table:6,stool:3,plant:3,cushion:4,tower:1,shelf:1,rug:1,lamp:1});
+      G.staff=true;buildSeats();customers=[];
+      for(const [n,seat] of seats.entries()){
+        if(n%2)continue;const c={seat,x:seat.x,y:seat.y,state:n%4?'order':'eat',order:MENU[0],t:100,pat:600,maxPat:760,spr:makePerson(randomLook()),anim:0,quality:'normal'};
+        seat.cust=c;customers.push(c);
+      }
+      render();renderKitchen();
+    });
+    await p.screenshot({path:path.join(artifacts,'renewed-cafe.png')});
     await p.goto(new URL('animation-preview.html',base).href);await p.waitForFunction(()=>document.querySelectorAll('.card').length===49);await p.screenshot({path:path.join(artifacts,'gallery.png'),fullPage:true});
     assert.deepEqual(errors,[]);console.log('PASS all frames, carrying walk, ordering/cooking/delivery, save reload and UI panels; no runtime errors');
   } finally {await browser.close();if(server)server.close();}
