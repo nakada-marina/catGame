@@ -234,7 +234,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .actions-row button { flex: 1; min-width: 120px; }
 .kv-wrap { position: relative; border-radius: 8px; overflow: hidden; }
 .kv-anim { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.title-art { display: block; width: 100%; height: auto; aspect-ratio: 1500 / 941; border-radius: 8px; background: #3a2a1c; }
+.title-art { display: block; width: 100%; height: auto; aspect-ratio: 1248 / 1242; border-radius: 8px; background: #3a2a1c; }
 #sub { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--chalk-dim); gap: 8px; }
 #sub > span:not(.tools) { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #kitchenCv { display: block; width: 100%; max-width: 100%; aspect-ratio: 448 / 168; image-rendering: pixelated; border: 3px solid #0f1814; border-radius: 6px; touch-action: none; cursor: pointer; background: #f2f4f0; }
@@ -2602,8 +2602,8 @@ function openCats() {
   $('mClose').onclick = closeModal;
 }
 // ================= タイトルのキービジュアルを 動かす =================
-// kv-anim.webp に、看板の板・ロゴの文字・とじた目 が入っている。座標は キービジュアル（1500×941）の ピクセル
-const KV_META = {"W":1500,"H":941,"parts":{"board":[420,55,676,317,0,0],"ぐ":[494,60,116,158,678,0],"り":[617,96,103,122,796,0],"お":[740,88,135,130,901,0],"の":[877,141,86,71,1038,0],"paw":[966,99,120,113,1126,0],"ね":[457,228,139,124,1248,0],"こ":[602,236,108,116,0,319],"カ":[729,228,124,124,110,319],"フ":[866,236,117,116,236,319],"ェ":[984,278,84,74,355,319],"gL_half":[506,472,61,52,441,319],"gL_closed":[506,472,61,52,504,319],"gR_half":[582,490,66,50,567,319],"gR_closed":[582,490,66,50,635,319],"pL_half":[886,549,64,50,703,319],"pL_closed":[886,549,64,50,769,319],"pR_half":[968,550,64,52,835,319],"pR_closed":[968,550,64,52,901,319]},"glyphs":["ぐ","り","お","の","paw","ね","こ","カ","フ","ェ"]};
+// kv-anim.webp に、看板の板・ロゴの文字・とじた目 が入っている。座標は キービジュアル（1248×1242）の ピクセル
+const KV_META = {"W":1248,"H":1242,"parts":{"board":[300,100,700,310,0,0],"ぐ":[360,125,115,129,702,0],"り":[476,132,104,122,819,0],"お":[588,126,137,125,925,0],"の":[726,174,86,77,1064,0],"paw":[834,120,149,131,0,312],"ね":[327,264,145,126,151,312],"こ":[474,270,110,120,298,312],"カ":[592,258,138,132,410,312],"フ":[733,267,127,125,550,312],"ェ":[861,315,94,77,679,312],"g_closed":[276,534,282,150,775,312],"p_closed":[786,696,264,144,0,464]},"glyphs":["ぐ","り","お","の","paw","ね","こ","カ","フ","ェ"]};
 function startKVAnim(wrap) {
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const M = KV_META, P = M.parts, cv = document.createElement('canvas');
@@ -2632,7 +2632,7 @@ function startKVAnim(wrap) {
       g.clearRect(0, 0, M.W, M.H);
       // ランプの 明かりが ふわっと
       g.globalCompositeOperation = 'lighter';
-      [[397, 136], [95, 265], [1228, 168]].forEach(([x, y], i) => {
+      [[175, 185], [1160, 255]].forEach(([x, y], i) => {
         const a = 0.13 + 0.07 * Math.sin(t * 1.6 + i * 2.1), gr = g.createRadialGradient(x, y, 4, x, y, 90);
         gr.addColorStop(0, `rgba(255,210,120,${a.toFixed(3)})`); gr.addColorStop(1, 'rgba(255,200,100,0)');
         g.fillStyle = gr; g.fillRect(x - 90, y - 90, 180, 180);
@@ -2662,38 +2662,30 @@ function startKVAnim(wrap) {
           g.globalCompositeOperation = 'overlay'; g.drawImage(tmp, x, y); g.globalCompositeOperation = 'source-over';
         }
       }
-      [[440, 70], [1100, 62], [425, 330], [1215, 360], [800, 40], [1000, 380]].forEach(([x, y], i) => {
+      [[262, 112], [1028, 98], [262, 405], [1042, 300], [640, 82], [820, 428]].forEach(([x, y], i) => {
         const a = Math.sin(t * 2.2 + i * 1.7); if (a < 0.35) return;
         const r = Math.round(3 + (a - 0.35) * 9);
         px(x - 2, y - r, 4, r * 2, `rgba(255,248,200,${(0.5 + a * 0.5).toFixed(2)})`); px(x - r, y - 2, r * 2, 4, `rgba(255,248,200,${(0.5 + a * 0.5).toFixed(2)})`); px(x - 2, y - 2, 4, 4, '#ffffff');
       });
-      // おめめ ぱちぱち（ぐりおは すばやく、ぽんたは ねむそうに ゆっくり）
-      const blink = (b, dur) => b < 0 ? null : b < dur * 0.25 ? 'half' : b < dur * 0.75 ? 'closed' : b < dur ? 'half' : null;
-      const bg = (t % 3.7), bg2 = ((t + 0.35) % 3.7);
-      const gk = blink(bg < 0.25 ? bg : (t % 11 > 7.4 && bg2 < 0.25 ? bg2 : -1), 0.22);
-      const pk = blink((t + 1.9) % 5.3, 0.6);
-      if (gk) { part('gL_' + gk); part('gR_' + gk); }
-      if (pk) { part('pL_' + pk); part('pR_' + pk); }
+      // おめめ ぱちぱち（とじた目の コマを ふわっと 重ねる。ぐりおは すばやく、ぽんたは ねむそうに ゆっくり）
+      const lid = (b, dur) => b < 0 || b > dur ? 0 : Math.min(1, Math.sin(Math.PI * b / dur) * 1.6);
+      const bg = t % 3.7, bg2 = (t + 0.4) % 3.7;
+      const ga = Math.max(lid(bg, 0.2), t % 11 > 7.4 ? lid(bg2, 0.2) : 0), pa = lid((t + 1.9) % 5.3, 0.65);
+      if (ga > 0) { g.globalAlpha = ga; part('g_closed'); }
+      if (pa > 0) { g.globalAlpha = pa; part('p_closed'); }
+      g.globalAlpha = 1;
       // コーヒー：お湯が ながれる
-      for (let y = 652; y < 708; y += 2) {
-        const hi = ((y - t * 150) % 16 + 16) % 16 < 5, wob = y > 696 ? Math.round(Math.sin(t * 20 + y) * 0.7) : 0;
-        px(549 + wob, y, 3, 2, hi ? 'rgba(255,240,200,0.95)' : 'rgba(225,165,95,0.9)');
+      for (let y = 850; y < 928; y += 3) {
+        const hi = ((y - t * 170) % 24 + 24) % 24 < 8, wob = y > 912 ? Math.round(Math.sin(t * 20 + y) * 1) : 0;
+        px(371 + wob, y, 6, 3, hi ? 'rgba(255,240,200,0.95)' : 'rgba(225,165,95,0.9)');
       }
-      for (let i = 0; i < 3; i++) { const p = (t * 2.2 + i / 3) % 1; px(551 + (i - 1) * 6 * p, 706 - Math.sin(p * Math.PI) * 6, 2, 2, `rgba(255,230,190,${(1 - p).toFixed(2)})`); }
+      for (let i = 0; i < 3; i++) { const p = (t * 2.2 + i / 3) % 1; px(372 + (i - 1) * 10 * p, 926 - Math.sin(p * Math.PI) * 10, 4, 4, `rgba(255,230,190,${(1 - p).toFixed(2)})`); }
       // ポタポタ しずく と 波もん
-      const dp = (t % 0.9) / 0.9, dyp = 772 + dp * dp * 46;
-      if (dp < 0.85) { px(551, dyp, 3, 4, '#4a2412'); px(551, dyp, 1, 1, '#c08060'); }
-      else { const r = (dp - 0.85) / 0.15; g.strokeStyle = `rgba(210,150,100,${(1 - r).toFixed(2)})`; g.lineWidth = 1.5; g.beginPath(); g.ellipse(552, 820, 4 + r * 14, 1.5 + r * 2, 0, 0, Math.PI * 2); g.stroke(); }
+      const dp = (t % 0.9) / 0.9, dyp = 1002 + dp * dp * 68;
+      if (dp < 0.85) { px(372, dyp, 5, 7, '#4a2412'); px(372, dyp, 2, 2, '#c08060'); }
+      else { const r = (dp - 0.85) / 0.15; g.strokeStyle = `rgba(210,150,100,${(1 - r).toFixed(2)})`; g.lineWidth = 2.5; g.beginPath(); g.ellipse(375, 1076, 6 + r * 22, 2 + r * 3, 0, 0, Math.PI * 2); g.stroke(); }
       // ゆげ
-      steam(410, 788, t, 0); steam(552, 700, t, 1.3); steam(1122, 280, t, 2.1);
-      // ねている ねこの Zzz
-      g.font = '22px "DotGothic16", monospace'; g.textBaseline = 'alphabetic';
-      [[175, 80], [1420, 330], [1452, 610]].forEach(([x, y], i) => {
-        const p = (t * 0.35 + i * 0.37) % 1;
-        g.fillStyle = `rgba(255,255,255,${(Math.sin(p * Math.PI) * 0.9).toFixed(2)})`;
-        g.font = `${Math.round(16 + p * 10)}px "DotGothic16", monospace`;
-        g.fillText('z', x + p * 18, y - p * 40);
-      });
+      steam(165, 1040, t, 0); steam(376, 900, t, 1.3); steam(1030, 318, t, 2.1);
     };
     requestAnimationFrame(frame);
   };
@@ -2702,7 +2694,7 @@ function startKVAnim(wrap) {
 function openTitle() {
   const saved = loadSave();
   openModal(`
-    <div class="kv-wrap" id="kvWrap"><img id="titleArt" class="title-art" src="keyvisual.webp" width="1500" height="941" alt="ぐりおのねこカフェ"></div>
+    <div class="kv-wrap" id="kvWrap"><img id="titleArt" class="title-art" src="keyvisual.webp" width="1248" height="1242" alt="ぐりおのねこカフェ"></div>
     <p>店長ねこ「ぐりお」といっしょに、小さなねこカフェを人気のお店にしよう。</p>
     <p class="sub">・ふきだしをタップ → 注文をうける<br>・下のキッチンで設備をタップ → 調理。ちょうどいいときにもう一度タップでパーフェクト<br>・できあがり台の料理をタップ → はこぶ<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう<br>・料理の材料は「仕入れ」で。閉店後に買うとやすい</p>
     <p class="sub">目標：ひょうばん ★5 と もちきん ¥100,000</p>
