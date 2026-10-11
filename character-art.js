@@ -8,6 +8,16 @@
     const [x, y, w, h] = meta[key], portrait = key.includes('.f_');
     const raw = document.createElement('canvas'); raw.width = w; raw.height = h;
     const rg = raw.getContext('2d'); rg.drawImage(image, x, y, w, h, 0, 0, w, h);
+    if (key === 'grio.f_normal') {
+      // The original normal portrait has a damaged nose/muzzle (vertical smear).
+      // Restore only that region from the approved sleepy portrait of the same
+      // character. Keep the normal eyes, ears, head shape and fur pattern.
+      const [sx, sy] = meta['grio.f_sleepy'];
+      rg.clearRect(0, 32, w, h - 32);
+      rg.drawImage(image, sx, sy + 32, w, h - 32, 0, 32, w, h - 32);
+      rg.clearRect(25, 26, 14, 6);
+      rg.drawImage(image, sx + 25, sy + 26, 14, 6, 25, 26, 14, 6);
+    }
     if (portrait) return raw;
     // Centre on the head/body, rather than the tail or carried prop.
     // Top-band alpha bounds provide a stable body axis for all four steps.

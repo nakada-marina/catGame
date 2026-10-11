@@ -120,3 +120,9 @@ body {
   #actions button {min-height:44px;padding:4px 1px}
   #wrap {height:auto!important}
 }
+
+/* iOS double-tap must act on the game, not zoom the page. Pinch/scroll
+   remain browser gestures; the two interactive canvases keep touch-action:none. */
+html, body, #wrap, #stage, #talk, #actions, #sub, .panel, button {
+  touch-action: manipulation;
+}

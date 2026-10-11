@@ -3,6 +3,8 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), http = require('node:http');
+const artifacts = path.join(require('node:os').tmpdir(), 'catgame-check');
+fs.mkdirSync(artifacts, {recursive:true});
 (async () => {
   let server;
   const base = process.env.BASE_URL || 'http://127.0.0.1:8765/';
@@ -29,9 +31,11 @@ const fs = require('node:fs'), path = require('node:path'), http = require('node
         return {controls,width:innerWidth,height:innerHeight,backing:cv.width,physical:cv.getBoundingClientRect().width*devicePixelRatio,atlas:!!CHAR_SPR.grio && !!CHAR_SPR.ponta};
       });
       assert(result.atlas);
+      const touch=await page.evaluate(()=>['wrap','talk','actions','sub','btnFood'].map(id=>getComputedStyle($(id)).touchAction));
+      assert(touch.every(v=>v==='manipulation'));
       for (const r of result.controls) { assert(r.left>=0&&r.right<=width+1, 'horizontal clipping'); assert(r.top>=0&&r.bottom<=height+1, `vertical clipping ${width}x${height}`); }
       assert(result.backing>=result.physical-1);
-      if (width===393) await page.screenshot({path:'/tmp/catgame-check/game.png'});
+      if (width===393) await page.screenshot({path:path.join(artifacts,'game.png')});
       console.log(`PASS viewport ${width}x${height} DPR ${dpr}`);
       await page.close();
     }
@@ -47,6 +51,11 @@ const fs = require('node:fs'), path = require('node:path'), http = require('node
       };
       for(const [key,[x,y,w,h]] of Object.entries(CatArtwork.meta)){
         const raw=document.createElement('canvas');raw.width=w;raw.height=h;raw.getContext('2d').drawImage(atlas,x,y,w,h,0,0,w,h);
+        if(key==='grio.f_normal'){
+          const [sx,sy]=CatArtwork.meta['grio.f_sleepy'],g=raw.getContext('2d');
+          g.clearRect(0,32,64,32);g.drawImage(atlas,sx,sy+32,64,32,0,32,64,32);
+          g.clearRect(25,26,14,6);g.drawImage(atlas,sx+25,sy+26,14,6,25,26,14,6);
+        }
         const [who,pose]=key.split('.');
         if(colours(raw)!==colours(frames[who][pose]))issues.push(key+' altered or clipped pixels');
       }
@@ -91,7 +100,7 @@ const fs = require('node:fs'), path = require('node:path'), http = require('node
     for(const id of ['btnShop','btnCats','btnStock','btnNyaimee','btnNyax']){
       await p.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;closeModal();});await p.locator('#'+id).click();assert(await p.locator('#modal').isVisible());
     }
-    await p.goto(new URL('animation-preview.html',base).href);await p.waitForFunction(()=>document.querySelectorAll('.card').length===45);await p.screenshot({path:'/tmp/catgame-check/gallery.png',fullPage:true});
+    await p.goto(new URL('animation-preview.html',base).href);await p.waitForFunction(()=>document.querySelectorAll('.card').length===45);await p.screenshot({path:path.join(artifacts,'gallery.png'),fullPage:true});
     assert.deepEqual(errors,[]);console.log('PASS all frames, carrying walk, ordering/cooking/delivery, save reload and UI panels; no runtime errors');
   } finally {await browser.close();if(server)server.close();}
 })().catch(e=>{console.error(e);process.exit(1);});
