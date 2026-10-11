@@ -485,7 +485,7 @@ let G = null;            // セーブされる進行データ
 let seats = [], customers = [], cats = [], particles = [], furs = [];
 let tick = 0, speed = 1, mode = 'title', spawnTimer = 200, staffBusy = 0;
 let jobs = [], jobSeq = 0, ponta = null;
-const PONTA_HOME = { x: 140, y: 108 };
+const PONTA_HOME = { x: 92, y: 108 };
 const PICKUP_X = { drink: 162, oven: 194, stove: 213 };
 let dayLog = null, weather = 'sun', dayFlags = {}, rushUntil = 0, vipNext = false;
 
@@ -1093,6 +1093,19 @@ function drawPonta() {
     P('#2e7a4e', right ? x0 + 14 : x0 + 2, y0 + 6, 4, 2);
   }
   if (p.carry) ctx.drawImage(ICON[p.carry.item.id], Math.round(p.x - 4), y0 - 9 + ((tick >> 3) & 1));
+  else {
+    // 名札
+    const tx = Math.round(p.x), ty = y0 - 8;
+    ctx.font = '7px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    P('#2e7a4e', tx - 11, ty, 22, 8); P('#5ab07a', tx - 11, ty, 22, 1);
+    ctx.fillStyle = '#ffffff'; ctx.fillText('ぽんた', tx, ty);
+  }
+  // 1日のはじめと、ぽんたの話をしているときは ▼ で知らせる
+  const talkingAbout = talking && talking.lines.some(l => l[2] === 'ponta' || /ぽんた/.test(l[1]));
+  if ((tick < 360 || talkingAbout) && (tick >> 4) & 1) {
+    const ax = Math.round(p.x), ay = y0 - (p.carry ? 20 : 18);
+    P('#f2c14e', ax - 3, ay, 7, 2); P('#f2c14e', ax - 2, ay + 2, 5, 1); P('#f2c14e', ax - 1, ay + 3, 3, 1); P('#f2c14e', ax, ay + 4, 1, 1);
+  }
   if (p.state === 'nap') {
     ctx.font = '7px "DotGothic16", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#5a6aa0';
     const k = (tick >> 4) % 3; ctx.fillText('z', p.x + 8, p.y - 10 - k * 2); if (k > 0) ctx.fillText('Z', p.x + 12, p.y - 15 - k);
