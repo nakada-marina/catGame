@@ -177,6 +177,20 @@ fs.mkdirSync(artifacts, {recursive:true});
     });
     fs.writeFileSync(path.join(artifacts,'detailed-guests.png'),Buffer.from(detailedGuests,'base64'));
     console.log('PASS four detailed guests all eight states, walking faces stable');
+    const walkGuests=await p.evaluate(()=>{
+      const sheet=document.createElement('canvas');sheet.width=1024;sheet.height=672;const g=sheet.getContext('2d');g.fillStyle='#fff0d8';g.fillRect(0,0,1024,672);
+      for(let n=0;n<4;n++)for(let f=0;f<4;f++){
+        const right=GuestArt.walk({guest:n},f,1),left=GuestArt.walk({guest:n},f,-1);
+        const r=right.getContext('2d').getImageData(0,0,128,168).data,l=left.getContext('2d').getImageData(0,0,128,168).data;
+        for(let y=0;y<168;y++)for(let x=0;x<128;x++)for(let k=0;k<4;k++)if(r[(y*128+x)*4+k]!==l[(y*128+127-x)*4+k])throw Error('Guest facing mismatch');
+        if(right.logicalHeight!==84)throw Error('Walking guest scale');
+        g.drawImage(right,f*128,n*168);g.drawImage(left,512+f*128,n*168);
+      }
+      const c={x:10,y:10};moveTo(c,20,10,1);if(c.face!==1)throw Error('Right motion');moveTo(c,0,10,1);if(c.face!==-1)throw Error('Left motion');
+      return sheet.toDataURL().split(',')[1];
+    });
+    fs.writeFileSync(path.join(artifacts,'walking-guests.png'),Buffer.from(walkGuests,'base64'));
+    console.log('PASS all 16 walking frames both directions and enlarged scale');
     const bowSheet=await p.evaluate(()=>{
       const sheet=document.createElement('canvas');sheet.width=720;sheet.height=520;
       const g=sheet.getContext('2d'),keep=ctx;ctx=g;

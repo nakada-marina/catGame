@@ -271,7 +271,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .make .zero { color: var(--bad); }
 #sub button { padding: 4px 10px; font-size: 12px; border-bottom-width: 2px; white-space: nowrap; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261012-detail">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261012-walk">
 </head>
 <body>
 <div id="wrap">
@@ -305,12 +305,12 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
-<script src="./kitchen-art.js?v=20261012-detail"></script>
-<script src="./guest-art.js?v=20261012-detail"></script>
-<script src="./cafe-art.js?v=20261012-detail"></script>
+<script src="./kitchen-art.js?v=20261012-walk"></script>
+<script src="./guest-art.js?v=20261012-walk"></script>
+<script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-detail.js?v=20261012-detail"></script>
-<script src="./character-art.js?v=20261012-detail"></script>
+<script src="./character-detail.js?v=20261012-walk"></script>
+<script src="./character-art.js?v=20261012-walk"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -1993,14 +1993,14 @@ function customerPose(c) {
 }
 function drawCustomer(c) {
   if (c.state === 'enter' || c.state === 'leave') {
-    const f = (c.anim >> 2) & 3, img = c.spr[['a', 'b', 'a', 'c'][f]];
+    const f = (c.anim >> 3) & 3, img = c.look ? GuestArt.walk(c.look, f, c.face || 1) : c.spr[['a', 'b', 'a', 'c'][f]];
     const Y = Math.round(c.y * 2 - (img.logicalHeight || img.height));
     floorShadow(c.x * 2, c.y * 2 - 1, 11, 3, 0.2);
     drawAt(img, c.x * 2 - (img.logicalWidth || img.width) / 2, Y);
     if (c.vip) drawCrown(c.x * 2, Y - 8);
   } else {
     const f = customerPose(c), bob = 0;
-    const img = c.seat.counter ? c.spr.back : c.spr[f], top = c.seat.y * 2 - (c.seat.counter ? 22 : 0) - (img.logicalHeight || img.height) + (img.guestDetail && !c.seat.counter ? 2 : 0) + bob;
+    const img = c.seat.counter ? c.spr.back : c.spr[f], top = c.seat.y * 2 - (c.seat.counter ? 22 : 0) - (img.logicalHeight || img.height) + (img.guestDetail && !c.seat.counter ? 4 : 0) + bob;
     drawAt(img, c.seat.x * 2 - (img.logicalWidth || img.width) / 2, top);
     if (c.vip && c.state !== 'order') drawCrown(c.seat.x * 2, top - 8);
   }
