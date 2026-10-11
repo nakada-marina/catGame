@@ -124,8 +124,6 @@ body {
 .nx-head { background: #101418; color: #fff; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
 .nx-head b { font-size: 22px; font-weight: normal; }
 .nx-head span { font-size: 12px; color: #9aa4ae; }
-.nx-tabs button { background: #22282e; border-bottom-color: #101418; }
-.nx-tabs button.on { background: #f4f6f8; color: #101418; border-bottom-color: #9aa4ae; }
 .nx-tl { display: flex; flex-direction: column; gap: 1px; background: #2a3238; border-radius: 8px; overflow: hidden; }
 .nx-post { display: grid; grid-template-columns: 40px 1fr; gap: 10px; background: #15191d; color: #e8ecef; padding: 10px; }
 .nx-post.bad p { color: #ffb0a0; }
@@ -135,20 +133,13 @@ body {
 .nx-who { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nx-who b { font-weight: normal; color: #fff; }
 .nx-who span { color: #8a949e; font-size: 11px; }
-.nx-body p { margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.nx-body p { margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-line; }
 .nx-body img { width: 100%; max-width: 240px; border-radius: 8px; image-rendering: pixelated; border: 1px solid #2a3238; }
 .nx-acts { display: flex; gap: 14px; font-size: 12px; color: #8a949e; flex-wrap: wrap; }
 .nx-acts .lk { color: #f2789a; }
 .nx-acts .bz { color: #101418; background: #f2c14e; border-radius: 4px; padding: 0 6px; }
 .nx-rep { font-size: 12px; color: #b8c0c8; border-left: 2px solid #2a3238; padding-left: 8px; }
 .nx-rep b { font-weight: normal; color: #e8ecef; }
-.nx-compose { display: flex; flex-direction: column; gap: 8px; }
-.nx-compose textarea { font-family: inherit; font-size: 16px; min-height: 84px; resize: vertical; border-radius: 8px; border: 2px solid #3a4d44; background: #fffdf6; color: #2a1e10; padding: 8px; -webkit-user-select: text; user-select: text; }
-.nx-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; gap: 8px; }
-.nx-row label { display: flex; align-items: center; gap: 6px; }
-.nx-tpls { display: flex; flex-direction: column; gap: 6px; }
-.nx-tpls button { text-align: left; font-size: 13px; background: #24352e; border-bottom-color: #18241f; padding: 8px 10px; white-space: normal; }
-.nx-btn { background: #101418 !important; color: #fff !important; }
 button {
   font-family: inherit;
   font-size: 14px;
@@ -207,6 +198,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
   flex-direction: column;
   gap: 12px;
 }
+.panel > * { flex-shrink: 0; }
 .panel h2 { margin: 0; font-size: 22px; font-weight: normal; color: var(--butter); text-wrap: balance; }
 .panel p { margin: 0; line-height: 1.6; font-size: 15px; }
 .panel .sub { color: var(--chalk-dim); font-size: 13px; }
@@ -1082,7 +1074,7 @@ function updatePonta() {
       const j = jobs.find(j => j.state === 'ready' && !j.taker);
       if (j) { j.taker = p; p.job = j; p.state = 'toCounter'; break; }
       if (moveTo(p, PONTA_HOME.x, PONTA_HOME.y, sp)) {
-        if (p.napCool <= 0 && Math.random() < 0.006) { p.state = 'nap'; p.t = Math.floor(rnd(700, 1300)); event('pontaNap'); }
+        if (p.napCool <= 0 && Math.random() < 0.006) { dayLog.pontaNaps = (dayLog.pontaNaps || 0) + 1; p.state = 'nap'; p.t = Math.floor(rnd(700, 1300)); event('pontaNap'); }
         else if (p.napCool <= 0 && Math.random() < 0.002) { p.state = 'slack'; p.t = 360; addFx('text', p.x, p.y - 26, { text: 'ペロペロ…', color: '#ffffff', life: 50 }); }
       } else p.anim++;
       break;
@@ -1357,6 +1349,8 @@ function endDay() {
   cats = cats.filter(k => !k.temp);
   G.cats = cats.map(k => ({ name: k.name, pal: k.pal, mood: Math.round(k.mood), hunger: Math.round(k.hunger) }));
   const finished = G.day;
+  clearTimeout(toastTimer); $('toast').hidden = true;
+  const gpost = grioDailyPost(finished, dayLog);
   G.day++;
   G.market = rollMarket();
   let legend = '';
@@ -1372,9 +1366,12 @@ function endDay() {
     </div>
     ${waste.length ? `<p class="sub" style="color:var(--bad)">日もちが切れて すてた材料：${waste.map(([n, k]) => `${n}×${k}`).join('、')}</p>` : ''}
     ${legend}
+    <p class="sub">ぐりおが ニャックスに ポストしました</p>
+    <div class="nx-tl"><div class="nx-post"><div class="nx-av" style="background:#e9dcc0"><canvas width="64" height="64" data-face="1"></canvas></div><div class="nx-body"><div class="nx-who"><b>ぐりおのねこカフェ</b> <span>@guriocafe</span></div><p>${gpost.text.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</p><img src="${gpost.img}" alt="閉店後のお店" style="max-width:160px"></div></div></div>
     ${revs.length ? '<p class="sub">お客さんの声</p>' + revs.join('') : '<p class="sub">きょうはお客さんが来ませんでした。</p>'}
     <div class="actions-row"><button type="button" id="mStock">あすの仕入れ</button><button type="button" id="mShop">ショップ</button><button type="button" id="mNext">つぎの日へ</button></div>
   `);
+  $('panel').querySelectorAll('[data-face]').forEach(c => c.getContext('2d').drawImage(FACES.grio.happy, 0, 0));
   $('mNext').onclick = () => { closeModal(); startDay(); };
   $('mShop').onclick = () => openShop('furniture', true);
   $('mStock').onclick = () => openStock(true);
@@ -2277,7 +2274,7 @@ function buy(id) {
     const a = ADOPT.find(x => x.pal === key); if (G.money < a.price || cats.some(c => c.pal === key)) return;
     G.money -= a.price;
     const k = { name: a.name, pal: a.pal, mood: 60, hunger: 30 };
-    G.cats.push(k); cats.push(makeCat(k, ENTRANCE.x, 282));
+    G.cats.push(k); cats.push(makeCat(k, ENTRANCE.x, 282)); if (dayLog) dayLog.newCat = a.name;
     toast(`${a.name}がカフェのなかまになりました`); setTimeout(sfx.meow, 300);
     say([['happy', `${a.name}、ようこそ！ なかよく しようにゃ。`]]);
   } else if (kind === 'p') {
@@ -2643,11 +2640,10 @@ const TALKS = {
     ['sad', '……まったく もう。'],
   ],
   nyax: [
-    ['surprise', 'ニャックス、はじめるの？'],
-    ['normal', 'お店のことを つぶやくと、見た人が 来てくれるかも。写真や ねこの名前を 入れると 見てもらいやすいにゃ。'],
-    ['happy', 'お昼や 夕方が ねらいめ。バズったら お客さんが どっと 来るよ！'],
+    ['happy', 'ニャックスは ぼくの 担当だにゃ！'],
+    ['normal', '毎日 閉店したら、その日の お店のことを つぶやいてるよ。お客さんが たくさん来て パーフェクトが多い日ほど 見てもらえるにゃ。'],
+    ['surprise', 'バズったら つぎの日、お客さんが どっと 来るよ！'],
   ],
-  nyaxFirst: [['happy', 'はじめての ポスト！ いいねが つくか ドキドキするにゃ…']],
   nyaimee: [
     ['surprise', 'ニャイミー、つかうの？'],
     ['normal', 'スキマ時間に はたらきたい 野良ねこさんと お店を つなぐ アプリだにゃ。'],
@@ -2711,53 +2707,17 @@ function checkEvents() {
 const SNS_NAMES = ['ねこすき子', 'カフェめぐり部', 'もふもふ太郎', 'にくきゅう愛好会', 'ぬこ課長', 'しっぽ研究所', 'ミルクティー党', 'あまいもの日記', 'ねこ島ねこ美', 'ひなたぼっこ'];
 const SNS_HANDLES = ['nekosukiko', 'cafe_meguri', 'mofumofu_taro', 'nikukyu_club', 'nuko_kacho', 'shippo_lab', 'milktea_party', 'amaimono_d', 'nekojima', 'hinata_bocco'];
 function snsState() { if (!G.sns) G.sns = { followers: 12, posts: [], unread: 0, seq: 0 }; return G.sns; }
-function snsTemplates() {
-  const names = cats.filter(k => !k.temp).map(k => k.name);
-  const items = MENU.filter(m => G.menu.includes(m.id)).map(m => m.name);
-  return [
-    `きょうも ぐりおのねこカフェ 開店しました！ ${pick(names)}が おまちしてます`,
-    `${pick(items)}、できたてです。${pick(names)}と いっしょに どうぞ`,
-    `${pick(names)}が おひるねちゅう…しずかに見守ってください`,
-    `店長ぐりおより：きょうも がんばるにゃ`,
-    `雨の日は ねこと まったり。あたたかい ${pick(items)}あります`,
-  ];
-}
-// いいねの伸び方を決める
-function postReach(text, withPhoto) {
-  const sns = snsState();
-  let base = 4 + sns.followers * 0.12 + G.pop * 0.25, mult = 1;
-  if (withPhoto) mult += 0.7 + Math.min(0.6, cats.length * 0.1);
-  const catNames = cats.map(k => k.name).concat(['ねこ', 'ぐりお', 'ぽんた']);
-  mult += Math.min(0.9, catNames.filter(n => text.includes(n)).length * 0.3);
-  if (MENU.some(m => G.menu.includes(m.id) && text.includes(m.name))) mult += 0.25;
-  const t = G.time; if ((t >= 690 && t <= 810) || t >= 1020) mult *= 1.3;
-  const recent = sns.posts.filter(p => p.mine && p.day === G.day && G.time - p.t < 120).length;
-  mult *= Math.pow(0.5, recent);
-  if (text.length < 6) mult *= 0.5;
-  let luck = rnd(0.6, 1.8); if (Math.random() < 0.06) luck *= 6;
-  return Math.max(1, Math.round(base * mult * luck));
-}
 function snapCafe() {
   const c = mk(180, 240), g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.drawImage(cv, 0, 0, 180, 240);
   return c.toDataURL('image/jpeg', 0.75);
-}
-function postNyax(text, withPhoto) {
-  const sns = snsState();
-  text = text.trim().slice(0, 140); if (!text) return false;
-  const target = postReach(text, withPhoto);
-  sns.posts.unshift({ id: ++sns.seq, mine: true, name: 'ぐりおのねこカフェ', handle: 'guriocafe', text, img: withPhoto ? snapCafe() : null, day: G.day, t: G.time, likes: 0, rts: 0, replies: [], target, buzzed: false });
-  sns.posts = sns.posts.slice(0, 40);
-  tone(1568, 0.06, 'square', 0.2); tone(2093, 0.1, 'square', 0.2, null, 0.06);
-  toast('ニャックスに ポストしました');
-  event('nyaxFirst');
-  return true;
 }
 const REPLIES = ['いきたい！', 'かわいすぎる…', 'こんど行きます！', 'ねこちゃん〜', 'おいしそう', 'え、ねこが運んでくれるの？', 'このねこ だれですか', 'フォローしました！'];
 function snsTick() {
   const sns = G.sns; if (!sns) return;
   for (const p of sns.posts) {
-    if (!p.mine || p.day !== G.day) continue;
-    const prog = clamp((G.time - p.t) / 180, 0, 1);
+    const gd = p.growDay || p.day;
+    if (!p.mine || gd !== G.day) continue;
+    const prog = clamp((G.time - (p.growDay ? OPEN : p.t)) / 180, 0, 1);
     const likes = Math.round(p.target * (1 - Math.exp(-3.2 * prog)));
     if (likes > p.likes) {
       const gain = likes - p.likes; p.likes = likes; p.rts = Math.round(likes * 0.22);
@@ -2792,8 +2752,34 @@ function updateNyaxBadge() {
   const b = $('nyaxBadge'); if (!b || !G || !G.sns) return;
   b.textContent = G.sns.unread > 9 ? '9+' : G.sns.unread; b.hidden = !G.sns.unread;
 }
-let nyaxDraft = '', nyaxPhoto = true;
-function openNyax(tab = 'tl') {
+// ぐりおが 閉店後に その日のできごとを つぶやく
+function grioDailyPost(day, log) {
+  const sns = snsState();
+  const names = cats.filter(k => !k.temp && k.pal !== 'grio').map(k => k.name);
+  const parts = [`${day}日目、おしまいだにゃ。お客さん ${log.served}人 来てくれたにゃ。ありがとう！`];
+  const extra = [];
+  if ((log.perfect || 0) >= 3) extra.push(`きょうは パーフェクトな 料理を ${log.perfect}回 つくれたにゃ`);
+  if (log.newCat) extra.push(`あたらしい なかまの ${log.newCat}が 来たにゃ。よろしくね`);
+  if (log.pontaNaps) extra.push(`ぽんたは きょうも ${log.pontaNaps}回 ねてたにゃ…`);
+  if (log.nyaimee) extra.push('ニャイミーの ねこさんが 手伝ってくれたにゃ');
+  if (weather === 'rain') extra.push('雨の中 来てくれた お客さん、ありがとにゃ');
+  if (log.angry) extra.push('おまたせしちゃった お客さん、ごめんにゃ…');
+  const best = log.reviews.filter(r => r.sat >= 80 && r.item)[0];
+  if (best) extra.push(`「${best.item}が おいしかった」って 言ってもらえたにゃ`);
+  if (names.length) extra.push(`${pick(names)}も がんばったにゃ`);
+  parts.push(...extra.sort(() => Math.random() - 0.5).slice(0, 2));
+  const text = parts.join('\n') + '\n#ねこカフェ #ぐりおのねこカフェ';
+  render();
+  let target = 4 + sns.followers * 0.12 + G.pop * 0.25 + log.served * 0.8 + (log.perfect || 0) * 1.5;
+  target *= 1.4 + Math.min(0.6, cats.length * 0.1);
+  if (log.newCat) target *= 1.5;
+  let luck = rnd(0.6, 1.6); if (Math.random() < 0.07) luck *= 6;
+  target = Math.max(1, Math.round(target * luck));
+  const post = { id: ++sns.seq, mine: true, name: 'ぐりおのねこカフェ', handle: 'guriocafe', text, img: snapCafe(), day, t: CLOSE, growDay: day + 1, likes: Math.round(target * 0.05), rts: 0, replies: [], target, buzzed: false };
+  sns.posts.unshift(post); sns.posts = sns.posts.slice(0, 40); sns.unread++;
+  return post;
+}
+function openNyax() {
   const sns = snsState(); sns.unread = 0; updateNyaxBadge();
   const esc = t => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const tl = sns.posts.map(p => `
@@ -2806,38 +2792,15 @@ function openNyax(tab = 'tl') {
         <div class="nx-acts"><span>返信 ${p.replies.length}</span><span>リポスト ${p.rts}</span><span class="lk">いいね ${p.likes}</span>${p.buzzed ? '<span class="bz">バズり中</span>' : ''}</div>
         ${p.replies.map(r => `<div class="nx-rep"><b>${esc(r.name)}</b> ${esc(r.text)}</div>`).join('')}
       </div>
-    </div>`).join('') || '<p class="sub" style="padding:12px">まだ ポストがありません。「つぶやく」から ポストしてみよう。</p>';
-  const tpl = snsTemplates();
-  const compose = `
-    <div class="nx-compose">
-      <textarea id="nxText" maxlength="140" placeholder="お店の いまを つぶやこう">${esc(nyaxDraft)}</textarea>
-      <div class="nx-row"><label><input type="checkbox" id="nxPhoto" ${nyaxPhoto ? 'checked' : ''}> お店の写真をそえる</label><span id="nxCount">${nyaxDraft.length}/140</span></div>
-      <p class="sub">テンプレート</p>
-      <div class="nx-tpls">${tpl.map((t, i) => `<button type="button" data-tpl="${i}">${esc(t)}</button>`).join('')}</div>
-      <p class="sub">コツ：写真・ねこの名前・メニュー名を入れると 伸びやすい。お昼と夕方が ねらいめ。続けて ポストすると 伸びにくい。</p>
-      <div class="actions-row"><button type="button" id="nxPost" class="nx-btn">ポストする</button></div>
-    </div>`;
+    </div>`).join('') || '<p class="sub" style="padding:12px">まだ ポストがありません。閉店後に ぐりおが つぶやくよ。</p>';
   openModal(`
     <div class="nx">
       <div class="nx-head"><b>ニャックス</b><span>@guriocafe ・ フォロワー ${Math.floor(sns.followers).toLocaleString()}</span></div>
-      <div class="tabs nx-tabs"><button type="button" class="${tab === 'tl' ? 'on' : ''}" data-nxtab="tl">タイムライン</button><button type="button" class="${tab === 'post' ? 'on' : ''}" data-nxtab="post">つぶやく</button></div>
-      ${tab === 'tl' ? `<div class="nx-tl">${tl}</div>` : compose}
+      <p class="sub">店長ぐりおが 毎日 閉店後に お店のことを つぶやいています。つぎの日に いいねが 伸びて、バズると お客さんが どっと来ます。</p>
+      <div class="nx-tl">${tl}</div>
       <div class="actions-row"><button type="button" id="mClose">とじる</button></div>
     </div>`);
   $('panel').querySelectorAll('[data-face]').forEach(c => c.getContext('2d').drawImage(FACES.grio.happy, 0, 0));
-  $('panel').querySelectorAll('[data-nxtab]').forEach(b => { b.onclick = () => openNyax(b.dataset.nxtab); });
-  if (tab === 'post') {
-    const ta = $('nxText');
-    ta.oninput = () => { nyaxDraft = ta.value; $('nxCount').textContent = `${ta.value.length}/140`; };
-    $('nxPhoto').onchange = e => { nyaxPhoto = e.target.checked; };
-    $('panel').querySelectorAll('[data-tpl]').forEach(b => { b.onclick = () => { nyaxDraft = tpl[+b.dataset.tpl]; ta.value = nyaxDraft; $('nxCount').textContent = `${nyaxDraft.length}/140`; }; });
-    $('nxPost').onclick = () => {
-      if (mode !== 'open' && mode !== 'closing') { toast('ポストは 営業中に できます'); return; }
-      if (!ta.value.trim()) { toast('なにか 書いてね'); return; }
-      closeModal();
-      requestAnimationFrame(() => { render(); if (postNyax(ta.value, nyaxPhoto)) { nyaxDraft = ''; save(); } });
-    };
-  }
   $('mClose').onclick = closeModal;
   event('nyax');
 }
