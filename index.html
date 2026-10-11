@@ -1448,16 +1448,35 @@ function drawWallAndFloor(time) {
   drawFloor();
 }
 function drawChalkboard() {
-  P('#4e321c', 146, 14, 108, 84); P('#8a5e3a', 148, 16, 104, 80); P('#a2724a', 148, 16, 104, 1);
-  P('#243630', 154, 22, 92, 68); P('#2c3e36', 156, 24, 88, 4);
-  ctx.globalAlpha = 0.25; P('#efe9dc', 168, 72, 30, 6); P('#efe9dc', 210, 30, 20, 4); ctx.globalAlpha = 1;
+  P('#4e321c', 146, 14, 88, 84); P('#8a5e3a', 148, 16, 84, 80); P('#a2724a', 148, 16, 84, 1);
+  P('#243630', 154, 22, 72, 68); P('#2c3e36', 156, 24, 68, 4);
+  ctx.globalAlpha = 0.25; P('#efe9dc', 166, 76, 26, 5); ctx.globalAlpha = 1;
   ctx.font = '12px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = '#efe9dc';
-  ctx.fillText('MENU', 200, 25);
-  MENU.filter(m => G.menu.includes(m.id)).forEach((m, i) => drawAt(ICON2[m.id], 160 + (i % 4) * 21, 42 + Math.floor(i / 4) * 22));
+  ctx.fillText('MENU', 190, 25);
+  MENU.filter(m => G.menu.includes(m.id)).forEach((m, i) => drawAt(ICON2[m.id], 155 + (i % 4) * 17, 42 + Math.floor(i / 4) * 22));
   // ねこのらくがき
-  [[230, 78], [233, 75], [236, 78], [230, 79], [236, 79], [231, 82], [235, 82], [232, 83], [233, 83], [234, 83]].forEach(([x, y]) => P('#efe9dc', x, y, 1, 1));
-  P('#a2724a', 150, 94, 100, 3); P('#ffffff', 166, 92, 6, 2); P('#f2c14e', 176, 92, 5, 2);
-  P('#3a2616', 160, 8, 1, 8); P('#3a2616', 240, 8, 1, 8);
+  [[212, 78], [215, 75], [218, 78], [212, 79], [218, 79], [213, 82], [217, 82], [214, 83], [215, 83], [216, 83]].forEach(([x, y]) => P('#efe9dc', x, y, 1, 1));
+  P('#a2724a', 150, 94, 80, 3); P('#ffffff', 162, 92, 6, 2); P('#f2c14e', 172, 92, 5, 2);
+  P('#3a2616', 160, 8, 1, 8); P('#3a2616', 220, 8, 1, 8);
+  drawWallClock();
+}
+function drawWallClock() {
+  const cx = 248, cy = 44, r = 13, t = G ? G.time : OPEN, h = Math.floor(t / 60), m = t % 60;
+  // ねこ耳
+  const ear = (x0, flip) => { for (let i = 0; i < 7; i++) { const w = i + 1; P('#4e321c', flip ? x0 - w : x0, cy - r - 5 + i, w + 1, 1); if (i > 1 && i < 6) P('#e2a39c', flip ? x0 - w + 2 : x0 + 1, cy - r - 5 + i, Math.max(1, w - 2), 1); } };
+  ear(cx - 11, false); ear(cx + 11, true);
+  ellipse(cx, cy + 2, r + 1, r + 1, 'rgba(60,40,20,0.25)');
+  ellipse(cx, cy, r + 2, r + 2, '#4e321c'); ellipse(cx, cy, r, r, '#8a5e3a'); ellipse(cx, cy, r - 2, r - 2, '#fffaf0');
+  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; const len = k % 3 === 0 ? 2 : 1; for (let d = 0; d < len; d++) P(k % 3 === 0 ? '#3a2a20' : '#a89880', Math.round(cx + Math.sin(a) * (r - 4 - d)), Math.round(cy - Math.cos(a) * (r - 4 - d)), 1, 1); }
+  const hand = (a, len, col, w) => { for (let d = 0; d <= len; d += 0.5) { const x = Math.round(cx + Math.sin(a) * d), y = Math.round(cy - Math.cos(a) * d); P(col, x, y, w, w); } };
+  hand(((h % 12) + m / 60) / 12 * Math.PI * 2, 5.5, '#3a2a20', 2);
+  hand(m / 60 * Math.PI * 2, 8.5, '#c84a3a', 1);
+  P('#3a2a20', cx - 1, cy - 1, 2, 2);
+  // 下に 小さく時刻
+  ctx.font = '10px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const txt = mode === 'report' ? '閉店' : fmtTime(t), tw = Math.ceil(ctx.measureText(txt).width) + 6;
+  P('#4e321c', cx - tw / 2, cy + r + 4, tw, 12); P('#fffaf0', cx - tw / 2 + 1, cy + r + 5, tw - 2, 10);
+  ctx.fillStyle = '#3a2a20'; ctx.fillText(txt, cx, cy + r + 5);
 }
 function drawBookshelf() {
   const x0 = 262, y0 = 26;
@@ -1821,7 +1840,6 @@ function render() {
   sayBoxes.length = 0;
   for (const c of customers.slice().sort((a, b) => (a.say ? a.say.t : 0) - (b.say ? b.say.t : 0)).reverse()) if (c.say) drawSay(c);
   drawParticles();
-  drawClock();
   const f = (G.time - OPEN) / (CLOSE - OPEN);
   if (f > 0.65) { ctx.fillStyle = `rgba(255,140,60,${Math.min(0.16, (f - 0.65) * 0.6)})`; ctx.fillRect(0, 0, FW, FH); }
 }
