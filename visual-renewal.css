@@ -1,0 +1,65 @@
+/* Visual renewal phase 1: warm cafe shell. Game canvas and save logic untouched. */
+:root {
+  --board:#f8f0e2; --board-2:#fff9ee; --chalk:#46372e;
+  --chalk-dim:#847467; --butter:#c88742; --wood:#b87e59;
+  --wood-hi:#c9936d; --rose:#dc8790; --bad:#c85f57;
+  --font:"DotGothic16","Hiragino Maru Gothic ProN",sans-serif;
+  color-scheme:light;
+}
+body {
+  background:radial-gradient(ellipse at 15% 10%,#fff9ef 0%,transparent 52%),
+             radial-gradient(ellipse at 90% 95%,#ead7c5 0%,transparent 45%),#f3e8d8;
+  color:var(--chalk);
+}
+#wrap {gap:9px;filter:drop-shadow(0 12px 28px rgba(96,61,37,.12));}
+#hud {
+  background:#fffaf1;border:2px solid #e7cdb5;border-radius:16px;
+  padding:11px 14px;box-shadow:0 4px 0 #dfc2a8;
+}
+#hud .day {color:#77695d}
+#hud .money,#hud .stars {color:#a96931}
+#hud .stars .off {color:#d8c9b9}
+#cafe {
+  border:5px solid #a77956;border-radius:16px;
+  box-shadow:0 7px 0 #78533e,0 12px 24px rgba(79,47,29,.16);
+}
+button {
+  color:#49372b;background:#f0d6b7;border:2px solid #bd9272;
+  border-bottom:4px solid #b58a6c;border-radius:12px;
+  box-shadow:0 2px 0 rgba(99,62,37,.12);
+  transition:background .15s,transform .15s;
+}
+button:hover {background:#f8e4cc}
+button:active {transform:translateY(2px);border-bottom-width:2px}
+button:focus-visible {outline:3px solid #b77952;outline-offset:2px}
+button small {color:#775b47}
+#actions {gap:7px}
+#actions button {padding:10px 2px;background:#fff5e7}
+#actions button.nyaimee {background:#f6d88b;color:#503b24;border-bottom-color:#c39a4c}
+#actions button.nyaimee small {color:#725429}
+#talk {
+  background:rgba(255,249,239,.97);border:3px solid #b78765;
+  border-radius:16px;box-shadow:0 5px 18px rgba(68,44,30,.2);
+}
+#face {background:#f6e5cb;border-color:#b78765;border-radius:12px}
+#talk .who,#talk .next {color:#a66335}
+#modal {background:rgba(49,34,27,.58);backdrop-filter:blur(3px)}
+.panel {
+  background:#fff9ef;border:3px solid #c99c77;border-radius:20px;
+  box-shadow:0 12px 0 rgba(81,52,36,.2);color:#46372e;
+}
+.panel h2 {color:#9e6039}
+.panel .sub {color:#847467}
+.tabs button {background:#f2e1ce;border-bottom-color:#c7a98c}
+.tabs button.on {background:#c9946d;border-bottom-color:#986746;color:#fff}
+.row,.review {background:#f4e8d9}
+.row .desc {color:#77695d}
+.bar {background:#e7d6c3}
+.nya-card {border:1px solid #dfc6a9}
+#toast {background:#ffe1a3;color:#523c2b;border:2px solid #b88954}
+@media(max-width:420px) {
+  #hud {padding:8px 9px;gap:5px;font-size:12px}
+  #hud .money {font-size:15px}
+  #actions button {font-size:clamp(10px,2.9vw,12px)}
+}
+@media(prefers-reduced-motion:reduce) {button {transition:none}}
