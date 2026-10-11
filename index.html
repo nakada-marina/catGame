@@ -220,7 +220,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .row button { grid-row: 1 / span 2; grid-column: 2; min-width: 84px; }
 .catrow { grid-template-columns: 44px 1fr; }
 .catrow canvas { grid-row: 1 / span 5; width: 44px; height: 40px; image-rendering: pixelated; }
-.catrow > :not(canvas) { grid-column: 2; }
+.row.catrow > :not(canvas) { grid-column: 2; }
 .stat { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 15px; font-variant-numeric: tabular-nums; }
 .stat .plus { color: var(--butter); text-align: right; }
 .stat .minus { color: var(--bad); text-align: right; }
@@ -1191,11 +1191,11 @@ function updatePonta() {
 function wakePonta() {
   const p = ponta;
   if (p.state === 'nap' || p.state === 'slack') {
-    p.state = 'idle'; p.napCool = Math.floor(rnd(1600, 2600));
+    p.state = 'idle'; p.napCool = Math.floor(rnd(1600, 2600)); p.surpriseUntil = tick + 50;
     addFx('text', p.x, p.y - 26, { text: 'はっ！', color: '#ffe680', life: 50 });
     tone(880, 0.12, 'square', 0.25, 1400); event('pontaWake');
   } else {
-    addFx('heart', p.x, p.y - 22); addFx('text', p.x, p.y - 30, { text: 'ぽんた', color: '#ffffff', life: 40 }); sfx.pet();
+    addFx('heart', p.x, p.y - 22); addFx('text', p.x, p.y - 30, { text: 'ぽんた', color: '#ffffff', life: 40 }); sfx.pet(); p.joyUntil = tick + 40;
   }
 }
 function updateJobs() {
@@ -1434,7 +1434,7 @@ function updateCat(k) {
 }
 function petCat(k) {
   if (k.petCool > 0) { k.mood = clamp(k.mood + 1, 0, 100); addFx('heart', k.x, k.y - 22, { life: 30 }); return; }
-  k.mood = clamp(k.mood + 12, 0, 100); k.petCool = 300;
+  k.mood = clamp(k.mood + 12, 0, 100); k.petCool = 300; k.joyUntil = tick + 40;
   addFx('heart', k.x - 4, k.y - 22); addFx('heart', k.x + 4, k.y - 26, { t: -10 });
   addFx('text', k.x, k.y - 32, { text: k.name, color: '#ffffff', life: 50 });
   if (k.state === 'idle' || k.state === 'walk') { k.state = 'idle'; k.t = 120; k.act = null; }
@@ -1928,7 +1928,52 @@ function drawLighting() {
   for (const [x, y, r] of lights) ellipse(x, y, Math.round(r * 0.45), Math.round(r * 0.3), '#ffb860');
   ctx.globalAlpha = 1;
 }
-function catImg(pal, pose, face) { return CAT_SPR[pal][pose][face > 0 ? 0 : 1]; }
+// ぐりお と ぽんた は キャラクター設定画の 絵を つかう（chars.webp）
+const CHAR_META = {"grio.walk0":[0,0,39,58],"grio.walk1":[41,0,39,58],"grio.walk2":[82,0,39,58],"grio.walk3":[123,0,42,58],"grio.idle":[167,0,32,53],"grio.sit":[201,0,46,40],"grio.jump":[249,0,38,52],"grio.bow":[289,0,38,43],"grio.serve":[329,0,39,52],"grio.coffee":[370,0,36,57],"grio.clean":[408,0,39,52],"grio.surprise":[449,0,34,48],"grio.f_normal":[485,0,64,64],"grio.f_happy":[551,0,64,64],"grio.f_kiri":[617,0,64,64],"grio.f_surprise":[683,0,64,64],"grio.f_sleepy":[749,0,64,64],"grio.f_angry":[815,0,64,64],"grio.f_tehe":[881,0,64,64],"grio.f_amae":[947,0,64,64],"grio.sleepbag":[0,66,73,39],"ponta.walk0":[75,66,46,58],"ponta.walk1":[123,66,48,57],"ponta.walk2":[173,66,43,57],"ponta.walk3":[218,66,44,57],"ponta.idle":[264,66,38,56],"ponta.sit":[304,66,40,37],"ponta.jump":[346,66,37,50],"ponta.bow":[385,66,44,46],"ponta.serve":[431,66,43,56],"ponta.cake":[476,66,43,56],"ponta.clean":[521,66,45,58],"ponta.surprise":[568,66,40,51],"ponta.f_normal":[610,66,64,64],"ponta.f_happy":[676,66,64,64],"ponta.f_kiri":[742,66,64,64],"ponta.f_surprise":[808,66,64,64],"ponta.f_sleepy":[874,66,64,64],"ponta.f_angry":[940,66,64,64],"ponta.f_tehe":[0,132,64,64],"ponta.f_amae":[66,132,64,64],"ponta.sleepbag":[132,132,58,41],"ponta.box":[192,132,44,38]};
+const CHAR_SPR = {};
+{
+  const img = new Image();
+  img.onload = () => {
+    const tmp = { grio: {}, ponta: {} };
+    for (const key in CHAR_META) {
+      const [who, name] = key.split('.'), [x, y, w, h] = CHAR_META[key], c = mk(w, h);
+      c.getContext('2d').drawImage(img, x, y, w, h, 0, 0, w, h);
+      tmp[who][name] = [c, flipH(c)];
+    }
+    Object.assign(CHAR_SPR, tmp);
+    // 会話の かお も 差しかえ
+    const FMAP = { normal: 'f_normal', happy: 'f_happy', sad: 'f_sleepy', surprise: 'f_surprise', sleep: 'f_sleepy' };
+    for (const who of ['grio', 'ponta']) for (const e in FMAP) if (tmp[who][FMAP[e]]) FACES[who][e] = tmp[who][FMAP[e]][0];
+  };
+  img.src = 'chars.webp';
+}
+// ゲームの ポーズ名 → 設定画の 絵
+function charPose(k, pose) {
+  if (k && k.surpriseUntil > tick) return 'surprise';
+  if (k && k.joyUntil > tick) return 'jump';
+  if (pose.startsWith('walk')) return 'walk' + ((k ? k.anim >> 3 : tick >> 3) & 3);
+  if (pose.startsWith('sleep')) return k && k.pal === 'ponta' && k.spot === BOX ? 'box' : 'sleepbag';
+  if (k) {
+    if (k.state === 'takeOrder') return 'bow';
+    if (k.state === 'pickup') return 'clean';
+    if (k.state === 'eat' || k.state === 'visit') return 'sit';
+    if (k.state === 'slack') return 'sit';
+  }
+  if (pose.startsWith('groom') || pose.startsWith('yawn')) return 'sit';
+  if (pose.startsWith('stretch')) return 'bow';
+  return 'idle';
+}
+function catImg(pal, pose, face, k) {
+  const cs = CHAR_SPR[pal];
+  if (cs) { const n = charPose(k, pose), s = cs[n] || cs.idle; return s[face > 0 ? 1 : 0]; }
+  return CAT_SPR[pal][pose][face > 0 ? 0 : 1];
+}
+// 一覧の 小さな 絵（わくに おさまるように）
+function drawCatThumb(c, pal) {
+  const g = c.getContext('2d'), cs = CHAR_SPR[pal], im = cs ? cs.idle[0] : CAT_SPR[pal].sit[0];
+  const k = Math.min(1, c.width / im.width, c.height / im.height), w = Math.round(im.width * k), h = Math.round(im.height * k);
+  g.imageSmoothingEnabled = !!cs && k < 1; g.clearRect(0, 0, c.width, c.height); g.drawImage(im, Math.round((c.width - w) / 2), c.height - h, w, h);
+}
 // あとで使うコマを すこしずつ 先に描いておく（カクつきを ふせぐ）
 const warmQ = [], warmed = new Set();
 function warmSprites() {
@@ -1959,7 +2004,7 @@ function actPose(k) {
 function drawPonta() {
   const p = ponta, moving = p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
   const pose = p.state === 'nap' ? sleepPose(p) : p.state === 'slack' ? groomPose() : moving ? walkPose(p) : sitPose(p);
-  const img = catImg('ponta', pose, p.face);
+  const img = catImg('ponta', pose, p.face, Object.assign(p, { pal: 'ponta' }));
   const X = Math.round(p.x * 2 - img.width / 2), Y = Math.round(p.y * 2 - img.height);
   floorShadow(p.x * 2, p.y * 2 - 1, Math.round(img.width * 0.32), 3, 0.18);
   drawAt(img, X, Y);
@@ -1985,7 +2030,7 @@ function drawCat(k) {
   if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink', 'toPickup', 'toServe', 'toOrder', 'leaving'].includes(k.state)) { pose = walkPose(k); k.act = null; }
   else if (k.state === 'nap') pose = sleepPose(k);
   else if (k.state === 'idle' && k.act) pose = actPose(k);
-  const img = catImg(k.pal, pose, k.face);
+  const img = catImg(k.pal, pose, k.face, k);
   let Y = Math.round(k.y * 2 - img.height);
   if (k.state === 'eat' && (k.t >> 4) & 1) Y += 2;
   if (k.jump > 0) Y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 12);
@@ -2553,7 +2598,7 @@ function openCats() {
     <div class="list">${list}</div>
     <div class="actions-row"><button type="button" id="mClose">とじる</button></div>
   `);
-  $('panel').querySelectorAll('[data-cat]').forEach(c => c.getContext('2d').drawImage(CAT_SPR[c.dataset.cat].sit[0], 0, 0));
+  $('panel').querySelectorAll('[data-cat]').forEach(c => drawCatThumb(c, c.dataset.cat));
   $('mClose').onclick = closeModal;
 }
 // ================= タイトルのキービジュアルを 動かす =================
@@ -2967,7 +3012,7 @@ const SNS_HANDLES = ['nekosukiko', 'cafe_meguri', 'mofumofu_taro', 'nikukyu_club
 function snsState() { if (!G.sns) G.sns = { followers: 12, posts: [], unread: 0, seq: 0 }; return G.sns; }
 function snapCafe() {
   const c = mk(180, 240), g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.drawImage(cv, 0, 0, 180, 240);
-  return c.toDataURL('image/jpeg', 0.75);
+  try { return c.toDataURL('image/jpeg', 0.75); } catch (_) { return null; }
 }
 const REPLIES = ['いきたい！', 'かわいすぎる…', 'こんど行きます！', 'ねこちゃん〜', 'おいしそう', 'え、ねこが運んでくれるの？', 'このねこ だれですか', 'フォローしました！'];
 function snsTick() {
