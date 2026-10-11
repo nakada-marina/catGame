@@ -271,7 +271,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .make .zero { color: var(--bad); }
 #sub button { padding: 4px 10px; font-size: 12px; border-bottom-width: 2px; white-space: nowrap; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261011-bigfood">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261011-guests">
 </head>
 <body>
 <div id="wrap">
@@ -305,11 +305,11 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
-<script src="./kitchen-art.js?v=20261011-bigfood"></script>
-<script src="./cafe-art.js?v=20261011-bigfood"></script>
+<script src="./kitchen-art.js?v=20261011-guests"></script>
+<script src="./cafe-art.js?v=20261011-guests"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-detail.js?v=20261011-bigfood"></script>
-<script src="./character-art.js?v=20261011-bigfood"></script>
+<script src="./character-detail.js?v=20261011-guests"></script>
+<script src="./character-art.js?v=20261011-guests"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -1984,6 +1984,12 @@ function drawCat(k) {
   if (k.state === 'pickup' && (tick >> 3) & 1) { P('#ffffff', k.x * 2 + k.face * 12, Y + 4, 2, 2); }
   if (k.state === 'nap' && (tick >> 5) % 3 === 0) drawZzz(k.x * 2 + 18, k.y * 2 - 18);
 }
+function customerPose(c) {
+  const sd=c.seed===undefined?(c.seed=Math.floor(Math.random()*1000)):c.seed;
+  let f=c.state==='eat'?['sit','eat','eat','chew','sit','chew','sit','sit'][((c.t+sd)>>3)%8]:'sit';
+  if(f==='sit'&&(tick+sd*11)%170<6) f='blink';
+  return f;
+}
 function drawCustomer(c) {
   if (c.state === 'enter' || c.state === 'leave') {
     const f = (c.anim >> 2) & 3, img = c.spr[['a', 'b', 'a', 'c'][f]];
@@ -1992,10 +1998,7 @@ function drawCustomer(c) {
     drawAt(img, c.x * 2 - img.width / 2, Y);
     if (c.vip) drawCrown(c.x * 2, Y - 8);
   } else {
-    const sd = c.seed === undefined ? (c.seed = Math.floor(Math.random() * 1000)) : c.seed;
-    let f = 'sit', bob = 0;
-    if (c.state === 'eat') { const e = ((c.t + sd) >> 3) % 8; f = ['sit', 'eat', 'eat', 'chew', 'sit', 'chew', 'sit', 'sit'][e]; bob = c.seat.counter && (e === 1 || e === 2) ? 1 : 0; }
-    if (f === 'sit' && (tick + sd * 11) % 170 < 6) f = 'blink';
+    const f = customerPose(c), bob = 0;
     const img = c.seat.counter ? c.spr.back : c.spr[f], top = c.seat.y * 2 - (c.seat.counter ? 22 : 0) - img.height + bob;
     drawAt(img, c.seat.x * 2 - img.width / 2, top);
     if (c.vip && c.state !== 'order') drawCrown(c.seat.x * 2, top - 8);
@@ -2008,10 +2011,15 @@ function drawCrown(X, Y) {
   P('#e84a5a', X - 1, Y + 3, 3, 2); P('#4a9ae8', X - 6, Y + 3, 2, 2); P('#4a9ae8', X + 5, Y + 3, 2, 2);
 }
 function drawTableItems(s) {
-  if(s.cust && ['sit','order','wait','eat'].includes(s.cust.state)) {
-    const x=s.x*2, y=s.ty*2-27;
-    ellipse(x-12,y,3,2,s.cust.look ? s.cust.look.skin : '#efd0ac');
-    ellipse(x+12,y,3,2,s.cust.look ? shade(s.cust.look.skin,.86) : '#d6ac88');
+  if(s.cust && !s.counter && ['sit','order','wait','eat'].includes(s.cust.state)) {
+    const c=s.cust, x=s.x*2, y=s.ty*2-27, skin=c.look?c.look.skin:'#efd0ac', shirt=c.look?c.look.shirt:'#80a890';
+    // Forearms connect to the shoulders; the eating hand lifts toward the mouth.
+    P(shade(shirt,.82),x-15,y-7,5,7); P(shirt,x-14,y-7,3,6);ellipse(x-11,y,3,2,skin);
+    const eating=customerPose(c)==='eat';
+    if(eating){
+      P(shade(shirt,.82),x+10,y-11,5,10);P(shirt,x+9,y-12,5,4);
+      ellipse(x+8,y-12,3,2,skin);P('#76877d',x+5,y-17,1,6);ellipse(x+5,y-18,2,1,'#e3e7d3');
+    }else{P(shade(shirt,.82),x+10,y-7,5,7);P(shirt,x+10,y-7,3,6);ellipse(x+11,y,3,2,shade(skin,.9));}
   }
   const IX = s.itemX * 2 - 8, IY = s.itemY * 2 - 16;
   if (s.cust && s.cust.state === 'eat') drawAt(ICON2[s.cust.order.id], IX - 4, IY - 8, 24);

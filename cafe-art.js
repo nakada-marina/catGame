@@ -14,12 +14,13 @@
     const skin=look.skin,hair=look.hair,shirt=look.shirt,pants=look.pants;
     const dark='#49352c',ss=shade(skin,.83),hs=shade(hair,.72),hl=shade(hair,1.28),cloth=shade(shirt,.76);
     // Back hair, tailored shoulders and softly shaded sleeves.
-    if(look.long){e(24,21,17,19,hs);r(8,24,32,23,hs);r(10,29,2,16,hl);r(36,22,2,22,hair);}
+    if(look.long){e(24,22,15,18,hs);r(10,24,28,19,hs);r(11,27,2,12,hair);r(35,24,2,16,hair);}
     e(24,39,15,9,shirt);r(13,38,23,seated?14:21,shirt);r(33,40,3,seated?12:18,cloth);
     const a=frame==='b'?2:frame==='c'?-2:0;
-    r(8,39+a,5,13,cloth);r(9,39+a,2,10,shirt);e(10,53+a,2,3,skin);
-    if(frame==='eat'){r(35,38,5,8,cloth);r(31,35,8,5,shirt);e(31,34,3,3,skin);r(29,26,1,9,'#a5a7a0');r(28,25,3,2,'#eee9da');}
-    else{r(36,39-a,5,13,cloth);r(36,40-a,2,8,shirt);e(38,53-a,2,3,ss);}
+    if(!seated){
+      r(9,39+a,5,13,cloth);r(10,39+a,2,10,shirt);e(11,53+a,2,3,skin);
+      r(34,39-a,5,13,cloth);r(34,40-a,2,8,shirt);e(36,53-a,2,3,ss);
+    }
     r(20,32,8,7,ss);r(21,33,5,4,skin);
     // Cream collar, buttons, seam and a pocket give readable clothing detail.
     r(15,38,6,2,'#f8ecd8');r(27,38,6,2,'#f8ecd8');r(20,40,2,2,'#f8ecd8');r(26,40,2,2,'#f8ecd8');
@@ -37,17 +38,22 @@
       e(12,47,3,2,skin);e(36,47,3,2,ss);
     }
     if(!seated){r(15,59,18,4,pants);r(23,59,2,4,shade(pants,.7));for(const [x,n] of [[15,a],[26,-a]]){r(x,62,7,7-Math.abs(n),pants);r(x+5,62,2,6-Math.abs(n),shade(pants,.7));r(x-1,68-Math.abs(n),9,3,'#4c3730');r(x,68-Math.abs(n),7,1,'#896853');r(x-1,71-Math.abs(n),9,1,'#dec7a1');}}
-    // Stable head anatomy for every walking step; only arms/feet change.
-    e(24,20,14,16,skin);e(11,22,2,4,skin);e(37,22,2,4,ss);r(12,21,1,3,ss);r(37,22,1,3,'#c18c70');
-    e(24,12,15,10,hair);e(20,7,9,3,hl);r(10,12,4,12,hs);r(35,12,3,13,hs);
-    for(let x=13;x<35;x+=4){r(x,13,3,3+(x%3),hair);r(x,10,1,3,hl);}
-    if(look.long){r(9,20,3,15,hair);r(37,19,3,18,hair);r(10,24,1,9,hl);}
-    if(back){e(24,20,14,15,hair);for(let x=14;x<35;x+=4)r(x,15,1,14,hl);}
+    // Rounded cheeks, a quiet hair highlight and a readable two-pixel smile.
+    e(24,21,12,14,skin);e(12,23,2,3,skin);e(36,23,2,3,ss);
+    e(24,30,8,4,ss);e(23,28,9,5,skin);r(14,23,2,5,shade(skin,1.05));
+    e(24,12,14,10,hair);e(21,7,8,3,shade(hair,1.16));
+    e(17,14,7,5,hair);e(29,11,7,5,hair);r(11,15,3,10,hs);r(34,14,3,11,hs);
+    r(16,9,8,1,hl);r(14,11,4,1,hl);r(29,8,3,1,hl);
+    if(look.long){r(10,21,3,14,hair);r(35,20,3,16,hair);r(11,24,1,8,shade(hair,1.16));}
+    if(back){e(24,21,13,14,hair);e(22,14,10,7,hair);r(15,13,2,12,shade(hair,1.12));r(31,19,2,12,hs);r(18,32,12,2,hs);}
     else{
-      r(16,19,5,1,hs);r(28,19,5,1,hs);
-      if(frame==='blink'){r(16,24,5,1,dark);r(28,24,5,1,dark);}else{r(16,22,5,1,dark);r(28,22,5,1,dark);r(17,23,3,4,dark);r(29,23,3,4,dark);r(17,22,1,2,'#fff6e6');r(29,22,1,2,'#fff6e6');r(17,27,3,1,ss);r(29,27,3,1,ss);}
-      r(14,28,5,2,'#e6a58c');r(30,28,5,2,'#e6a58c');r(24,26,2,3,ss);r(24,26,1,2,'#ffe4bf');
-      r(22,31,1,1,'#995c50');r(27,31,1,1,'#995c50');r(23,32,4,1,'#995c50');r(23,33,4,1,shade(skin,.92));if(frame==='eat'){r(23,31,4,3,'#80483d');r(24,33,2,1,'#e4a48b');}
+      r(17,20,4,1,hs);r(28,20,4,1,hs);
+      if(frame==='blink'){r(17,24,4,1,dark);r(28,24,4,1,dark);}
+      else{r(18,23,2,3,dark);r(29,23,2,3,dark);r(18,23,1,1,'#fff8e9');r(29,23,1,1,'#fff8e9');}
+      r(15,28,4,1,shade(skin,.9));r(30,28,4,1,shade(skin,.9));r(24,26,1,2,ss);
+      r(22,31,1,1,'#935f4e');r(27,31,1,1,'#935f4e');r(23,32,4,1,'#935f4e');
+      if(frame==='chew'){r(26,30,2,2,ss);r(23,32,3,1,'#935f4e');}
+      if(frame==='eat'){r(23,31,3,2,'#80483d');r(24,32,2,1,'#d99a7b');}
     }
     return outline(c,dark);
   }
@@ -59,7 +65,7 @@
     for(const x of [17,64]){r(x,22,5,25,'#503324');r(x+1,23,2,23,'#9b6b43');r(x-1,46,7,3,'#382a22');}
     r(20,27,48,7,'#774b30');r(20,27,48,1,'#c68d59');r(22,30,44,1,'#895c3c');
     e(44,18,39,10,'#513627');e(44,15,39,10,'#a16d43');e(44,12,38,9,'#cf9c64');e(44,10,34,6,'#dfb47b');
-    for(let row=0;row<4;row++){const y=7+row*4,w=[49,66,61,37][row];r(44-w/2,y,w,1,'#b78050');r(44-w/2+2,y+1,w-5,1,'#e5bc84');}
+    for(const [y,w] of [[9,60],[15,64]]){r(44-w/2,y,w,1,'#c29360');r(46-w/2,y+1,w-4,1,'#dfb47b');}
     for(const [x,y,w] of [[24,8,13],[49,12,19],[18,15,11],[38,17,13]]){r(x,y,w,1,'#c28f5c');r(x+2,y+1,w-4,1,'#d6a76f');}
     e(60,8,3,1,'#b67d4e');r(9,17,70,1,'#e9bd84');r(15,23,58,1,'#bd8956');
     return furniture.table=outline(c,'#433024');
@@ -68,9 +74,9 @@
     if(furniture.chair)return furniture.chair;
     const c=canvas(38,58),p=painter(c),r=p.r;
     r(5,5,4,49,'#674630');r(29,5,4,49,'#674630');r(6,7,1,46,'#c3915c');r(30,7,1,46,'#bd8956');
-    r(7,4,24,7,'#9c6d45');r(7,4,24,1,'#d7ad76');r(10,7,18,1,'#ad7e50');
-    for(const x of [12,18,24]){r(x,12,2,20,'#80583a');r(x,12,1,19,'#b78858');}
-    r(4,33,30,7,'#51392a');r(5,33,28,4,'#b48a5f');r(8,31,22,4,'#c6a982');r(8,31,22,1,'#ead5ac');r(6,38,26,1,'#d5af7c');
+    r(7,7,24,9,'#9c6d45');r(10,5,18,2,'#9c6d45');r(10,5,18,1,'#d7ad76');r(9,9,20,4,'#b68858');r(10,9,18,1,'#d7ad76');
+    for(const x of [12,18,24]){r(x,16,2,16,'#80583a');r(x,16,1,15,'#b78858');}
+    r(4,33,30,7,'#51392a');r(5,33,28,4,'#b48a5f');r(7,31,24,4,'#879678');r(9,31,20,1,'#c1c7a3');r(8,34,22,1,'#64765e');r(6,38,26,1,'#d5af7c');
     r(9,41,3,13,'#80583a');r(27,41,3,13,'#80583a');r(9,48,21,2,'#9b704b');r(4,54,6,2,'#473329');r(29,54,6,2,'#473329');
     return furniture.chair=outline(c,'#433024');
   }
