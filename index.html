@@ -1952,8 +1952,9 @@ const CHAR_SPR = {};
 // キャラクター専用アニメーション。ポーズ切替は状態優先で決定する。
 // スプライトの透過部分は保持し、既存のドット絵を拡大補間しない。
 function charPose(k, pose) {
-  if (k && k.surpriseUntil > tick) return 'surprise';
-  if (k && k.joyUntil > tick) return 'jump';
+  // 驚き・喜びは長時間固定せず、短いリアクションの後に通常姿勢へ戻す。
+  if (k && k.surpriseUntil > tick && k.surpriseUntil - tick < 32) return 'surprise';
+  if (k && k.joyUntil > tick && (tick % 24) < 12) return 'jump';
   if (pose.startsWith('sleep')) return k && k.pal === 'ponta' && k.spot === BOX ? 'box' : 'sleepbag';
   if (k && (k.carryDish || k.carry)) return k.pal === 'ponta' ? 'cake' : 'serve';
   if (k && k.state === 'takeOrder') return 'bow';
@@ -1979,6 +1980,7 @@ function catImg(pal, pose, face, k) {
 function catMotionOffset(k, pose) {
   if (!pose.startsWith('walk')) return 0;
   const frame = Math.floor(Math.max(0, k.anim || 0) / 7) % 4;
+  // 2歩ごとの軽い上下動。左右へのガタつきは発生させない。
   return frame === 1 || frame === 3 ? -1 : 0;
 }
 // 立ち絵の左右反転で顔が崩れないよう、影や追加演出は別レイヤーにする。
