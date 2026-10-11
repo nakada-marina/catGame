@@ -1949,31 +1949,40 @@ const CHAR_SPR = {};
   img.src = 'chars.webp';
 }
 // ゲームの ポーズ名 → 設定画の 絵
+// キャラクター専用アニメーション。ポーズ切替は状態優先で決定する。
+// スプライトの透過部分は保持し、既存のドット絵を拡大補間しない。
 function charPose(k, pose) {
-  // 設定画のポーズを状態に対応させる。歩行は4コマを順送りし、
-  // 立ち止まったら必ず idle に戻して途中コマで固まらないようにする。
   if (k && k.surpriseUntil > tick) return 'surprise';
   if (k && k.joyUntil > tick) return 'jump';
   if (pose.startsWith('sleep')) return k && k.pal === 'ponta' && k.spot === BOX ? 'box' : 'sleepbag';
-  if (pose.startsWith('walk')) return 'walk' + (Math.floor(Math.max(0, k ? k.anim : tick) / 6) % 4);
-  if (k) {
-    if (k.state === 'takeOrder') return 'bow';
-    if (k.state === 'pickup' || k.state === 'toClean') return 'clean';
-    if (k.carryDish || k.carry) return k.pal === 'ponta' ? 'cake' : 'serve';
-    if (k.state === 'eat' || k.state === 'visit') return 'sit';
-    if (k.state === 'slack') return 'sit';
-  }
-  if (pose.startsWith('groom')) return 'sit';
+  if (k && (k.carryDish || k.carry)) return k.pal === 'ponta' ? 'cake' : 'serve';
+  if (k && k.state === 'takeOrder') return 'bow';
+  if (k && (k.state === 'pickup' || k.state === 'toClean')) return 'clean';
+  if (pose.startsWith('walk')) return 'walk' + (Math.floor(Math.max(0, k ? k.anim : tick) / 7) % 4);
   if (pose.startsWith('yawn')) return 'surprise';
   if (pose.startsWith('stretch')) return 'bow';
+  if (pose.startsWith('groom')) return 'sit';
+  if (k && ['eat','visit','slack'].includes(k.state)) return 'sit';
   if (pose.startsWith('sit')) return 'idle';
   return 'idle';
 }
 function catImg(pal, pose, face, k) {
   const cs = CHAR_SPR[pal];
-  if (cs) { const n = charPose(k, pose), s = cs[n] || cs.idle; return s[face > 0 ? 1 : 0]; }
+  if (cs) {
+    const n = charPose(k, pose), s = cs[n] || cs.idle;
+    // 背面を単純な左右反転で代用せず、移動方向に応じて左右を選択する。
+    return s[face > 0 ? 1 : 0];
+  }
   return CAT_SPR[pal][pose][face > 0 ? 0 : 1];
 }
+// 歩行中だけ軽い上下動を付ける。停止時は揺れをゼロに戻す。
+function catMotionOffset(k, pose) {
+  if (!pose.startsWith('walk')) return 0;
+  const frame = Math.floor(Math.max(0, k.anim || 0) / 7) % 4;
+  return frame === 1 || frame === 3 ? -1 : 0;
+}
+// 立ち絵の左右反転で顔が崩れないよう、影や追加演出は別レイヤーにする。
+
 // 一覧の 小さな 絵（わくに おさまるように）
 function drawCatThumb(c, pal) {
   const g = c.getContext('2d'), cs = CHAR_SPR[pal], im = cs ? cs.idle[0] : CAT_SPR[pal].sit[0];
@@ -2011,7 +2020,7 @@ function drawPonta() {
   const p = ponta, moving = p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
   const pose = p.state === 'nap' ? sleepPose(p) : p.state === 'slack' ? groomPose() : moving ? walkPose(p) : sitPose(p);
   const img = catImg('ponta', pose, p.face, Object.assign(p, { pal: 'ponta' }));
-  const X = Math.round(p.x * 2 - img.width / 2), Y = Math.round(p.y * 2 - img.height);
+  const X = Math.round(p.x * 2 - img.width / 2), Y = Math.round(p.y * 2 - img.height + catMotionOffset(p, pose));
   floorShadow(p.x * 2, p.y * 2 - 1, Math.round(img.width * 0.32), 3, 0.18);
   drawAt(img, X, Y);
   if (p.carry) drawAt(ICON2[p.carry.item.id], p.x * 2 - 8, Y - 18 + ((tick >> 3) & 1) * 2);
@@ -2037,7 +2046,7 @@ function drawCat(k) {
   else if (k.state === 'nap') pose = sleepPose(k);
   else if (k.state === 'idle' && k.act) pose = actPose(k);
   const img = catImg(k.pal, pose, k.face, k);
-  let Y = Math.round(k.y * 2 - img.height);
+  let Y = Math.round(k.y * 2 - img.height + catMotionOffset(k, pose));
   if (k.state === 'eat' && (k.t >> 4) & 1) Y += 2;
   if (k.jump > 0) Y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 12);
   if (!(k.spot === TOWER && k.state === 'nap') && k.spot !== BOX) floorShadow(k.x * 2, k.y * 2 - 1, Math.round(img.width * 0.32), 3, 0.18);
