@@ -1288,9 +1288,20 @@ function assignDeliver(k) {
   k.state = 'toPickup'; k.tx = PICKUP_X[j.st] + rnd(-3, 3); k.ty = 102;
   return true;
 }
+// 注文を ねこが ききに行く（少し待っても だれも 行かないとき）
+function assignOrder(k) {
+  const list = seats.filter(s => s.cust && s.cust.state === 'order' && s.cust.t > 100 && !s.cust.orderTaker && canMake(s.cust.order));
+  if (!list.length) return false;
+  const s = list.reduce((a, b) => b.cust.pat < a.cust.pat ? b : a);
+  s.cust.orderTaker = k; k.orderC = s.cust; k.spot = null; k.visit = null; k.act = null;
+  k.state = 'toOrder'; k.tx = s.catX; k.ty = s.catY;
+  return true;
+}
+function dropOrder(k) { if (k.orderC) { if (k.orderC.orderTaker === k) k.orderC.orderTaker = null; k.orderC = null; } }
+const catWork = k => assignDeliver(k) || assignOrder(k);
 function catThink(k) {
   const r = Math.random();
-  if (assignDeliver(k)) return;
+  if (catWork(k)) return;
   if (k.hunger > 60 && G.bowl > 0) { k.state = 'toBowl'; k.tx = BOWL.x + rnd(-6, 6); k.ty = BOWL.y + 6; return; }
   if (r < 0.65 && assignClean(k)) return;
   const guests = seats.filter(s => s.cust && (s.cust.state === 'order' || s.cust.state === 'eat') && !cats.some(o => o !== k && o.visit === s));
@@ -1305,6 +1316,7 @@ function catThink(k) {
 function endShift(k) {
   if (k.dish) { k.dish.taker = null; k.dish = null; k.carryDish = false; }
   if (k.clean) { k.clean.cleaner = null; k.clean = null; }
+  dropOrder(k);
   if (k.carry) k.carry = false;
   k.visit = null; k.spot = null; k.act = null;
   k.state = 'leaving'; k.tx = ENTRANCE.x; k.ty = ENTRANCE.y + 6;
@@ -1324,7 +1336,7 @@ function updateCat(k) {
     case 'idle':
       if (k.act) { if (--k.actT <= 0) k.act = null; }
       else if (Math.random() < 0.004) { k.act = pick(['groom', 'groom', 'yawn', 'stretch']); k.actT = { groom: 260, yawn: 70, stretch: 110 }[k.act]; if (k.act === 'yawn') tone(380, 0.4, 'triangle', 0.15, 260); }
-      if (Math.random() < 0.06 && assignDeliver(k)) { k.act = null; break; } if (--k.t <= 0 || (Math.random() < 0.01 && assignClean(k))) { if (k.state === 'idle') catThink(k); } break;
+      if (Math.random() < 0.06 && catWork(k)) { k.act = null; break; } if (--k.t <= 0 || (Math.random() < 0.01 && assignClean(k))) { if (k.state === 'idle') catThink(k); } break;
     case 'toPickup':
       k.anim++;
       if (!jobs.includes(k.dish)) { k.dish = null; k.state = 'idle'; k.t = 20; break; }
@@ -1339,6 +1351,31 @@ function updateCat(k) {
         k.dish = null; k.carryDish = false; k.state = 'idle'; k.t = 60; event('catServe');
       }
       break;
+    case 'toOrder': {
+      k.anim++;
+      const c = k.orderC;
+      if (!c || c.state !== 'order' || c.orderTaker !== k) { dropOrder(k); k.state = 'idle'; k.t = 20; break; }
+      if (moveTo(k, k.tx, k.ty, k.skill === 'serve' ? 1.15 : 0.75)) {
+        k.state = 'takeOrder'; k.t = k.skill === 'serve' ? 25 : 50; k.face = -c.seat.side;
+        addFx('text', k.x, k.y - 30, { text: 'ごちゅうもんは？', color: '#ffffff', life: 45 }); tone(880, 0.05, 'triangle', 0.25);
+      }
+      break;
+    }
+    case 'takeOrder': {
+      const c = k.orderC;
+      if (!c || c.state !== 'order' || c.orderTaker !== k) { dropOrder(k); k.state = 'idle'; k.t = 20; break; }
+      if (--k.t <= 0) {
+        const ok = serve(c, true);
+        dropOrder(k);
+        if (ok) {
+          tone(988, 0.08, 'triangle', 0.4); addFx('heart', k.x, k.y - 24); k.mood = clamp(k.mood + 2, 0, 100);
+          if (Math.random() < 0.4) chat(c, ['ねこが 注文とってくれた！', 'かしこい…', 'メモ とってる？', 'おねがいします にゃ〜'], 0.6);
+          event('catOrder');
+        } else addFx('text', k.x, k.y - 30, { text: '材料が ないにゃ…', color: '#ffb0a0', life: 50 });
+        k.state = 'idle'; k.t = 40;
+      }
+      break;
+    }
     case 'toClean':
       k.anim++;
       if (!k.clean.dirty) { k.clean.cleaner = null; k.clean = null; k.state = 'idle'; k.t = 30; break; }
@@ -1359,7 +1396,7 @@ function updateCat(k) {
         addFx('spark', k.x, k.y - 16); addFx('text', k.x, k.y - 28, { text: 'ピカピカ', color: '#ffffff', life: 40 }); sfx.clean();
       }
       break;
-    case 'walk': k.anim++; if (Math.random() < 0.06 && assignDeliver(k)) break; if (Math.random() < 0.006 && assignClean(k)) break; if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'idle'; k.t = Math.floor(rnd(90, 260)); } break;
+    case 'walk': k.anim++; if (Math.random() < 0.06 && catWork(k)) break; if (Math.random() < 0.006 && assignClean(k)) break; if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'idle'; k.t = Math.floor(rnd(90, 260)); } break;
     case 'toBowl':
       k.anim++;
       if (moveTo(k, k.tx, k.ty, sp)) {
@@ -1943,7 +1980,7 @@ function drawZzz(x, y) {
 }
 function drawCat(k) {
   let pose = sitPose(k);
-  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink', 'toPickup', 'toServe', 'leaving'].includes(k.state)) { pose = walkPose(k); k.act = null; }
+  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink', 'toPickup', 'toServe', 'toOrder', 'leaving'].includes(k.state)) { pose = walkPose(k); k.act = null; }
   else if (k.state === 'nap') pose = sleepPose(k);
   else if (k.state === 'idle' && k.act) pose = actPose(k);
   const img = catImg(k.pal, pose, k.face);
@@ -1959,6 +1996,12 @@ function drawCat(k) {
     const w = Math.ceil(ctx.measureText(k.name).width) + 10, tx = Math.round(clamp(k.x * 2, w / 2 + 2, FW - w / 2 - 2)), ty = Math.max(1, Y - 15);
     P('#a07a10', tx - w / 2 - 1, ty, w + 2, 13); P('#f2c14e', tx - w / 2, ty + 1, w, 11); P('#ffe08a', tx - w / 2, ty + 1, w, 1);
     ctx.fillStyle = '#3a2a10'; ctx.fillText(k.name, tx, ty + 1);
+  }
+  if (k.state === 'takeOrder') {
+    const mx = Math.round(k.x * 2 + k.face * 6 - 6), my = Y - 18 - ((tick >> 3) & 1);
+    P('#3a2a20', mx - 1, my - 1, 14, 17); P('#fffaf0', mx, my, 12, 15); P('#e86a6a', mx, my, 12, 2);
+    for (let i = 0; i < 3; i++) P('#8a8a98', mx + 2, my + 5 + i * 3, ((tick >> 2) + i) % 4 === 0 ? 5 : 8, 1);
+    P('#4a6ac8', mx + 10, my + 3 + ((tick >> 2) & 3) * 2, 2, 5);
   }
   if (k.state === 'pickup' && (tick >> 3) & 1) { P('#ffffff', k.x * 2 + k.face * 12, Y + 4, 2, 2); }
   if (k.state === 'nap' && (tick >> 5) % 3 === 0) drawZzz(k.x * 2 + 18, k.y * 2 - 18);
@@ -2770,6 +2813,7 @@ const TALKS = {
     ['happy', '数時間だけ 来てもらえるよ。いそがしい お昼や 夕方に たのむと べんりだにゃ。'],
   ],
   catServe: [['happy', 'おまたせしましたにゃ〜。ねこが 料理を はこんだよ！']],
+  catOrder: [['happy', 'ねこも 注文を ききに行けるにゃ！'], ['normal', 'しばらく だれも 行かないと、手の空いた ねこが ききに行くよ。いそぐときは ふきだしを タップしてね']],
   catClean: [
     ['happy', 'ぼくたちも おさらの かたづけ、てつだうにゃ！'],
     ['normal', 'ねこが まにあわないときは、おさらを タップすれば すぐ かたづくよ。'],
