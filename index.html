@@ -307,7 +307,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
-<script src="./rear-walk.js?v=20261011-direction"></script>
+<script src="./rear-walk.js?v=20261011-four-directions"></script>
 <script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
 <script src="./character-detail.js?v=20261012-walk"></script>
@@ -989,11 +989,12 @@ function chooseOrder() {
 }
 function moveTo(e, tx, ty, sp) {
   const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
-  // Screen-up travel faces away; sideways travel retains the left/right artwork.
-  // Update before arrival too, so even a final short step has the correct direction.
+  // Any upward diagonal faces back; any downward diagonal faces front.
+  // Left/right artwork is used only for purely horizontal travel.
   if (d > 0) {
-    e.walkBack = dy < 0 && Math.abs(dy) >= Math.abs(dx);
-    if (Math.abs(dx) > 0.5) e.face = dx > 0 ? 1 : -1;
+    e.walkFacing = dy < 0 ? 'back' : dy > 0 ? 'front' : 'side';
+    e.walkBack = e.walkFacing === 'back';
+    if (dx !== 0) e.face = dx > 0 ? 1 : -1;
   }
   if (d <= sp) { e.x = tx; e.y = ty; return true; }
   e.x += dx / d * sp; e.y += dy / d * sp; return false;
@@ -1863,9 +1864,9 @@ function charPose(k, pose) {
 }
 function catImg(pal, pose, face, k) {
   const cs = CHAR_SPR[pal];
-  if (k && k.walkBack && pose.startsWith('walk')) {
+  if (k && ['back', 'front'].includes(k.walkFacing) && pose.startsWith('walk')) {
     const source = cs ? cs.walk0[0] : (pal === 'grio' || pal === 'ponta') ? null : CAT_SPR[pal][pose][0];
-    if (source) return RearWalk.cat(pal, Math.floor(Math.max(0, k.anim || 0) / 9) % 4, source, CAT_LOOK[pal]);
+    if (source) return RearWalk.cat(pal, Math.floor(Math.max(0, k.anim || 0) / 9) % 4, source, CAT_LOOK[pal], k.walkFacing);
   }
   if (cs) {
     const n = charPose(k, pose), s = cs[n] || cs.idle;
@@ -2003,7 +2004,7 @@ function customerPose(c) {
 }
 function drawCustomer(c) {
   if (c.state === 'enter' || c.state === 'leave') {
-    const f = (c.anim >> 3) & 3, img = (c.walkBack && c.look ? RearWalk.guest(c.look, f) : null) || (c.look ? GuestArt.walk(c.look, f, c.face || 1) : c.spr[['a', 'b', 'a', 'c'][f]]);
+    const f = (c.anim >> 3) & 3, img = (c.look && c.walkFacing === 'back' ? RearWalk.guest(c.look, f) : c.look && c.walkFacing === 'front' ? GuestArt.person(c.look, ['a', 'b', 'a', 'c'][f]) : null) || (c.look ? GuestArt.walk(c.look, f, c.face || 1) : c.spr[['a', 'b', 'a', 'c'][f]]);
     const Y = Math.round(c.y * 2 - (img.logicalHeight || img.height));
     floorShadow(c.x * 2, c.y * 2 - 1, 11, 3, 0.2);
     drawAt(img, c.x * 2 - (img.logicalWidth || img.width) / 2, Y);

@@ -1,10 +1,10 @@
-/* Rear-facing walking frames. Pixel drawing keeps the foot anchor fixed. */
+/* Front- and rear-facing walking frames. Pixel drawing keeps the foot anchor fixed. */
 (function () {
   'use strict';
   const cats = new Map(), guests = new Map();
   const phase = frame => [0, -2, 0, 2][((frame % 4) + 4) % 4];
-  function cat(pal, frame, source, fur) {
-    const step = phase(frame), key = pal + ':' + step + ':' + source.width + ':' + source.height;
+  function cat(pal, frame, source, fur, facing = 'back') {
+    const step = phase(frame), key = pal + ':' + facing + ':' + step + ':' + source.width + ':' + source.height;
     if (cats.has(key)) return cats.get(key);
     const c = document.createElement('canvas'); c.width = source.width; c.height = source.height;
     const g = c.getContext('2d'), scale = Math.min(c.width / 64, c.height / 72);
@@ -50,6 +50,25 @@
       for (const y of [37, 43, 49]) { line(21, y, 27, y + 2, 1, fur.stripe); line(37, y + 2, 42, y, 1, fur.stripe); }
     }
     if (fur.patches) { ellipse(22, 19, 6, 10, fur.patches[0]); ellipse(38, 46, 6, 10, fur.patches[1]); }
+    if (facing === 'front') {
+      // Front view has a chest, inner ears and face instead of the back of the head.
+      if (fur.chest || fur.chin) ellipse(32, 42, 7, 10, fur.white);
+      line(18, 9, 22, 16, 1, fur.ear);
+      line(46, 9, 42, 16, 1, fur.ear);
+      if (fur.muzzle || fur.chin) ellipse(32, 27, 9, 5, fur.white);
+      for (const x of [25, 39]) {
+        ellipse(x, 21, 3, 3, fur.line);
+        ellipse(x, 21, 2, 2, fur.eye);
+        line(x, 20, x, 22, 0.7, fur.pupil);
+        pixel(x - 1, 20, '#ffffff');
+      }
+      ellipse(32, 26, 2, 1, fur.nose);
+      line(32, 27, 32, 29, 0.7, fur.line);
+      line(32, 29, 29, 30, 0.7, fur.line);
+      line(32, 29, 35, 30, 0.7, fur.line);
+      line(17, 27, 24, 28, 0.7, fur.white);
+      line(40, 28, 47, 27, 0.7, fur.white);
+    }
     if (fur.scarf) { line(20, 33, 44, 33, 2, '#a3553d'); line(33, 34, 36, 43, 2, '#a3553d'); }
     c.artBounds = [0, 0, c.width, c.height];
     cats.set(key, c); return c;
