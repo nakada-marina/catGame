@@ -307,11 +307,10 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
-<script src="./rear-walk.js?v=20261011-motion-scale"></script>
+<script src="./cat-motions.js?v=20261011-uniform"></script><script src="./rear-walk.js?v=20261011-uniform"></script>
 <script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-detail.js?v=20261012-walk"></script>
-<script src="./character-art.js?v=20261011-motion-scale"></script>
+<script src="./character-art.js?v=20261011-uniform"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -1852,12 +1851,13 @@ function charPose(k, pose) {
   if (pose.startsWith('sleep')) return k && k.pal === 'ponta' && k.spot === BOX ? 'box' : 'sleepbag';
   if (pose.startsWith('walk')) return 'walk' + (Math.floor(Math.max(0, k ? k.anim : tick) / 9) % 4);
   if (k && (k.carryDish || k.carry)) return k.pal === 'ponta' ? 'cake' : 'serve';
+  if (k && k.jump > 0) return 'jump';
   // Acknowledge at the end, rather than crouching throughout the order.
   if (k && k.state === 'takeOrder') return 'idle';
-  if (k && k.state === 'pickup') return 'clean';
+  if (k && ['pickup', 'clean'].includes(k.state)) return 'clean';
   if (pose.startsWith('yawn')) return 'surprise';
   if (pose.startsWith('stretch')) return 'sit';
-  if (pose.startsWith('groom')) return 'sit';
+  if (pose.startsWith('groom')) return 'groom';
   if (k && ['eat','visit','slack'].includes(k.state)) return 'sit';
   if (pose.startsWith('sit')) return 'idle';
   return 'idle';
@@ -1879,7 +1879,7 @@ function catImg(pal, pose, face, k) {
   if (pal === 'grio' || pal === 'ponta') return CHAR_PENDING;
   return CAT_SPR[pal][pose][face > 0 ? 0 : 1];
 }
-// Display-scale only: original pixels and common foot anchor stay unchanged.
+// Every body action uses the same family display scale and foot anchor.
 function catDisplaySize(pal, img) {
   return CatArtwork.displaySize(pal, img);
 }

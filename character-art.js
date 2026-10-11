@@ -1,11 +1,10 @@
-/* Original approved atlas. No generated artwork or resampling.
- * Both the game and inspection gallery use this exact loader. */
+/* Uniform body motions and the original eight dialogue portraits. */
 (function () {
   'use strict';
   const meta = {"grio.walk0":[0,0,39,58],"grio.walk1":[41,0,39,58],"grio.walk2":[82,0,39,58],"grio.walk3":[123,0,42,58],"grio.idle":[167,0,32,53],"grio.sit":[201,0,46,40],"grio.jump":[249,0,38,52],"grio.bow":[289,0,38,43],"grio.serve":[329,0,39,52],"grio.coffee":[370,0,36,57],"grio.clean":[408,0,39,52],"grio.surprise":[449,0,34,48],"grio.f_normal":[485,0,64,64],"grio.f_happy":[551,0,64,64],"grio.f_kiri":[617,0,64,64],"grio.f_surprise":[683,0,64,64],"grio.f_sleepy":[749,0,64,64],"grio.f_angry":[815,0,64,64],"grio.f_tehe":[881,0,64,64],"grio.f_amae":[947,0,64,64],"grio.sleepbag":[0,66,73,39],"ponta.walk0":[75,66,46,58],"ponta.walk1":[123,66,48,57],"ponta.walk2":[173,66,43,57],"ponta.walk3":[218,66,44,57],"ponta.idle":[264,66,38,56],"ponta.sit":[304,66,40,37],"ponta.jump":[346,66,37,50],"ponta.bow":[385,66,44,46],"ponta.serve":[431,66,43,56],"ponta.cake":[476,66,43,56],"ponta.clean":[521,66,45,58],"ponta.surprise":[568,66,40,51],"ponta.f_normal":[610,66,64,64],"ponta.f_happy":[676,66,64,64],"ponta.f_kiri":[742,66,64,64],"ponta.f_surprise":[808,66,64,64],"ponta.f_sleepy":[874,66,64,64],"ponta.f_angry":[940,66,64,64],"ponta.f_tehe":[0,132,64,64],"ponta.f_amae":[66,132,64,64],"ponta.sleepbag":[132,132,58,41],"ponta.box":[192,132,44,38]};
-  const WIDTH = 81, HEIGHT = 64;
+  const WIDTH = 128, HEIGHT = 144;
   function frame(image, key) {
-    const [x, y, w, h] = meta[key], portrait = key.includes('.f_');
+    const [x, y, w, h] = meta[key];
     const raw = document.createElement('canvas'); raw.width = w; raw.height = h;
     const rg = raw.getContext('2d'); rg.drawImage(image, x, y, w, h, 0, 0, w, h);
     if (key === 'grio.f_normal') {
@@ -18,60 +17,28 @@
       rg.clearRect(25, 26, 14, 6);
       rg.drawImage(image, sx + 25, sy + 26, 14, 6, 25, 26, 14, 6);
     }
-    if (portrait) return raw;
-    // Centre on the head/body, rather than the tail or carried prop.
-    // Top-band alpha bounds provide a stable body axis for all four steps.
-    let left = w, right = -1;
-    const pixels = rg.getImageData(0, 0, w, h).data;
-    const lowPose = /sleepbag|box|sit$/.test(key);
-    if (!lowPose) for (let yy = 2; yy < Math.floor(h * .42); yy++) for (let xx = 0; xx < w; xx++) {
-      if (pixels[(yy * w + xx) * 4 + 3] > 128) { left = Math.min(left, xx); right = Math.max(right, xx); }
-    }
-    const axis = right < left ? Math.floor(w / 2) : Math.round((left + right) / 2);
-    const c = document.createElement('canvas'); c.width = WIDTH; c.height = HEIGHT;
-    const dx = Math.floor(WIDTH / 2) - axis;
-    c.getContext('2d').drawImage(raw, dx, HEIGHT - h);
-    c.artBounds = [dx, HEIGHT - h, w, h];
-    return c;
+    return raw;
   }
+  const base = document.currentScript?.src || location.href;
+  let loading;
   function load() {
-    return new Promise((resolve, reject) => {
+    if (loading) return loading;
+    const portraits = new Promise((resolve, reject) => {
       const image = new Image();
-      image.onload = async () => {
-        const sprites = { grio: {}, ponta: {} };
-        for (const key of Object.keys(meta)) {
-          const [who, pose] = key.split('.'); sprites[who][pose] = frame(image, key);
-        }
-        if (window.CatDetail) {
-          const detail = await new Promise((ok, fail) => { const im = new Image(); im.onload=()=>ok(im); im.onerror=fail; im.src=CatDetail.src; });
-          for (const [key, [x,y,w,h]] of Object.entries(CatDetail.meta)) {
-            const c=document.createElement('canvas'); c.width=w; c.height=h;
-            c.getContext('2d').drawImage(detail,x,y,w,h,0,0,w,h);
-            c.artBounds=[0,0,w,h];
-            const [who,pose]=key.split('.'); sprites[who][who==='ponta'&&pose==='coffee'?'cake':pose]=c;
-          }
-          // Hold head/torso pixels fixed across four steps. Only the lower paws
-          // change phase; no face warping, scaling, or whole-body bob.
-          for (const who of ['grio','ponta']) {
-            const source=sprites[who].walk0;
-            for(let n=1;n<4;n++) {
-              const c=document.createElement('canvas');c.width=source.width;c.height=source.height;
-              const g=c.getContext('2d');g.drawImage(source,0,0);
-              const y=source.height-14, half=source.width/2, shift=[0,-2,0,2][n];
-              g.clearRect(0,y,c.width,14);
-              g.drawImage(source,0,y,half,14,shift,y,half,14);
-              g.drawImage(source,half,y,half,14,half-shift,y,half,14);
-              c.artBounds=[0,0,c.width,c.height]; sprites[who]['walk'+n]=c;
-            }
-          }
-        }
-        resolve(sprites);
-      };
+      image.onload = () => resolve(image);
       image.onerror = () => reject(new Error('chars.webp could not be loaded'));
-      image.src = new URL('chars.webp', document.currentScript?.src || location.href).href;
+      image.src = new URL('chars.webp', base).href;
     });
+    loading = Promise.all([portraits, window.CatMotions.load]).then(([image, motions]) => {
+      const sprites = { grio: { ...motions.grio }, ponta: { ...motions.ponta } };
+      for (const key of Object.keys(meta)) if (key.includes('.f_')) {
+        const [who, pose] = key.split('.'); sprites[who][pose] = frame(image, key);
+      }
+      return sprites;
+    });
+    return loading;
   }
-  // Apply one family scale to every pose, including old-resolution sleep frames.
+  // Keep the smaller display sizes across all body motions.
   function displaySize(pal, image) {
     const scale = pal === 'grio' ? (image.width === 128 ? .55 : 1.05) :
       pal === 'ponta' ? (image.width === 128 ? .52 : .98) : .78;

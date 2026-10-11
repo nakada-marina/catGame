@@ -12,7 +12,7 @@ fs.mkdirSync(artifacts, {recursive:true});
     server = http.createServer((req, res) => {
       const name = new URL(req.url, base).pathname;
       const file = path.join(__dirname, '..', name === '/' ? 'index.html' : name);
-      try { const data = fs.readFileSync(file); res.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.webp') ? 'image/webp' : 'text/html'); res.end(data); }
+      try { const data = fs.readFileSync(file); res.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.webp') ? 'image/webp' : file.endsWith('.png') ? 'image/png' : 'text/html'); res.end(data); }
       catch { res.writeHead(404); res.end(); }
     });
     await new Promise(resolve => server.listen(8765, '127.0.0.1', resolve));
@@ -106,18 +106,28 @@ fs.mkdirSync(artifacts, {recursive:true});
           g.clearRect(25,26,14,6);g.drawImage(atlas,sx+25,sy+26,14,6,25,26,14,6);
         }
         const [who,pose]=key.split('.');
-        if(!CatDetail.meta[key]&&key!=='ponta.cake'&&!/^walk[123]$/.test(pose)&&colours(raw)!==colours(frames[who][pose]))issues.push(key+' altered or clipped pixels');
+        if(pose.startsWith('f_')&&colours(raw)!==colours(frames[who][pose]))issues.push(key+' altered portrait pixels');
       }
-      for(const who of ['grio','ponta'])for(const [pose,im] of Object.entries(frames[who])){
-        if(pose.startsWith('f_'))continue;
-        if(!((im.width===81&&im.height===64)||(im.width===128&&im.height===144)))issues.push(`${who}.${pose} dimensions`);
-        const alpha=im.getContext('2d').getImageData(0,im.height-1,im.width,1).data;
-        if(!CatDetail.meta[who+'.'+pose]&&!/^walk[123]$/.test(pose)&&!alpha.some((v,i)=>i%4===3&&v>0))issues.push(`${who}.${pose} foot baseline`);
-      }
-      // Motion maps to all four native steps, even when carrying a dish.
       for(const who of ['grio','ponta']) {
-        const face=c=>c.getContext('2d').getImageData(0,0,128,110).data.join(',');
-        for(let n=1;n<4;n++)if(face(frames[who].walk0)!==face(frames[who]['walk'+n]))issues.push(who+' walk face changed');
+        const reference=frames[who].idle;
+        for(const [pose,im] of Object.entries(frames[who])){
+          if(pose.startsWith('f_'))continue;
+          if(im.width!==128||im.height!==144||!im.motionArtwork)issues.push(who+'.'+pose+' not uniform artwork');
+          if(im.spriteScale!==reference.spriteScale||im.footAnchor!==reference.footAnchor)issues.push(who+'.'+pose+' scale/baseline');
+          const alpha=im.getContext('2d').getImageData(0,im.height-6,im.width,6).data;
+          if(!alpha.some((v,i)=>i%4===3&&v>128))issues.push(who+'.'+pose+' empty feet');
+        }
+        for(const direction of ['front','back'])for(let f=0;f<4;f++)
+          if(RearWalk.cat(who,f,frames[who].walk0,null,direction)!==frames[who][direction+'Walk'+f])issues.push(who+' mismatched directional artwork');
+        const pixels=pose=>frames[who][pose].getContext('2d').getImageData(0,0,128,144).data.join(',');
+        if(pixels('groom')===pixels('sit'))issues.push(who+' grooming not replaced');
+        if(charPose({pal:who,state:'slack'},'groom0')!=='groom')issues.push(who+' grooming not selected');
+        if(charPose({pal:who,state:'clean'},'sit0')!=='clean')issues.push(who+' cleaning not selected');
+        if(charPose({pal:who,state:'idle',jump:10},'sit0')!=='jump')issues.push(who+' jump not selected');
+        for(const prefix of ['walk','frontWalk','backWalk']) {
+          const a=pixels(prefix+'0');
+          for(let f=1;f<4;f++)if(a===pixels(prefix+f))issues.push(who+' repeated walking cell '+prefix+f);
+        }
       }
       for(const who of ['grio','ponta']) {
         for(const state of ['walk','toServe','toCounter','toTable']) {
@@ -290,7 +300,7 @@ fs.mkdirSync(artifacts, {recursive:true});
     });
     fs.writeFileSync(path.join(artifacts,'kitchen-art.png'),Buffer.from(kitchenArt,'base64'));
     console.log('PASS all seven food assets; doubled equipment at idle, cooking, timing zone and missed timing');
-    await p.goto(new URL('animation-preview.html',base).href);await p.waitForFunction(()=>document.querySelectorAll('.card').length===53);await p.screenshot({path:path.join(artifacts,'gallery.png'),fullPage:true});
+    await p.goto(new URL('animation-preview.html',base).href);await p.waitForFunction(()=>document.querySelectorAll('.card').length===56);await p.screenshot({path:path.join(artifacts,'gallery.png'),fullPage:true});
     assert.deepEqual(errors,[]);console.log('PASS all frames, carrying walk, ordering/cooking/delivery, save reload and UI panels; no runtime errors');
   } finally {await browser.close();if(server)server.close();}
 })().catch(e=>{console.error(e);process.exit(1);});
