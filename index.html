@@ -303,6 +303,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
+<script src="./hd-cats.js?v=2"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -1942,6 +1943,25 @@ const CHAR_SPR = {};
       tmp[who][name] = [c, flipH(c)];
     }
     Object.assign(CHAR_SPR, tmp);
+    // Replace the low-resolution character frames with transparent HD artwork.
+    // Keep original portraits and sprites as safe fallbacks until all frames load.
+    if (window.HD_CAT_SPR) {
+      for (const who of ['grio', 'ponta']) {
+        for (const pose of Object.keys(window.HD_CAT_SPR[who])) {
+          const source = window.HD_CAT_SPR[who][pose];
+          const install = () => {
+            if (!source.naturalWidth) return;
+            const frame = mk(48, 70), g = frame.getContext('2d');
+            g.imageSmoothingEnabled = true;
+            g.imageSmoothingQuality = 'high';
+            g.drawImage(source, 0, 0, 48, 70);
+            CHAR_SPR[who][pose] = [frame, flipH(frame)];
+          };
+          if (source.complete) install();
+          else source.addEventListener('load', install, { once: true });
+        }
+      }
+    }
     // 会話の かお も 差しかえ
     const FMAP = { normal: 'f_normal', happy: 'f_happy', sad: 'f_sleepy', surprise: 'f_surprise', sleep: 'f_sleepy' };
     for (const who of ['grio', 'ponta']) for (const e in FMAP) if (tmp[who][FMAP[e]]) FACES[who][e] = tmp[who][FMAP[e]][0];
