@@ -159,11 +159,24 @@ fs.mkdirSync(artifacts, {recursive:true});
     assert(newArtwork.heads.every(Boolean),'walking people keep identical face');
     assert(newArtwork.transforms.every(([x,y])=>x===y),'decor uniformly scaled');
     assert.deepEqual(newArtwork.frames,[[48,72],[48,72],[48,72],[48,66],[48,66],[48,66],[48,66],[48,54]]);
-    const seatAlignment=await p.evaluate(()=>{const tableY=140,seatY=tableY-8;return {chair:tableY-56+31,faceBottom:seatY-66+36,tableTop:tableY-39+2,person:seatY-CafeArt.person({hair:'#5a3a22',skin:'#f8dcc0',shirt:'#80a890',pants:'#4a4a58'},'sit').height+49};});
+    const seatAlignment=await p.evaluate(()=>{const tableY=140,seatY=tableY-8;return {chair:tableY-56+31,faceBottom:seatY-66+36,tableTop:tableY-32+2,person:seatY-CafeArt.person({hair:'#5a3a22',skin:'#f8dcc0',shirt:'#80a890',pants:'#4a4a58'},'sit').height+49};});
     assert.equal(seatAlignment.chair,seatAlignment.person,'seated hips align with chair cushion');
     assert(seatAlignment.faceBottom<=seatAlignment.tableTop,'table must not cover seated mouth');
     assert.deepEqual(newArtwork.furniture,[[88,52],[38,58],[34,34]]);
     console.log('PASS native people all 8 frames; stable walking faces; decor aspect ratios');
+    const detailedGuests=await p.evaluate(()=>{
+      const sheet=document.createElement('canvas');sheet.width=768;sheet.height=576;const g=sheet.getContext('2d');g.fillStyle='#fff0d8';g.fillRect(0,0,768,576);
+      for(let n=0;n<4;n++){
+        const look={guest:n};const frames=PERSON_FRAMES.map(f=>GuestArt.person(look,f));
+        if(frames.some(f=>!f||!f.guestDetail))throw Error('Missing detailed guest');
+        const face=c=>c.getContext('2d').getImageData(0,0,96,80).data.join(',');
+        if(face(frames[0])!==face(frames[1])||face(frames[0])!==face(frames[2]))throw Error('Walking face changed');
+        frames.forEach((f,i)=>g.drawImage(f,i*96,n*144+144-f.height));
+      }
+      return sheet.toDataURL().split(',')[1];
+    });
+    fs.writeFileSync(path.join(artifacts,'detailed-guests.png'),Buffer.from(detailedGuests,'base64'));
+    console.log('PASS four detailed guests all eight states, walking faces stable');
     const bowSheet=await p.evaluate(()=>{
       const sheet=document.createElement('canvas');sheet.width=720;sheet.height=520;
       const g=sheet.getContext('2d'),keep=ctx;ctx=g;
