@@ -71,5 +71,11 @@
       image.src = new URL('chars.webp', document.currentScript?.src || location.href).href;
     });
   }
-  window.CatArtwork = { meta, width: WIDTH, height: HEIGHT, load };
+  // Apply one family scale to every pose, including old-resolution sleep frames.
+  function displaySize(pal, image) {
+    const scale = pal === 'grio' ? (image.width === 128 ? .55 : 1.05) :
+      pal === 'ponta' ? (image.width === 128 ? .52 : .98) : .78;
+    return { width: Math.round(image.width * scale), height: Math.round(image.height * scale) };
+  }
+  window.CatArtwork = { meta, width: WIDTH, height: HEIGHT, load, displaySize };
 })();

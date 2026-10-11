@@ -307,11 +307,11 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
-<script src="./rear-walk.js?v=20261011-matched-facing"></script>
+<script src="./rear-walk.js?v=20261011-motion-scale"></script>
 <script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
 <script src="./character-detail.js?v=20261012-walk"></script>
-<script src="./character-art.js?v=20261012-walk"></script>
+<script src="./character-art.js?v=20261011-motion-scale"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -1881,8 +1881,7 @@ function catImg(pal, pose, face, k) {
 }
 // Display-scale only: original pixels and common foot anchor stay unchanged.
 function catDisplaySize(pal, img) {
-  const scale = pal === 'grio' ? (img.width===128 ? .70 : 1.35) : pal === 'ponta' ? (img.width===128 ? .66 : 1.25) : 1;
-  return { width: Math.round(img.width * scale), height: Math.round(img.height * scale) };
+  return CatArtwork.displaySize(pal, img);
 }
 // A shallow bow uses the standing artwork throughout: ease in and out
 // around the foot anchor. No curled pose, face replacement, or stretching.
@@ -1951,7 +1950,7 @@ function drawPonta() {
   const img = catImg('ponta', pose, p.face, Object.assign(p, { pal: 'ponta' }));
   const size = catDisplaySize('ponta', img);
   const X = Math.round(p.x * 2 - size.width / 2), Y = Math.round(p.y * 2 - size.height + catMotionOffset(p, pose));
-  floorShadow(p.x * 2, p.y * 2 - 1, (CHAR_SPR['ponta'] ? 16 : Math.round(img.width * 0.32)), 3, 0.18);
+  floorShadow(p.x * 2, p.y * 2 - 1, (CHAR_SPR['ponta'] ? 13 : Math.round(img.width * 0.25)), 3, 0.18);
   drawCatArtwork(img, X, Y, size, p);
   if (p.carry) drawAt(ICON2[p.carry.item.id], p.x * 2 - 12, Y - 26 + ((tick >> 3) & 1) * 2, 24);
   else {
@@ -1980,7 +1979,7 @@ function drawCat(k) {
   let Y = Math.round(k.y * 2 - size.height + catMotionOffset(k, pose));
   if (k.state === 'eat' && (k.t >> 4) & 1) Y += 2;
   if (k.jump > 0) Y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 12);
-  if (!(k.spot === TOWER && k.state === 'nap') && k.spot !== BOX) floorShadow(k.x * 2, k.y * 2 - 1, CHAR_SPR[k.pal] ? 18 : Math.round(img.width * 0.32), 3, 0.18);
+  if (!(k.spot === TOWER && k.state === 'nap') && k.spot !== BOX) floorShadow(k.x * 2, k.y * 2 - 1, CHAR_SPR[k.pal] ? 14 : Math.round(img.width * 0.25), 3, 0.18);
   drawCatArtwork(img, k.x * 2 - size.width / 2, Y, size, k);
   if (k.carry) drawAt(PLATE2, k.x * 2 - 9, Y - 10 + ((tick >> 3) & 1) * 2);
   if (k.carryDish && k.dish) drawAt(ICON2[k.dish.item.id], k.x * 2 - 12, Y - 24 + ((tick >> 3) & 1) * 2, 24);

@@ -2,6 +2,8 @@
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const rear = fs.readFileSync(path.join(__dirname, '..', 'rear-walk.js'), 'utf8');
+const artwork = fs.readFileSync(path.join(__dirname, '..', 'character-art.js'), 'utf8');
+const detailSource = fs.readFileSync(path.join(__dirname, '..', 'character-detail.js'), 'utf8');
 function canvas() {
   const c = { width: 0, height: 0, operations: [] };
   const g = {
@@ -88,6 +90,34 @@ const drawCustomer = new Function('GuestArt','RearWalk','drawAt','floorShadow','
 for(const [facing,expected] of [['back',rearGuest],['front',frontGuest],['side',sideGuest]])
   { drawCustomer({state:'enter',look,walkFacing:facing,anim:0,x:0,y:0});assert.equal(drawn,expected,'guest facing '+facing); }
 for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) if(match[1].trim()) new Function(match[1]);
+const artWindow = {};
+new Function('window','document',artwork)(artWindow,document);
+const displaySize = artWindow.CatArtwork.displaySize;
+assert.deepEqual(displaySize('grio',{width:128,height:144}),{width:70,height:79},'smaller Grio');
+assert.deepEqual(displaySize('ponta',{width:128,height:144}),{width:67,height:75},'Ponta remains slightly smaller');
+assert.deepEqual(displaySize('mike',{width:76,height:53}),{width:59,height:41},'other cats shrink too');
+assert.deepEqual(displaySize('stray_1',{width:76,height:53}),{width:59,height:41},'temporary cats shrink too');
+const detailMeta = JSON.parse(detailSource.match(/meta:(\{[\s\S]*?\}),src:/)[1]);
+for(const [key,[x,y,width,height]] of Object.entries(detailMeta)) {
+  const who = key.split('.')[0], size = displaySize(who,{width,height});
+  assert.equal(size.height,who==='grio'?79:75,'common scale for '+key);
+  assert.equal(size.width,who==='grio'?70:67,'common frame for '+key);
+}
+assert.equal(displaySize('grio',{width:81,height:64}).height,67,'old-resolution sleeping art is smaller');
+assert.equal(displaySize('ponta',{width:81,height:64}).height,63,'Ponta sleeping art is smaller');
+const selectorCode = html.slice(html.indexOf('function charPose('),html.indexOf('function catImg('));
+const selectPose = new Function('tick','BOX',selectorCode+';return charPose;')(100,{});
+for(const [state,pose,expected] of [['idle','sit0','idle'],['visit','sit0','sit'],['pickup','sit0','clean'],['nap','sleep','sleepbag'],['toOrder','walk0','walk0']])
+  assert.equal(selectPose({pal:'grio',state,anim:0},pose),expected,'original motion '+state);
+assert.equal(selectPose({pal:'grio',state:'idle',carryDish:true},'sit0'),'serve','serving pose retained');
+assert.equal(selectPose({pal:'grio',surpriseUntil:120},'sit0'),'surprise','surprised pose retained');
+assert.equal(selectPose({pal:'grio',joyUntil:200},'sit0'),'joy','happy pose retained');
+for(const frame of frames) {
+  const op=frame.operations[0], nativeHeight=op[9];
+  assert(nativeHeight<=111,'front/back Grio sized to original walking artwork');
+  assert(Math.round(nativeHeight*.55)<=62,'visible cat smaller than human artwork');
+}
+
 const pending = [], waitingWindow = {};
 class DeferredImage { constructor() { pending.push(this); } set src(value) {} }
 new Function('document','window','GuestArt','Image',rear)(document,waitingWindow,GuestArt,DeferredImage);
@@ -96,4 +126,4 @@ pending[0].onload(); pending[1].onload();
 assert.equal(waitingWindow.RearWalk.cat('grio',0,original,fur,'front'),null,'wait for all three images');
 pending[2].onload();
 assert(waitingWindow.RearWalk.cat('grio',0,original,fur,'front'),'sprites ready after all three images');
-console.log('PASS six matched front/back cats at three display sizes, guest crops, common scale and feet, direction, loading and script syntax');
+console.log('PASS smaller cats, all original motion scales and pose selection, matched front/back crops, anchors, direction, loading and syntax');

@@ -42,7 +42,7 @@ fs.mkdirSync(artifacts, {recursive:true});
         grio:catDisplaySize('grio',CHAR_SPR.grio.idle[0]).height, ponta:catDisplaySize('ponta',CHAR_SPR.ponta.idle[0]).height}));
       assert.equal(layout.scene,layout.wrap,'game uses full width instead of height fitting');
       assert(Math.abs(layout.sceneHeight-layout.scene*300/224/2)<2,'cafe height halved without squashing actors');
-      assert(layout.grio>64&&layout.ponta<layout.grio,'larger cats; Ponta a little smaller');
+      assert.equal(layout.grio,79,'Grio reduced across all poses');assert.equal(layout.ponta,75,'Ponta reduced across all poses');
       await page.evaluate(()=>{document.body.scrollTop=document.body.scrollHeight;});
       const scrollCheck=await page.evaluate(()=>({bottom:$('dock').getBoundingClientRect().bottom,kitchen:$('kitchenCv').getBoundingClientRect().bottom,top:$('kitchenCv').getBoundingClientRect().top}));
       assert(scrollCheck.bottom<=height+1);assert(scrollCheck.kitchen<=height+1);assert(scrollCheck.top>=0,'kitchen reachable by scrolling');
@@ -290,7 +290,7 @@ fs.mkdirSync(artifacts, {recursive:true});
     });
     fs.writeFileSync(path.join(artifacts,'kitchen-art.png'),Buffer.from(kitchenArt,'base64'));
     console.log('PASS all seven food assets; doubled equipment at idle, cooking, timing zone and missed timing');
-    await p.goto(new URL('animation-preview.html',base).href);await p.waitForFunction(()=>document.querySelectorAll('.card').length===49);await p.screenshot({path:path.join(artifacts,'gallery.png'),fullPage:true});
+    await p.goto(new URL('animation-preview.html',base).href);await p.waitForFunction(()=>document.querySelectorAll('.card').length===53);await p.screenshot({path:path.join(artifacts,'gallery.png'),fullPage:true});
     assert.deepEqual(errors,[]);console.log('PASS all frames, carrying walk, ordering/cooking/delivery, save reload and UI panels; no runtime errors');
   } finally {await browser.close();if(server)server.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

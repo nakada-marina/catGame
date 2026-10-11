@@ -22,12 +22,13 @@ figcaption{padding-top:8px;font-size:14px}
 </head>
 <body>
 <h1>ねこの前向きと後ろ向き</h1>
-<p>同じねこの前向き・後ろ向きを並べて見られます。</p>
+<p>同じねこの前向き・後ろ向きを、ゲーム内の大きさで並べて見られます。</p>
 <button id="toggle" type="button">歩行を止める</button>
-<p><a href="./">ゲームへ戻る</a></p>
+<p><a href="./">ゲームへ戻る</a> · <a href="./animation-preview.html">ぐりお・ぽんたの全モーション</a></p>
 <p id="status" role="status">素材を読み込んでいます…</p>
 <div class="grid" id="cats"></div>
-<script src="./rear-walk.js?v=20261011-matched-facing"></script>
+<script src="./character-art.js?v=20261011-motion-scale"></script>
+<script src="./rear-walk.js?v=20261011-motion-scale"></script>
 <script>
 (async function(){
   try {
@@ -48,7 +49,7 @@ figcaption{padding-top:8px;font-size:14px}
     let paused=matchMedia('(prefers-reduced-motion: reduce)').matches,frame=0,last=0;
     const button=document.getElementById('toggle');
     function label(){button.textContent=paused?'歩行を再生する':'歩行を止める';}
-    function draw(){for(const {pal,facing,cv} of views){const g=cv.getContext('2d');g.clearRect(0,0,128,144);g.imageSmoothingEnabled=false;g.drawImage(RearWalk.cat(pal,frame,source,null,facing),0,0);}}
+    function draw(){for(const {pal,facing,cv} of views){const g=cv.getContext('2d');g.clearRect(0,0,128,144);g.imageSmoothingEnabled=false;const model=(pal==='grio'||pal==='ponta')?source:{width:76,height:53},im=RearWalk.cat(pal,frame,model,null,facing),size=CatArtwork.displaySize(pal,im);g.drawImage(im,Math.round((128-size.width)/2),144-size.height,size.width,size.height);}}
     button.onclick=()=>{paused=!paused;label();};label();draw();
     function animate(time){if(!paused&&time-last>=150){frame=(frame+1)%4;last=time;draw();}requestAnimationFrame(animate);}
     requestAnimationFrame(animate);

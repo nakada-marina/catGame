@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const mainCats = new Image(), extraCats = new Image(), guestAtlas = new Image(), cache = new Map();
-  const mainMeta = [[{"bounds":[90,24,202,281],"axis":181.5},{"bounds":[385,24,203,281],"axis":477},{"bounds":[681,24,201,281],"axis":772.5},{"bounds":[979,24,197,281],"axis":1070}],[{"bounds":[89,327,199,275],"axis":179.5},{"bounds":[385,327,199,279],"axis":476},{"bounds":[682,327,202,278],"axis":773.5},{"bounds":[981,327,199,275],"axis":1072}],[{"bounds":[77,629,226,291],"axis":181},{"bounds":[372,630,234,289],"axis":477},{"bounds":[670,630,231,289],"axis":775},{"bounds":[967,629,229,293],"axis":1070.5}],[{"bounds":[77,938,226,283],"axis":182},{"bounds":[372,938,233,280],"axis":477},{"bounds":[670,938,227,283],"axis":775.5},{"bounds":[967,938,228,281],"axis":1072.5}]];
+  const mainMeta = [[{"bounds":[60,75,185,248],"axis":167},{"bounds":[371,76,188,249],"axis":480.5},{"bounds":[671,74,185,250],"axis":774.5},{"bounds":[985,76,206,250],"axis":1081.5}],[{"bounds":[74,354,202,258],"axis":162.5},{"bounds":[385,355,198,256],"axis":477},{"bounds":[686,354,203,258],"axis":775.5},{"bounds":[994,354,203,259],"axis":1090}],[{"bounds":[44,650,224,259],"axis":169},{"bounds":[354,649,226,262],"axis":480},{"bounds":[667,642,223,267],"axis":771},{"bounds":[989,645,225,266],"axis":1086}],[{"bounds":[72,935,232,269],"axis":172},{"bounds":[370,935,235,267],"axis":475},{"bounds":[676,933,238,267],"axis":777.5},{"bounds":[983,930,229,272],"axis":1086.5}]];
   const extraMeta = [[{"bounds":[62,9,164,215],"axis":132},{"bounds":[275,9,161,215],"axis":344.5},{"bounds":[477,9,166,215],"axis":547},{"bounds":[685,9,163,215],"axis":754}],[{"bounds":[64,225,163,204],"axis":132.5},{"bounds":[277,224,163,208],"axis":346},{"bounds":[481,225,166,205],"axis":549.5},{"bounds":[688,224,164,208],"axis":756}],[{"bounds":[62,442,165,216],"axis":132.5},{"bounds":[274,442,162,218],"axis":343},{"bounds":[479,441,166,217],"axis":548},{"bounds":[685,442,163,218],"axis":754.5}],[{"bounds":[65,661,161,215],"axis":133.5},{"bounds":[275,661,164,216],"axis":343.5},{"bounds":[480,661,167,215],"axis":550},{"bounds":[687,661,164,216],"axis":755.5}],[{"bounds":[61,890,166,218],"axis":133.5},{"bounds":[273,890,164,220],"axis":345.5},{"bounds":[478,890,166,218],"axis":549},{"bounds":[684,890,164,219],"axis":755}],[{"bounds":[63,1114,163,211],"axis":132},{"bounds":[275,1114,165,213],"axis":344.5},{"bounds":[479,1114,167,211],"axis":549.5},{"bounds":[687,1114,164,212],"axis":756}],[{"bounds":[59,1334,167,219],"axis":131.5},{"bounds":[273,1334,165,220],"axis":344.5},{"bounds":[478,1334,167,218],"axis":550},{"bounds":[685,1334,164,220],"axis":756.5}],[{"bounds":[64,1557,163,206],"axis":133},{"bounds":[277,1557,163,207],"axis":345.5},{"bounds":[481,1557,166,206],"axis":551.5},{"bounds":[688,1557,164,207],"axis":757}]];
   const guestMeta = [[{"bounds":[80,490,149,256],"axis":154},{"bounds":[320,490,148,256],"axis":393.5},{"bounds":[558,490,150,256],"axis":632.5},{"bounds":[800,490,148,256],"axis":873.5}],[{"bounds":[88,759,134,266],"axis":154.5},{"bounds":[323,759,135,266],"axis":390},{"bounds":[566,759,135,266],"axis":633},{"bounds":[806,759,135,266],"axis":873}],[{"bounds":[75,1039,150,241],"axis":149.5},{"bounds":[312,1039,150,240],"axis":386.5},{"bounds":[558,1039,150,241],"axis":632.5},{"bounds":[794,1039,149,240],"axis":868}],[{"bounds":[68,1288,170,236],"axis":152.5},{"bounds":[303,1288,170,237],"axis":388.5},{"bounds":[547,1287,170,238],"axis":632},{"bounds":[785,1288,171,236],"axis":871}]];
   const catRows = { grio: [mainCats, mainMeta, 0], ponta: [mainCats, mainMeta, 2],
@@ -16,16 +16,16 @@
       image.onerror = () => reject(new Error('Character facing atlas failed to load'));
     }
   });
-  mainCats.src = './cat-facing-main.png?v=20261011-matched';
+  mainCats.src = './cat-facing-main.png?v=20261011-motion-scale';
   extraCats.src = './cat-facing-extra.png?v=20261011-matched';
   guestAtlas.src = './rear-walk-atlas.png?v=20261011-generated-rear';
-  function sprite(key, image, record, group, width, height) {
+  function sprite(key, image, record, group, width, height, bodyHeight = height - 10) {
     if (cache.has(key)) return cache.get(key);
     const c = document.createElement('canvas'); c.width = width; c.height = height;
     const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
     const [x, y, w, h] = record.bounds;
     // One uniform scale across both directions and all eight frames of a cat.
-    const scale = Math.min((height - 10) / Math.max(...group.map(item => item.bounds[3])),
+    const scale = Math.min(bodyHeight / Math.max(...group.map(item => item.bounds[3])),
       ...group.map(item => (width / 2 - 3) / Math.max(item.axis - item.bounds[0], item.bounds[0] + item.bounds[2] - item.axis)));
     const dx = Math.round(width / 2 - (record.axis - x) * scale);
     // Align soles to the same foot anchor in front and back views.
@@ -39,8 +39,10 @@
     const [image, meta, first] = catRows[pal], row = first + (facing === 'back' ? 1 : 0);
     const f = ((frame % 4) + 4) % 4;
     const group = [...meta[first], ...meta[first + 1]];
+    const bodyHeight = pal === 'grio' ? (source.width === 128 ? 111 : 58) :
+      pal === 'ponta' ? (source.width === 128 ? 107 : 58) : source.height - 10;
     const c = sprite(pal + ':' + facing + ':' + f + ':' + source.width + ':' + source.height,
-      image, meta[row][f], group, source.width, source.height);
+      image, meta[row][f], group, source.width, source.height, Math.min(source.height - 2, bodyHeight));
     c.generatedCat = true; c.generatedRear = facing === 'back'; return c;
   }
   function guest(look, frame) {
