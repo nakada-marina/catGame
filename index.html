@@ -354,10 +354,30 @@ const CAT_PALS = {
   shiro:  { o: '#8a8a98', b: '#fbfbfd', t: '#ececf3', s: '#d9d9e3', w: '#ffffff', p: '#f5a0b8', e: '#4a8ad0' },
   chacha: { o: '#5a3010', b: '#f0a050', t: '#c86e24', s: '#d98a3c', w: '#fff2dc', p: '#f29bb0', e: '#3f7a32' },
 };
+// 長毛ねこ用：りんかくに ふさふさの毛を足す
+function fluffy(rows) {
+  const w = Math.max(...rows.map(r => r.length)) + 2;
+  let g = ['.'.repeat(w), ...rows.map(r => '.' + r.padEnd(w - 2, '.') + '.')].map(r => r.split(''));
+  for (const salt of [0, 2]) {
+    const H = g.length, out = g.map(r => r.slice());
+    for (let y = 4; y < H - 1; y++) for (let x = 0; x < w; x++) {
+      if (g[y][x] !== '.' || (x * 7 + y * 3 + salt) % 4 !== 0) continue;
+      const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => g[y + dy] && g[y + dy][x + dx] === 'o');
+      if (!nb.length) continue;
+      out[y][x] = 'o';
+      for (const [dx, dy] of nb) { const far = g[y + 2 * dy] && g[y + 2 * dy][x + 2 * dx]; if (far && far !== '.' && far !== 'o') out[y + dy][x + dx] = (x + y) % 3 ? 'b' : 's'; }
+    }
+    g = out;
+  }
+  return g.map(r => r.join(''));
+}
 const CAT_SPR = {};
 for (const pal in CAT_PALS) {
   CAT_SPR[pal] = {};
-  for (const pose in CAT_ROWS) { const s = sprite(CAT_ROWS[pose], CAT_PALS[pal]); CAT_SPR[pal][pose] = [s, flipH(s)]; }
+  for (const pose in CAT_ROWS) {
+    const rows = pal === 'ponta' ? fluffy(CAT_ROWS[pose]) : CAT_ROWS[pose];
+    const s = sprite(rows, CAT_PALS[pal]); CAT_SPR[pal][pose] = [s, flipH(s)];
+  }
 }
 
 // ================= ドット絵：お客さん =================
@@ -785,9 +805,19 @@ function pay(c) {
 }
 
 // ================= ねこ =================
+const SINK = { x: 150, y: 100 };
+function assignClean(k) {
+  const dirty = seats.filter(s => s.dirty && !s.cleaner);
+  if (!dirty.length) return false;
+  const s = dirty.reduce((a, b) => Math.hypot(a.tx - k.x, a.ty - k.y) < Math.hypot(b.tx - k.x, b.ty - k.y) ? a : b);
+  s.cleaner = k; k.clean = s; k.spot = null; k.visit = null;
+  k.state = 'toClean'; k.tx = s.tx + s.side * 13; k.ty = s.ty + 5;
+  return true;
+}
 function catThink(k) {
   const r = Math.random();
   if (k.hunger > 60 && G.bowl > 0) { k.state = 'toBowl'; k.tx = BOWL.x + rnd(-6, 6); k.ty = BOWL.y + 6; return; }
+  if (r < 0.65 && assignClean(k)) return;
   const guests = seats.filter(s => s.cust && (s.cust.state === 'order' || s.cust.state === 'eat') && !cats.some(o => o !== k && o.visit === s));
   if (guests.length && r < 0.35) { const s = pick(guests); k.visit = s; k.state = 'toVisit'; k.tx = s.tx + s.side * 14; k.ty = s.ty + 10; return; }
   const freeCush = CUSHION_POS.slice(0, G.furniture.cushion).filter(p => !cats.some(o => o.spot === p));
@@ -802,8 +832,28 @@ function updateCat(k) {
   if (k.petCool > 0) k.petCool--;
   const sp = 0.45;
   switch (k.state) {
-    case 'idle': if (--k.t <= 0) catThink(k); break;
-    case 'walk': k.anim++; if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'idle'; k.t = Math.floor(rnd(90, 260)); } break;
+    case 'idle': if (--k.t <= 0 || (Math.random() < 0.01 && assignClean(k))) { if (k.state === 'idle') catThink(k); } break;
+    case 'toClean':
+      k.anim++;
+      if (!k.clean.dirty) { k.clean.cleaner = null; k.clean = null; k.state = 'idle'; k.t = 30; break; }
+      if (moveTo(k, k.tx, k.ty, 0.55)) { k.state = 'pickup'; k.t = 45; k.face = -k.clean.side; }
+      break;
+    case 'pickup':
+      if (!k.clean.dirty) { k.clean.cleaner = null; k.clean = null; k.state = 'idle'; k.t = 30; break; }
+      if (--k.t <= 0) {
+        k.clean.dirty = false; k.clean.cleaner = null; k.clean = null; k.carry = true;
+        k.state = 'toSink'; k.tx = SINK.x + rnd(-4, 4); k.ty = SINK.y;
+        tone(1319, 0.05, 'square', 0.15); event('catClean');
+      }
+      break;
+    case 'toSink':
+      k.anim++;
+      if (moveTo(k, k.tx, k.ty, 0.55)) {
+        k.carry = false; k.state = 'idle'; k.t = 80; k.mood = clamp(k.mood + 3, 0, 100);
+        addFx('spark', k.x, k.y - 16); addFx('text', k.x, k.y - 28, { text: 'ピカピカ', color: '#ffffff', life: 40 }); sfx.clean();
+      }
+      break;
+    case 'walk': k.anim++; if (Math.random() < 0.006 && assignClean(k)) break; if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'idle'; k.t = Math.floor(rnd(90, 260)); } break;
     case 'toBowl':
       k.anim++;
       if (moveTo(k, k.tx, k.ty, sp)) {
@@ -850,6 +900,8 @@ function petCat(k) {
 function startDay() {
   mode = 'open'; tick = 0; G.time = OPEN; spawnTimer = 120; staffBusy = 0;
   customers = []; particles = []; furs = []; jobs = [];
+  cats.forEach(k => { if (k.clean || k.carry) { k.clean = null; k.carry = false; k.state = 'idle'; k.t = 30; } });
+  seats.forEach(s => { s.cleaner = null; });
   ponta = { x: PONTA_HOME.x, y: PONTA_HOME.y, state: 'idle', t: 0, face: -1, anim: 0, job: null, carry: null, napCool: 900 };
   seats.forEach(s => { s.cust = null; s.dirty = false; });
   weather = Math.random() < 0.25 ? 'rain' : 'sun';
@@ -1086,11 +1138,9 @@ function drawPonta() {
   ctx.drawImage(img, x0, y0);
   // 緑のバンダナ（従業員のしるし）
   if (pose !== 'sleep') {
-    const col = pose === 'sit' ? 12 : 13, row = pose === 'sit' ? 7 : 7, w = img.width;
+    const col = pose === 'sit' ? 13 : 15, row = 9, w = img.width;
     const bx = right ? x0 + col : x0 + w - col - 5;
-    P('#2e7a4e', bx, y0 + row, 5, 2); P('#2e7a4e', bx + 1, y0 + row + 2, 3, 1); P('#5ab07a', bx + 1, y0 + row, 2, 1);
-  } else {
-    P('#2e7a4e', right ? x0 + 14 : x0 + 2, y0 + 6, 4, 2);
+    P('#2e7a4e', bx, y0 + row, 5, 1); P('#5ab07a', bx + 1, y0 + row, 2, 1); P('#2e7a4e', bx + 1, y0 + row + 1, 2, 1);
   }
   if (p.carry) ctx.drawImage(ICON[p.carry.item.id], Math.round(p.x - 4), y0 - 9 + ((tick >> 3) & 1));
   else {
@@ -1114,13 +1164,15 @@ function drawPonta() {
 function drawCat(k) {
   const spr = CAT_SPR[k.pal];
   let pose = 'sit';
-  if (['walk', 'toBowl', 'toVisit', 'toSpot'].includes(k.state)) pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB';
+  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink'].includes(k.state)) pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB';
   else if (k.state === 'nap') pose = 'sleep';
   const img = spr[pose][k.face > 0 ? 0 : 1];
   let y = Math.round(k.y - img.height);
   if (k.state === 'eat' && (k.t >> 4) & 1) y += 1;
   if (k.jump > 0) y -= Math.round(Math.sin(k.jump / 16 * Math.PI) * 6);
   ctx.drawImage(img, Math.round(k.x - img.width / 2), y);
+  if (k.carry) ctx.drawImage(PLATE, Math.round(k.x - 4), y - 5 + ((tick >> 3) & 1));
+  if (k.state === 'pickup' && (tick >> 3) & 1) P('#ffffff', Math.round(k.x + k.face * 6), y + 2, 1, 1);
   if (k.state === 'nap' && (tick >> 5) % 3 === 0) { ctx.font = '7px "DotGothic16", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#5a6aa0'; ctx.fillText('z', k.x + 9, k.y - 10); }
 }
 function drawCustomer(c) {
@@ -1564,6 +1616,18 @@ function makePortrait(expr, who = 'grio') {
   } else {
     [[30, 49], [29, 49], [28, 48], [32, 49], [33, 49], [34, 48]].forEach(([x, y]) => set(x, y, C.line));
   }
+  // ぽんた：ふさふさの長毛（ほっぺの飾り毛・首まわり・耳の先）
+  if (pon) {
+    for (let y = 30; y <= 58; y += 3) {
+      const row = buf[y]; if (!row) continue;
+      const xl = row.findIndex(v => v), xr = N - 1 - row.slice().reverse().findIndex(v => v);
+      if (xl < 0) continue;
+      const len = 2 + ((y / 3) % 2);
+      for (let i = 1; i <= len; i++) { set(xl - i, y + i - 1, i === len ? C.furD : C.fur); set(xr + i, y + i - 1, i === len ? C.furD : C.fur); }
+    }
+    each((fx, fy, x, y) => { if (fy > 55 && buf[y][x] && buf[y][x] !== C.white && x % 4 === (y >> 1) % 4) buf[y][x] = C.furL; });
+    set(6, 1, C.furD); set(6, 2, C.furD); set(5, 0, C.furD); set(58, 1, C.furD); set(58, 2, C.furD); set(59, 0, C.furD);
+  }
   // ふちどり
   const out = buf.map(r => r.slice());
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
@@ -1642,6 +1706,10 @@ const TALKS = {
   pontaWake: [
     ['surprise', 'にゃっ!? ね、ねてないよ！ ちょっと 目を とじてただけ！', 'ponta'],
     ['sad', '……まったく もう。'],
+  ],
+  catClean: [
+    ['happy', 'ぼくたちも おさらの かたづけ、てつだうにゃ！'],
+    ['normal', 'ねこが まにあわないときは、おさらを タップすれば すぐ かたづくよ。'],
   ],
   toy: [['happy', 'ねこじゃらしを みつけたにゃ！'], ['happy', 'みんなで あそんで、ごきげんに なったよ〜']],
 };
