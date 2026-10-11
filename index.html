@@ -33,7 +33,7 @@ body {
   display: flex;
   justify-content: center;
   padding-inline: 16px;
-  padding-block: 12px;
+  padding-block: 8px;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -41,7 +41,7 @@ body {
   overflow-x: hidden;
 }
 #wrap {
-  width: min(100%, 720px, calc((100dvh - 190px) * 4 / 3));
+  width: min(100%, 640px, calc((100dvh - 150px) * 320 / 400));
   min-width: min(100%, 300px);
   display: flex;
   flex-direction: column;
@@ -63,7 +63,7 @@ body {
   display: block;
   width: 100%;
   max-width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 320 / 400;
   image-rendering: pixelated;
   border: 3px solid #0f1814;
   border-radius: 6px;
@@ -71,6 +71,35 @@ body {
   touch-action: none;
   cursor: pointer;
 }
+#stage { position: relative; }
+#talk {
+  position: absolute;
+  left: 8px; right: 8px; bottom: 8px;
+  display: flex;
+  gap: 10px;
+  background: rgba(24, 36, 31, 0.95);
+  border: 3px solid var(--wood);
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+}
+#face {
+  width: 30%;
+  max-width: 132px;
+  aspect-ratio: 1;
+  flex-shrink: 0;
+  align-self: flex-start;
+  image-rendering: pixelated;
+  background: #e9dcc0;
+  border: 3px solid #5a3a22;
+  border-radius: 6px;
+}
+#talk .msg { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; position: relative; }
+#talk .who { color: var(--butter); font-size: 14px; }
+#talk p { margin: 0; font-size: 16px; line-height: 1.6; min-height: 4.8em; }
+#talk .next { position: absolute; right: 2px; bottom: 0; color: var(--butter); animation: blink 0.9s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #talk .next { animation: none; } }
 #actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 button {
   font-family: inherit;
@@ -171,7 +200,13 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
     <div class="money" id="hudMoney">¥0</div>
     <div class="stars" id="hudStars" aria-label="ひょうばん"></div>
   </div>
-  <canvas id="cafe" aria-label="カフェの店内"></canvas>
+  <div id="stage">
+    <canvas id="cafe" aria-label="カフェの店内"></canvas>
+    <div id="talk" hidden role="dialog" aria-live="polite">
+      <canvas id="face" width="64" height="64" aria-label="ぐりお"></canvas>
+      <div class="msg"><span class="who">ぐりお</span><p id="talkText"></p><span class="next" id="talkNext">▼</span></div>
+    </div>
+  </div>
   <div id="actions">
     <button type="button" id="btnFood">ごはん<small id="foodLeft">のこり 0</small></button>
     <button type="button" id="btnShop">ショップ<small>家具など</small></button>
@@ -179,7 +214,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
     <button type="button" id="btnSpeed">はやさ<small id="speedLabel">×1</small></button>
   </div>
   <div id="sub">
-    <span>ふきだしをタップで注文を出す・ねこをタップでなでる</span>
+    <span>ふきだし＝注文を出す・お皿＝かたづけ・ねこ＝なでる</span>
     <button type="button" id="btnMute">音 ON</button>
   </div>
 </div>
@@ -188,7 +223,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; }
 <script>
 'use strict';
 // ================= 画面 =================
-const VW = 320, VH = 240, S = 3;
+const VW = 320, VH = 400, S = 3;
 const cv = document.getElementById('cafe');
 cv.width = VW * S; cv.height = VH * S;
 const ctx = cv.getContext('2d');
@@ -280,7 +315,7 @@ const CAT_ROWS = {
   ],
 };
 const CAT_PALS = {
-  grio:   { o: '#3b3b4a', b: '#a6a6b6', t: '#74748a', s: '#8a8a9e', w: '#f4f4f6', p: '#f29bb0', e: '#2f6a3a' },
+  grio:   { o: '#2a2119', b: '#8a7458', t: '#43352a', s: '#6c5a44', w: '#f7f3ec', p: '#eaa0a6', e: '#a9ad3c' },
   mike:   { o: '#5a463a', b: '#fbf6ee', t: '#e8944a', s: '#ddd4c6', w: '#ffffff', p: '#f29bb0', e: '#b8861a' },
   kuro:   { o: '#0c0c12', b: '#2e2e3a', t: '#24242e', s: '#1c1c24', w: '#44445a', p: '#c06a80', e: '#e8c030' },
   shiro:  { o: '#8a8a98', b: '#fbfbfd', t: '#ececf3', s: '#d9d9e3', w: '#ffffff', p: '#f5a0b8', e: '#4a8ad0' },
@@ -381,25 +416,25 @@ const ADOPT = [
 const STAFF = { price: 10000, wage: 2000, star: 2 };
 const RENT = 1000, FOOD_PRICE = 500, FOOD_AMOUNT = 8;
 const OPEN = 600, CLOSE = 1140; // 10:00〜19:00
-const TABLE_POS = [[66, 132], [130, 132], [66, 190], [130, 190], [206, 150], [270, 150]];
-const CUSHION_POS = [[200, 224], [234, 216], [268, 224], [298, 212]];
-const PLANT_POS = [[98, 74], [184, 74], [306, 236]];
+const TABLE_POS = [[84, 168], [160, 168], [84, 248], [160, 248], [250, 196], [254, 290]];
+const CUSHION_POS = [[36, 352], [70, 376], [248, 376], [288, 356]];
+const PLANT_POS = [[98, 74], [184, 74], [306, 392]];
 const TOWER = { x: 24, base: 122, top: 62 };
 const BOWL = { x: 226, y: 108 };
-const ENTRANCE = { x: 176, y: 252 };
+const ENTRANCE = { x: 176, y: 412 };
 const SAVE_KEY = 'grio-cafe-v1';
 
 // ================= 状態 =================
 let G = null;            // セーブされる進行データ
 let seats = [], customers = [], cats = [], particles = [], furs = [];
 let tick = 0, speed = 1, mode = 'title', spawnTimer = 200, staffBusy = 0;
-let dayLog = null, weather = 'sun';
+let dayLog = null, weather = 'sun', dayFlags = {}, rushUntil = 0, vipNext = false;
 
 function newSave() {
   return {
     day: 1, money: 8000, pop: 10, bowl: 6, staff: false, served: 0, legend: false,
     furniture: { table: 2, cushion: 0, tower: 0, plant: 0, rug: 0, shelf: 0, lamp: 0 },
-    menu: ['coffee', 'cookie'],
+    menu: ['coffee', 'cookie'], flags: {},
     cats: [{ name: 'ぐりお', pal: 'grio', mood: 70, hunger: 20 }],
   };
 }
@@ -423,7 +458,7 @@ function buildSeats() {
 function makeCat(c, x, y) {
   return { ...c, x, y, state: 'idle', t: Math.floor(rnd(30, 200)), face: 1, tx: 0, ty: 0, petCool: 0, anim: 0, visit: null, spot: null, jump: 0 };
 }
-function spawnCats() { cats = G.cats.map((c, i) => makeCat(c, 150 + i * 24, 214)); }
+function spawnCats() { cats = G.cats.map((c, i) => makeCat(c, 150 + i * 24, 330)); }
 
 // ================= 音 =================
 let actx = null, master = null, muted = false;
@@ -482,7 +517,8 @@ function freeSeats() { return seats.filter(s => !s.cust && !s.dirty); }
 function spawnCustomer() {
   const free = freeSeats(); if (!free.length) return;
   const seat = pick(free), look = randomLook();
-  const c = { x: ENTRANCE.x + rnd(-8, 8), y: ENTRANCE.y, seat, state: 'enter', t: 0, spr: makePerson(look), anim: 0, order: null, pat: 0, maxPat: 0, visits: 0 };
+  const c = { x: ENTRANCE.x + rnd(-8, 8), y: ENTRANCE.y, seat, state: 'enter', t: 0, spr: makePerson(look), anim: 0, order: null, pat: 0, maxPat: 0, visits: 0, vip: vipNext };
+  vipNext = false;
   seat.cust = c; customers.push(c);
 }
 function chooseOrder() {
@@ -535,7 +571,8 @@ function pay(c) {
   const wait = 1 - c.patAtServe / c.maxPat;
   let sat = 52 + decor() * 2.5 + Math.min(3, c.visits) * 9 + (avgMood() - 50) * 0.25 - wait * 34 - furs.length * 2.5;
   sat = clamp(Math.round(sat + rnd(-6, 6)), 0, 100);
-  const tip = sat > 62 ? Math.round(item.price * (sat - 62) / 100 / 10) * 10 : 0;
+  let tip = sat > 62 ? Math.round(item.price * (sat - 62) / 100 / 10) * 10 : 0;
+  if (c.vip && wait < 0.5) { tip = tip * 3 + 500; G.pop = clamp(G.pop + 3, 0, 100); }
   earn(item.price + tip, s.x, s.y - 26);
   dayLog.tips += tip;
   G.pop = clamp(G.pop + (sat - 58) / 22, 0, 100);
@@ -555,7 +592,7 @@ function catThink(k) {
   const freeCush = CUSHION_POS.slice(0, G.furniture.cushion).filter(p => !cats.some(o => o.spot === p));
   if (freeCush.length && r < 0.55) { const p = pick(freeCush); k.spot = p; k.state = 'toSpot'; k.tx = p[0]; k.ty = p[1] - 1; return; }
   if (G.furniture.tower && r < 0.68 && !cats.some(o => o.spot === TOWER)) { k.spot = TOWER; k.state = 'toSpot'; k.tx = TOWER.x + 10; k.ty = TOWER.base + 2; return; }
-  if (r < 0.9) { k.state = 'walk'; k.tx = rnd(16, 304); k.ty = rnd(100, 232); return; }
+  if (r < 0.9) { k.state = 'walk'; k.tx = rnd(16, 304); k.ty = rnd(104, 388); return; }
   k.state = 'idle'; k.t = Math.floor(rnd(120, 300));
 }
 function updateCat(k) {
@@ -615,6 +652,9 @@ function startDay() {
   seats.forEach(s => { s.cust = null; s.dirty = false; });
   weather = Math.random() < 0.25 ? 'rain' : 'sun';
   dayLog = { served: 0, angry: 0, sales: 0, tips: 0, reviews: [], popStart: G.pop };
+  dayFlags = {}; rushUntil = 0; vipNext = false;
+  G.todayEvent = G.day >= 2 && Math.random() < 0.55 ? pick(['rush', 'vip', 'toy']) : null;
+  if (G.day === 2) event('day2');
   bgmOn = true;
   toast(weather === 'rain' ? `${G.day}日目 雨の日。お客さんは少なめかも` : `${G.day}日目 カフェ、オープン！`);
   updateHud();
@@ -632,7 +672,7 @@ function endDay() {
   const finished = G.day;
   G.day++;
   let legend = '';
-  if (!G.legend && stars() >= 5 && G.money >= 100000) { G.legend = true; legend = '<p style="color:var(--butter)">★5 と ¥100,000 を達成！ぐりおのカフェは「でんせつの ねこカフェ」になりました！</p>'; }
+  if (!G.legend && stars() >= 5 && G.money >= 100000) { G.legend = true; say(TALKS.legend); legend = '<p style="color:var(--butter)">★5 と ¥100,000 を達成！ぐりおのカフェは「でんせつの ねこカフェ」になりました！</p>'; }
   save();
   const yen = v => `${v >= 0 ? '+' : '−'}¥${Math.abs(v).toLocaleString()}`;
   openModal(`
@@ -668,7 +708,7 @@ function update() {
   if (mode === 'open' && --spawnTimer <= 0) {
     spawnCustomer();
     const base = 560 - G.pop * 3.2 - (G.menu.length - 2) * 25 - decor() * 10;
-    spawnTimer = Math.round(clamp(base, 140, 620) * rnd(0.7, 1.3) * (weather === 'rain' ? 1.4 : 1));
+    spawnTimer = Math.round(clamp(base, 140, 620) * rnd(0.7, 1.3) * (weather === 'rain' ? 1.4 : 1) * (G.time < rushUntil ? 0.4 : 1));
   }
   if (staffBusy > 0) staffBusy--;
   customers.forEach(updateCustomer);
@@ -677,6 +717,7 @@ function update() {
   cats.forEach(updateCat);
   for (const p of particles) { p.t++; p.y += p.vy; }
   particles = particles.filter(p => p.t < p.life);
+  checkEvents();
   if (mode === 'closing' && customers.length === 0) { seats.forEach(s => { s.dirty = false; }); endDay(); }
 }
 
@@ -722,8 +763,8 @@ function drawRoom() {
     const bc = ['#c85a5a', '#5a8ac8', '#e8c060', '#6aa86a', '#9a6ac8', '#e89a5a'];
     for (let r = 0; r < 3; r++) { P('#5a3a22', 93, 27 + r * 12, 16, 1); for (let b = 0; b < 5; b++) P(bc[(b + r * 2) % 6], 94 + b * 3, 18 + r * 12, 2, 9 - (b % 2)); }
   }
-  P('#6a8a6a', 156, 230, 40, 10); P('#7aa07a', 158, 232, 36, 6);
-  if (G.furniture.rug) { ellipse(196, 194, 46, 16, '#b05a6a'); ellipse(196, 194, 42, 13, '#e8c8a0'); ellipse(196, 194, 30, 9, '#d8a8a0'); }
+  P('#6a8a6a', 156, 390, 40, 10); P('#7aa07a', 158, 392, 36, 6);
+  if (G.furniture.rug) { ellipse(160, 334, 50, 17, '#b05a6a'); ellipse(160, 334, 46, 14, '#e8c8a0'); ellipse(160, 334, 33, 9, '#d8a8a0'); }
   // カウンター
   P('#3a2616', 236, 56, 84, 40);
   P('#6a7a8a', 252, 40, 16, 17); P('#8a9aaa', 254, 42, 12, 6); P('#2a2a2a', 258, 50, 4, 4);
@@ -786,7 +827,15 @@ function drawCustomer(c) {
   if (c.state === 'enter' || c.state === 'leave') {
     const img = (c.anim >> 3) & 1 ? c.spr.a : c.spr.b;
     ctx.drawImage(img, Math.round(c.x - 6), Math.round(c.y - img.height));
-  } else ctx.drawImage(c.spr.sit, Math.round(c.seat.x - 6), Math.round(c.seat.y - 19));
+    if (c.vip) drawCrown(Math.round(c.x), Math.round(c.y - img.height) - 5);
+  } else {
+    ctx.drawImage(c.spr.sit, Math.round(c.seat.x - 6), Math.round(c.seat.y - 19));
+    if (c.vip && c.state !== 'order') drawCrown(c.seat.x, c.seat.y - 24);
+  }
+}
+function drawCrown(x, y) {
+  P('#8a6010', x - 4, y, 9, 4); P('#f2c14e', x - 3, y + 1, 7, 2);
+  P('#f2c14e', x - 3, y - 1); P('#f2c14e', x, y - 2); P('#f2c14e', x + 3, y - 1); P('#e84a5a', x, y + 1);
 }
 function drawTableItems(s) {
   const ix = s.tx + s.side * 5 - 4, iy = s.ty - 20;
@@ -798,6 +847,7 @@ function drawBubble(c) {
   P('#3a3030', x, y + 1, 18, 14); P('#3a3030', x + 1, y, 16, 16);
   P('#ffffff', x + 1, y + 1, 16, 14); P('#3a3030', x + 7, y + 16, 4, 2); P('#ffffff', x + 8, y + 15, 2, 2);
   ctx.drawImage(ICON[c.order.id], x + 5, y + 2);
+  if (c.vip) drawCrown(x + 9, y - 5);
   const f = c.pat / c.maxPat;
   P('#d8d0d0', x + 2, y + 12, 14, 2); P(f > 0.5 ? '#5ac85a' : f > 0.25 ? '#f0c040' : '#e85a4a', x + 2, y + 12, Math.max(1, Math.round(14 * f)), 2);
   if (f < 0.25 && (tick >> 3) & 1) P('#e85a4a', x + 17, y - 2, 2, 5);
@@ -859,7 +909,7 @@ function toast(msg) {
 }
 function openModal(html) { $('panel').innerHTML = html; $('modal').hidden = false; $('panel').scrollTop = 0; }
 function closeModal() { $('modal').hidden = true; }
-function isPaused() { return !$('modal').hidden; }
+function isPaused() { return !$('modal').hidden || !!talking; }
 
 function row(name, desc, label, disabled, id) {
   return `<div class="row"><span class="name">${name}</span><span class="desc">${desc}</span><button type="button" data-buy="${id}" ${disabled ? 'disabled' : ''}>${label}</button></div>`;
@@ -910,8 +960,9 @@ function buy(id) {
     const a = ADOPT.find(x => x.pal === key); if (G.money < a.price || cats.some(c => c.pal === key)) return;
     G.money -= a.price;
     const k = { name: a.name, pal: a.pal, mood: 60, hunger: 30 };
-    G.cats.push(k); cats.push(makeCat(k, ENTRANCE.x, 226));
+    G.cats.push(k); cats.push(makeCat(k, ENTRANCE.x, 380));
     toast(`${a.name}がカフェのなかまになりました`); setTimeout(sfx.meow, 300);
+    say([['happy', `${a.name}、ようこそ！ なかよく しようにゃ。`]]);
   } else if (kind === 's') {
     if (G.money < STAFF.price || G.staff) return; G.money -= STAFF.price; G.staff = true; toast('アルバイトさんが来てくれました');
   }
@@ -937,7 +988,7 @@ function openCats() {
 function openTitle() {
   const saved = loadSave();
   openModal(`
-    <canvas id="titleArt" class="title-art" width="160" height="60"></canvas>
+    <canvas id="titleArt" class="title-art" width="160" height="80"></canvas>
     <h2>ぐりおのねこカフェ</h2>
     <p>店長ねこ「ぐりお」といっしょに、小さなねこカフェを人気のお店にしよう。</p>
     <p class="sub">・ふきだしをタップ → 注文の品を出す<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう</p>
@@ -948,13 +999,14 @@ function openTitle() {
     </div>
   `);
   const tg = $('titleArt').getContext('2d'); tg.imageSmoothingEnabled = false;
-  tg.fillStyle = '#e9dcc0'; tg.fillRect(0, 0, 160, 60);
-  tg.fillStyle = '#c99a68'; tg.fillRect(0, 44, 160, 16); tg.fillStyle = '#8a5e3a'; tg.fillRect(0, 40, 160, 4);
-  tg.drawImage(CAT_SPR.mike.sit[0], 26, 27); tg.drawImage(CAT_SPR.grio.sit[0], 68, 27); tg.drawImage(CAT_SPR.kuro.sleep[1], 110, 35);
-  tg.drawImage(ICON.coffee, 50, 37); tg.drawImage(ICON.cake, 92, 37);
-  const go = g => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); };
-  if (saved) $('mCont').onclick = () => go(Object.assign(newSave(), saved));
-  $('mNew').onclick = () => go(newSave());
+  tg.fillStyle = '#e9dcc0'; tg.fillRect(0, 0, 160, 80);
+  tg.fillStyle = '#c99a68'; tg.fillRect(0, 64, 160, 16); tg.fillStyle = '#8a5e3a'; tg.fillRect(0, 60, 160, 4);
+  tg.drawImage(FACES.happy, 48, 2);
+  tg.drawImage(CAT_SPR.mike.sit[0], 12, 47); tg.drawImage(CAT_SPR.kuro.sleep[1], 124, 55);
+  tg.drawImage(ICON.coffee, 34, 57); tg.drawImage(ICON.cake, 116, 57);
+  const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) event('intro'); };
+  if (saved) $('mCont').onclick = () => go(Object.assign(newSave(), saved), false);
+  $('mNew').onclick = () => go(newSave(), true);
 }
 
 // ================= 入力 =================
@@ -998,6 +1050,172 @@ $('btnMute').onclick = () => {
 };
 addEventListener('keydown', e => { if (e.key === 'Escape' && isPaused() && G && mode !== 'report') closeModal(); });
 
+// ================= ぐりおの顔（写真をもとにしたドット絵） =================
+const FACE_C = {
+  fur: '#8c765a', furL: '#a68d6b', furD: '#6a5640', stripe: '#3e3024', line: '#241a12', white: '#f8f4ec', whiteS: '#ddd5c9',
+  earIn: '#e2a39c', earInD: '#c07e7a', eye: '#b9bb4a', eyeD: '#7f8b2c', pupil: '#16140e', nose: '#e7969c', noseD: '#b86870', blush: '#efb0a8',
+};
+function makePortrait(expr) {
+  const N = 64, C = FACE_C, buf = Array.from({ length: N }, () => Array(N).fill(null));
+  const set = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < N && y < N) buf[y][x] = c; };
+  const ell = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+  const tri = (x, y, a, b, c) => {
+    const sg = (p, q, r) => (p[0] - r[0]) * (q[1] - r[1]) - (q[0] - r[0]) * (p[1] - r[1]);
+    const d1 = sg([x, y], a, b), d2 = sg([x, y], b, c), d3 = sg([x, y], c, a);
+    return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+  };
+  const line = (x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)); for (let i = 0; i <= n; i++) set(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, c); };
+  const each = fn => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) fn(x + 0.5, y + 0.5, x, y); };
+  const furAt = (x, y) => ((x * 7 + y * 13) % 17 === 0 ? C.furL : (x * 5 + y * 11) % 19 === 0 ? C.furD : C.fur);
+  // 体と白い胸
+  each((fx, fy, x, y) => { if (ell(fx, fy, 32, 76, 29, 22)) buf[y][x] = ell(fx, fy, 32, 70, 12, 16) ? C.white : furAt(x, y); });
+  // 耳
+  const earL = [[6, 3], [27, 17], [12, 32]], earR = [[58, 3], [37, 17], [52, 32]];
+  const earLi = [[9, 8], [23, 18], [14, 28]], earRi = [[55, 8], [41, 18], [50, 28]];
+  each((fx, fy, x, y) => {
+    if (tri(fx, fy, ...earL) || tri(fx, fy, ...earR)) buf[y][x] = C.furD;
+    if (tri(fx, fy, ...earLi) || tri(fx, fy, ...earRi)) buf[y][x] = (x * 3 + y) % 7 === 0 ? C.earInD : C.earIn;
+  });
+  // 頭
+  each((fx, fy, x, y) => {
+    if (ell(fx, fy, 32, 35, 23, 19) || ell(fx, fy, 32, 43, 26, 12)) {
+      let c = furAt(x, y);
+      if (ell(fx, fy, 27, 25, 12, 7)) c = (x + y) % 4 === 0 ? C.fur : C.furL;
+      if (fy > 51) c = C.furD;
+      buf[y][x] = c;
+    }
+  });
+  // しま模様（おでこの M と ほっぺ）
+  [[29, 18, 28, 29], [32, 17, 32, 28], [35, 18, 36, 29], [25, 21, 23, 28], [39, 21, 41, 28]].forEach(a => line(...a, C.stripe));
+  [[6, 37, 15, 35], [6, 42, 15, 40], [58, 37, 49, 35], [58, 42, 49, 40], [15, 40, 11, 45], [49, 40, 53, 45]].forEach(a => line(...a, C.stripe));
+  line(12, 29, 9, 34, C.stripe); line(52, 29, 55, 34, C.stripe);
+  // 白いマズル
+  each((fx, fy, x, y) => {
+    if (ell(fx, fy, 27.5, 47.5, 7, 5) || ell(fx, fy, 36.5, 47.5, 7, 5) || ell(fx, fy, 32, 51, 9, 5)) buf[y][x] = fy > 53 ? C.whiteS : C.white;
+  });
+  // 目
+  for (const cx of [21.5, 42.5]) {
+    const cy = 36;
+    if (expr === 'happy') {
+      for (let dx = -5; dx <= 5; dx++) { const dy = Math.round(Math.sqrt(1 - (dx / 5.5) ** 2) * 3); set(cx + dx, cy + 1 - dy, C.line); set(cx + dx, cy + 2 - dy, C.line); }
+      for (let dx = -2; dx <= 2; dx++) set(cx + dx, cy + 6, C.blush);
+      continue;
+    }
+    const big = expr === 'surprise', rx = big ? 6.2 : 5.6, ry = big ? 5.4 : 4.4;
+    each((fx, fy, x, y) => {
+      if (ell(fx, fy, cx, cy, rx + 1, ry + 1) && !ell(fx, fy, cx, cy, rx, ry)) buf[y][x] = C.line;
+      else if (ell(fx, fy, cx, cy, rx, ry)) {
+        buf[y][x] = fy < cy - 1 ? C.eyeD : C.eye;
+        if (ell(fx, fy, cx + 0.5, cy + 0.3, big ? 1.8 : 1.6, big ? 1.8 : 3.4)) buf[y][x] = C.pupil;
+      }
+    });
+    set(cx - 2, cy - 2, '#ffffff'); set(cx - 1, cy - 2, '#ffffff'); set(cx - 2, cy - 1, '#ffffff'); set(cx + 2, cy + 2, '#fffbe0');
+    if (expr === 'sad') {
+      each((fx, fy, x, y) => { if (ell(fx, fy, cx, cy, rx + 1, ry + 1) && fy < cy - 0.5) buf[y][x] = C.furD; });
+      line(cx - 6, cy - 1, cx + 6, cy - 1, C.line);
+      line(cx < 32 ? cx - 6 : cx + 6, cy - 6, cx < 32 ? cx + 2 : cx - 2, cy - 8, C.stripe);
+    }
+  }
+  // 鼻と口
+  each((fx, fy, x, y) => { if (tri(fx, fy, [28.5, 42.5], [35.5, 42.5], [32, 46.5])) buf[y][x] = fy < 43.5 ? C.noseD : C.nose; });
+  set(31, 47, C.line); set(31, 48, C.line);
+  if (expr === 'happy' || expr === 'surprise') {
+    each((fx, fy, x, y) => { if (ell(fx, fy, 31.5, 50.5, 2.6, 2)) buf[y][x] = '#c85a64'; });
+  } else {
+    [[30, 49], [29, 49], [28, 48], [32, 49], [33, 49], [34, 48]].forEach(([x, y]) => set(x, y, C.line));
+  }
+  // ふちどり
+  const out = buf.map(r => r.slice());
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (buf[y][x]) continue;
+    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => buf[y + dy] && buf[y + dy][x + dx])) out[y][x] = C.line;
+  }
+  // ひげ
+  [[20, 47, 3, 44], [20, 49, 2, 50], [21, 51, 5, 55], [43, 47, 60, 44], [43, 49, 61, 50], [42, 51, 58, 55]].forEach(([x0, y0, x1, y1]) => {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= n; i++) { const x = Math.round(x0 + (x1 - x0) * i / n), y = Math.round(y0 + (y1 - y0) * i / n); if (x >= 0 && x < N && y >= 0 && y < N) out[y][x] = '#fffaf0'; }
+  });
+  const c = mk(N, N), g = c.getContext('2d');
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (out[y][x]) { g.fillStyle = out[y][x]; g.fillRect(x, y, 1, 1); }
+  return c;
+}
+const FACES = {};
+['normal', 'happy', 'sad', 'surprise'].forEach(e => { FACES[e] = makePortrait(e); });
+
+// ================= 会話 =================
+const TALKS = {
+  intro: [
+    ['surprise', '……にゃ？ きみが あたらしい オーナーさん？'],
+    ['normal', 'ぼくは ぐりお。この ねこカフェの てんちょう だにゃ。'],
+    ['sad', 'おみせは まだ ちいさくて、お客さんも すくないんだ……'],
+    ['happy', 'でも いつか、まちで いちばんの ねこカフェに したいにゃ！'],
+    ['normal', 'お客さんの ふきだしを タップすると、ちゅうもんの品を はこべるよ。'],
+    ['normal', 'たべおわった おさらも タップして かたづけてね。'],
+    ['happy', 'それから…… ぼくたちを なでてくれると、げんきが でるにゃ〜'],
+    ['happy', 'さあ、かいてん しよう！'],
+  ],
+  day2: [
+    ['happy', 'きのうは おつかれさまだにゃ！'],
+    ['normal', 'うりあげは「ショップ」で つかえるよ。テーブルや ねこクッションが 買えるにゃ。'],
+    ['normal', 'テーブルが ふえると、お客さんも たくさん すわれるよ。'],
+  ],
+  firstAngry: [['sad', 'あっ…… お客さん、おこって かえっちゃった……'], ['normal', 'ふきだしの ゲージが なくなる前に はこぼうね。']],
+  fur: [['surprise', 'ゆかに ぼくたちの 毛が おちてる……！'], ['normal', '毛を タップすると おそうじ できるにゃ。']],
+  hungry: [['sad', 'おなか すいたにゃ……'], ['normal', '下の「ごはん」ボタンで ごはんを 足してほしいにゃ。']],
+  star2: [['surprise', 'ひょうばんが ★2 に なったにゃ！'], ['happy', 'アルバイトさんを やとえるように なったよ。クロも 会いに来たいって！']],
+  star3: [['surprise', '★3！ まちで うわさに なってきたにゃ。'], ['happy', 'シロも あそびに 来たいって。ショップを 見てみてね。']],
+  star4: [['happy', '★4 だにゃ！ チャチャが なかまに なりたいって。']],
+  star5: [['surprise', '★5！！ まちいちばんの ねこカフェ だにゃ！'], ['happy', 'あとは もちきん ¥100,000 を めざそう！']],
+  legend: [['surprise', 'やったにゃ……！ でんせつの ねこカフェに なったよ！'], ['happy', 'オーナーさん、ほんとうに ありがとう。これからも よろしくにゃ！']],
+  rush: [['surprise', 'たいへん！ SNSで おみせが 話題に なってるにゃ！'], ['happy', 'しばらく お客さんが いっぱい 来るよ。がんばろう！']],
+  vip: [['surprise', 'あっ、つぎの お客さんは ねこ好きで ゆうめいな 常連さん！'], ['happy', '王冠の お客さんに はやく はこぶと、チップを たくさん くれるにゃ。']],
+  toy: [['happy', 'ねこじゃらしを みつけたにゃ！'], ['happy', 'みんなで あそんで、ごきげんに なったよ〜']],
+};
+const talkQ = [];
+let talking = null, typeTimer = 0;
+function say(lines, onDone) { talkQ.push({ lines, onDone }); }
+function event(key) { if (!G || G.flags[key]) return; G.flags[key] = true; say(TALKS[key]); }
+function startTalk() {
+  talking = { ...talkQ.shift(), i: 0 };
+  $('talk').hidden = false; showLine();
+}
+function showLine() {
+  const [face, text] = talking.lines[talking.i];
+  const g = $('face').getContext('2d'); g.clearRect(0, 0, 64, 64); g.drawImage(FACES[face], 0, 0);
+  talking.text = text; talking.shown = 0; $('talkNext').hidden = true;
+  clearInterval(typeTimer);
+  typeTimer = setInterval(() => {
+    talking.shown++;
+    $('talkText').textContent = text.slice(0, talking.shown);
+    if (talking.shown % 2 === 0 && text[talking.shown - 1] !== ' ') tone(700 + Math.random() * 300, 0.03, 'square', 0.06);
+    if (talking.shown >= text.length) { clearInterval(typeTimer); $('talkNext').hidden = false; }
+  }, 38);
+}
+function advanceTalk() {
+  if (!talking) return;
+  if (talking.shown < talking.text.length) { clearInterval(typeTimer); talking.shown = talking.text.length; $('talkText').textContent = talking.text; $('talkNext').hidden = false; return; }
+  if (++talking.i < talking.lines.length) { showLine(); return; }
+  const done = talking.onDone; talking = null; $('talk').hidden = true; save();
+  if (done) done();
+}
+$('talk').addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); advanceTalk(); });
+addEventListener('keydown', e => { if (talking && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); advanceTalk(); } });
+function checkEvents() {
+  if (dayLog.angry > 0) event('firstAngry');
+  if (furs.length >= 4) event('fur');
+  if (!dayFlags.hungry && G.bowl === 0 && cats.some(k => k.hunger > 85)) { dayFlags.hungry = true; say(TALKS.hungry); }
+  for (const n of [2, 3, 4, 5]) if (stars() >= n) event('star' + n);
+  if (G.todayEvent && !dayFlags.ev && G.time >= 780 && mode === 'open') {
+    dayFlags.ev = true;
+    const ev = G.todayEvent;
+    say(TALKS[ev], () => {
+      if (ev === 'rush') { rushUntil = G.time + 120; spawnTimer = 20; }
+      else if (ev === 'vip') { vipNext = true; spawnTimer = Math.min(spawnTimer, 30); }
+      else if (ev === 'toy') cats.forEach(k => { k.mood = clamp(k.mood + 15, 0, 100); addFx('heart', k.x, k.y - 22); });
+    });
+  }
+}
+
 // ================= ループ =================
 let last = performance.now(), acc = 0, hudT = 0;
 function loop(now) {
@@ -1006,6 +1224,7 @@ function loop(now) {
     if (!isPaused()) for (let i = 0; i < speed; i++) update();
     acc -= 1000 / 60;
   }
+  if (!talking && talkQ.length && $('modal').hidden) startTalk();
   render();
   if (++hudT % 10 === 0) updateHud();
   requestAnimationFrame(loop);
