@@ -328,28 +328,47 @@ function ellipse(cx, cy, rx, ry, col) {
 }
 
 // ================= ドットのしあげ（なめらかなふち・立体感） =================
+const MIX_CACHE = new Map();
 function mixHex(a, b, t) {
+  const key = a + b + t; let r = MIX_CACHE.get(key); if (r) return r;
+  r = mixHex0(a, b, t); MIX_CACHE.set(key, r); return r;
+}
+function mixHex0(a, b, t) {
   const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
   const m = sh => Math.round(((pa >> sh) & 255) * (1 - t) + ((pb >> sh) & 255) * t);
   return '#' + [16, 8, 0].map(sh => m(sh).toString(16).padStart(2, '0')).join('');
 }
 const isHex = c => typeof c === 'string' && c[0] === '#' && c.length === 7;
+// 色の文字列 → RGBA（1回しらべたら とっておく）
+const RGBA_CACHE = new Map(), rgbaCv = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+function rgbaOf(col) {
+  let v = RGBA_CACHE.get(col);
+  if (!v) { rgbaCv.clearRect(0, 0, 1, 1); rgbaCv.fillStyle = col; rgbaCv.fillRect(0, 0, 1, 1); v = rgbaCv.getImageData(0, 0, 1, 1).data.slice(); RGBA_CACHE.set(col, v); }
+  return v;
+}
+// 2次元の色の表を いっきに 描く
+function putBuf(g, out, W, H) {
+  const im = g.createImageData(W, H), d = im.data;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = out[y][x]; if (!c) continue; const v = rgbaOf(c), i = (y * W + x) * 4; d[i] = v[0]; d[i + 1] = v[1]; d[i + 2] = v[2]; d[i + 3] = v[3]; }
+  g.putImageData(im, 0, 0);
+}
 function polish(buf, W, H, line, { rim = true, despeckle = true } = {}) {
   const at = (x, y) => (y >= 0 && y < H && x >= 0 && x < W) ? buf[y][x] : null;
   const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   // 1. 1マスの穴をうめる
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (buf[y][x]) continue;
-    const nb = N4.map(([dx, dy]) => at(x + dx, y + dy)).filter(Boolean);
-    if (nb.length >= 3) buf[y][x] = nb[0];
+    let n = 0, first = null;
+    for (const [dx, dy] of N4) { const v = at(x + dx, y + dy); if (v) { n++; if (!first) first = v; } }
+    if (n >= 3) buf[y][x] = first;
   }
   // 2. まわりと違う色の 1点ノイズをならす
   if (despeckle) {
     const src = buf.map(r => r.slice());
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
       const c = src[y][x]; if (!c) continue;
-      const nb = N4.map(([dx, dy]) => src[y + dy][x + dx]);
-      if (nb.every(v => v && v === nb[0]) && nb[0] !== c) buf[y][x] = nb[0];
+      const v0 = src[y][x + 1];
+      if (v0 && v0 !== c && src[y][x - 1] === v0 && src[y + 1][x] === v0 && src[y - 1][x] === v0) buf[y][x] = v0;
     }
   }
   // 3. 立体感：上と左のふちは少し明るく、下と右のふちは少し暗く
@@ -492,6 +511,7 @@ function makeCatFine(L, P0, KS = CAT_K) {
   if (L.chin) each((fx, fy, x, y) => { if (ell(fx, fy, nx, ny + 3.2, 2.6, 1.4)) buf[y][x] = L.white; });
   // 目・鼻・口
   for (const [ex, ey] of P0.eyes) {
+    if (P0.blink) { line(ex - 2, ey + 0.5, ex + 2, ey + 0.5, L.line); continue; }
     if (P0.closed) { line(ex - 2, ey, ex + 2, ey, L.line); set(ex - 2, ey - 1, L.line); set(ex + 2, ey - 1, L.line); continue; }
     each((fx, fy, x, y) => {
       if (ell(fx, fy, ex, ey, 2.4, 2.8)) buf[y][x] = L.line;
@@ -509,8 +529,9 @@ function makeCatFine(L, P0, KS = CAT_K) {
   }
   if (P0.tongue) { set(P0.tongue[0], P0.tongue[1], '#f07a8a'); set(P0.tongue[0] + 0.7, P0.tongue[1], '#f07a8a'); }
   if (P0.yawn) {
-    each((fx, fy, x, y) => { if (ell(fx, fy, nx, ny + 3.4, 2.3, 2.4)) buf[y][x] = '#6a2232'; });
-    each((fx, fy, x, y) => { if (ell(fx, fy, nx, ny + 4.6, 1.5, 1)) buf[y][x] = '#f07a8a'; });
+    const ys = P0.yawn === true ? 1 : P0.yawn;
+    each((fx, fy, x, y) => { if (ell(fx, fy, nx, ny + 2.6 + 0.8 * ys, 1.5 + 0.8 * ys, 0.8 + 1.6 * ys)) buf[y][x] = '#6a2232'; });
+    if (ys > 0.7) each((fx, fy, x, y) => { if (ell(fx, fy, nx, ny + 4.6, 1.5, 1)) buf[y][x] = '#f07a8a'; });
   }
   // 長毛：りんかくを ふさふさに
   if (L.long) {
@@ -540,7 +561,7 @@ function makeCatFine(L, P0, KS = CAT_K) {
     for (let i = 0; i <= 7; i++) { const x = Math.round((nx + a + (c - a) * i / 7) * KS), y = Math.round((ny + b + (d - b) * i / 7) * KS); if (x >= 0 && x < W && y >= 0 && y < H && !buf[y][x]) out[y][x] = 'rgba(255,255,255,0.75)'; }
   });
   const c = mk(W, H), g = c.getContext('2d');
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (out[y][x]) { g.fillStyle = out[y][x]; g.fillRect(x, y, 1, 1); }
+  putBuf(g, out, W, H);
   return c;
 }
 {
@@ -556,6 +577,58 @@ function makeCatFine(L, P0, KS = CAT_K) {
     tail: [[9, 18], [5, 10], [7, 3]], eyes: [[38, 26], [46, 26]], nose: [42, 30], closed: true,
     chest: [38, 31, 4, 3], bodyStripes: [[12, 13, 13, 24], [17, 13, 18, 25], [23, 18, 24, 29], [28, 19, 29, 29]], shadeY: 28, light: [16, 15, 7, 3], scarfY: 33,
   };
+}
+// ---- コマを ふやす ----
+{
+  const mv = (pts, dx, dy) => pts.map(p => [p[0] + dx, p[1] + dy, ...p.slice(2)]);
+  const mvTri = (ts, dx, dy) => ts.map(t => mv(t, dx, dy));
+  const moveAll = (P, dx, dy, keepLegs) => ({
+    ...P, body: mv(P.body, dx, dy), head: mv([P.head], dx, dy)[0], cheek: mv([P.cheek], dx, dy)[0],
+    ears: mvTri(P.ears, dx, dy), earsIn: mvTri(P.earsIn, dx, dy), eyes: mv(P.eyes, dx, dy), nose: mv([P.nose], dx, dy)[0],
+    chest: P.chest && mv([P.chest], dx, dy)[0], bodyStripes: P.bodyStripes.map(([a, b, c, d]) => [a + dx, b + dy, c + dx, d + dy]),
+    light: mv([P.light], dx, dy)[0], shadeY: P.shadeY + dy, scarfY: P.scarfY + dy, tail: mv(P.tail, dx, dy),
+  });
+  const moveHead = (P, dx, dy) => ({ ...P, head: mv([P.head], dx, dy)[0], cheek: mv([P.cheek], dx, dy)[0], ears: mvTri(P.ears, dx, dy), earsIn: mvTri(P.earsIn, dx, dy), eyes: mv(P.eyes, dx, dy), nose: mv([P.nose], dx, dy)[0], scarfY: P.scarfY + dy });
+  // あるき：8コマ（4本の足を ずらして 動かす）
+  const W0 = CAT_POSE.walkA;
+  const HIPS = [[16, 0, 0], [38, 0, 0.25], [11, 1, 0.5], [33, 1, 0.75]];
+  for (let i = 0; i < 8; i++) {
+    const ph = i / 8, bob = 0.6 * (1 - Math.cos(4 * Math.PI * ph)) / 2 - 0.3, sw = Math.sin(2 * Math.PI * ph);
+    const P = moveAll(W0, 0, -bob);
+    const legs = [], paws = [];
+    for (const [hx, far, off] of HIPS) {
+      const a = 2 * Math.PI * (ph + off), fx = hx + 3.2 * Math.cos(a), lift = Math.max(0, -Math.sin(a)) * 2.4;
+      legs.push([hx, 26 - bob, fx, 36 - lift, far]); paws.push([fx, 36.5 - lift, 2.6, 1.5]);
+    }
+    P.legs = legs; P.paws = paws;
+    P.tail = [[9, 18 - bob], [4 + sw * 0.8, 14 - bob], [3 + sw * 1.6, 8 - bob], [6 + sw * 2.4, 3 - bob + Math.abs(sw) * 0.6]];
+    CAT_POSE['walk' + i] = P;
+  }
+  // すわり：しっぽを ゆらす 4コマ＋まばたき
+  const S0 = CAT_POSE.sit;
+  [null, [[5, 33], [3, 38]], [[2.5, 30], [2.5, 36.5]], [[3, 35.5], [2.5, 40]]].forEach((tip, i) => {
+    const t = tip ? [...tip, ...S0.tail.slice(2)] : S0.tail;
+    CAT_POSE['sit' + i] = { ...S0, tail: t, body: i === 2 ? S0.body.map(([x, y, rx, ry], j) => j === 0 ? [x, y - 0.2, rx, ry + 0.3] : [x, y, rx, ry]) : S0.body };
+  });
+  CAT_POSE.sitBlink = { ...S0, blink: true };
+  // ねいき：2コマ
+  const Z = CAT_POSE.sleep;
+  CAT_POSE.sleep1 = { ...moveHead(Z, 0, -0.4), body: [[23, 17.5, 19.2, 9.5]], light: [20, 11.5, 10, 3] };
+  // 毛づくろい：あいだのコマ
+  const GA = CAT_POSE.groomA;
+  CAT_POSE.groomM = { ...GA, raise: [[33.5, 31], [37, 23.8]], raisePaw: [37.5, 23, 2.4, 1.7], tongue: [34.5, 21.5] };
+  CAT_POSE.groomL = { ...moveHead(GA, 0.6, 0.5), raise: [[33.5, 31], [37.8, 22]], raisePaw: [38.3, 21, 2.4, 1.7], tongue: [35.6, 21.5] };
+  // あくび：口を半分あける
+  CAT_POSE.yawn1 = { ...moveHead(S0, 0, -0.5), closed: true, yawn: 0.45 };
+  CAT_POSE.yawn = { ...moveHead(S0, 0, -1), closed: true, yawn: true };
+  // のび：途中のコマと しっぽのふるえ
+  const ST = CAT_POSE.stretch;
+  CAT_POSE.stretchM = {
+    ...moveHead(ST, -1, -6), body: [[16, 21, 9, 7.5], [28, 23, 12, 6.5]], chest: [37, 25, 4, 3],
+    legs: [[12, 26, 12, 36, 1], [34, 27, 42, 36, 1], [17, 26, 17, 36, 0], [36, 28, 45, 36, 0]], paws: [[12, 36.5, 2.6, 1.5], [42, 36.5, 2.6, 1.5], [17, 36.5, 2.6, 1.5], [45, 36.5, 2.6, 1.5]],
+    shadeY: 27,
+  };
+  CAT_POSE.stretchB = { ...ST, tail: [[9, 18], [6, 10], [9, 3.5]] };
 }
 // ニャイミーで来てくれる 野良ねこたち（黄色いバンダナ）
 const STRAYS = [
@@ -581,8 +654,8 @@ const SKILLS = {
 for (const st of STRAYS) CAT_LOOK['stray_' + st.id] = { ...st.look, scarf: '#f2c14e' };
 const CAT_SPR = {};
 for (const pal in CAT_LOOK) {
-  CAT_SPR[pal] = {};
-  for (const pose in CAT_POSE) { const s = makeCatFine(CAT_LOOK[pal], CAT_POSE[pose]); CAT_SPR[pal][pose] = [s, flipH(s)]; }
+  // 使うときに はじめて描く（つぎからは とっておく）
+  CAT_SPR[pal] = new Proxy({}, { get(t, pose) { if (!(pose in t) && CAT_POSE[pose]) { const s = makeCatFine(CAT_LOOK[pal], CAT_POSE[pose]); t[pose] = [s, flipH(s)]; } return t[pose]; } });
 }
 // 2倍の細かさの絵を、論理座標で描く
 // 画面は 2倍の細かさ（論理座標 ×2）で描く
@@ -610,7 +683,12 @@ const LOOKS = {
   shirt: ['#e07a7a', '#7aa0e0', '#80c080', '#e0c060', '#b080d0', '#f2f2f2', '#e09050', '#5ab0b0'],
   pants: ['#3a4a6a', '#4a3a2a', '#2a2a30', '#6a6a7a', '#8a6a4a'],
 };
+const SHADE_CACHE = new Map();
 function shade(hex, f) {
+  const key = hex + f; let r = SHADE_CACHE.get(key); if (r) return r;
+  r = shade0(hex, f); SHADE_CACHE.set(key, r); return r;
+}
+function shade0(hex, f) {
   const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
   const m = v => clamp(Math.round(v * f), 0, 255).toString(16).padStart(2, '0');
   return '#' + m(r) + m(g) + m(b);
@@ -618,7 +696,7 @@ function shade(hex, f) {
 // 前向きの人（幅24・高さ38、座りは上半身28）
 const PERSON_K = 1.5;   // お客さんの大きさ
 function makePersonFine(look, frame, apron, KS = PERSON_K) {
-  const back = frame === 'back', seated = frame === 'sit' || back;
+  const back = frame === 'back', seated = frame === 'sit' || frame === 'blink' || frame === 'eat' || frame === 'chew' || back;
   const W = Math.ceil(24 * KS), H = Math.ceil((seated ? 28 : 38) * KS), buf = Array.from({ length: H }, () => Array(W).fill(null));
   // 設計図は 24×38 の座標。1マスを KS 倍の大きさで塗る
   const setR = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H) buf[y][x] = c; };
@@ -631,14 +709,17 @@ function makePersonFine(look, frame, apron, KS = PERSON_K) {
   if (look.long) each((fx, fy, x, y) => { if (fx > 3.5 && fx < 20.5 && fy > 8 && fy < 24 && ell(fx, fy, 12, 14, 8.5, 10)) setR(x, y, look.hair); });
   // 体と腕
   each((fx, fy, x, y) => { if (fy >= 18 && fy < 30 && fx >= 6 && fx <= 18 && !(fy < 20 && (fx < 7.5 || fx > 16.5))) setR(x, y, fx > 15 ? shirtS : look.shirt); });
-  rect(4, 20, 2, 7, shirtS); rect(18, 20, 2, 7, shirtS); rect(5, 19, 1, 1, shirtS); rect(18, 19, 1, 1, shirtS);
-  rect(4, 27, 2, 2, look.skin); rect(18, 27, 2, 2, skinS);
+  // うでふり（前に出した手は 少し上に見える）
+  const la = frame === 'c' ? 1 : 0, ra = frame === 'b' ? 1 : 0, eat = frame === 'eat';
+  rect(4, 20, 2, 7 - la, shirtS); rect(5, 19, 1, 1, shirtS); rect(4, 27 - la, 2, 2, look.skin);
+  if (eat) { rect(17, 19, 2, 3, shirtS); rect(16, 17, 2, 2, shirtS); }
+  else { rect(18, 20, 2, 7 - ra, shirtS); rect(18, 19, 1, 1, shirtS); rect(18, 27 - ra, 2, 2, skinS); }
   rect(10, 17, 4, 2, skinS); set(11, 19, look.skin); set(12, 19, look.skin);
   rect(7, 20, 3, 1, shirtL);
   if (apron) { rect(8, 22, 8, 8, '#c8643a'); rect(8, 22, 8, 1, '#e08a5a'); set(8, 21, '#c8643a'); set(15, 21, '#c8643a'); rect(10, 25, 4, 2, '#a85030'); }
   if (!seated) {
     rect(7, 29, 10, 4, look.pants); rect(15, 29, 2, 4, pantsS); rect(11, 31, 2, 2, pantsS);
-    const legs = frame === 'a' ? [[7, 33, 4, 3], [13, 33, 4, 3]] : [[7, 33, 4, 2], [13, 33, 4, 3]];
+    const legs = frame === 'b' ? [[7, 33, 4, 2], [13, 33, 4, 3]] : frame === 'c' ? [[7, 33, 4, 3], [13, 33, 4, 2]] : [[7, 33, 4, 3], [13, 33, 4, 3]];
     for (const [x, y, w, h] of legs) { rect(x, y, w, h, look.pants); rect(x, y + h, w, 2, '#3a2a20'); set(x, y + h, '#5a4a40'); }
   }
   // 頭
@@ -653,17 +734,25 @@ function makePersonFine(look, frame, apron, KS = PERSON_K) {
   if (look.long) { rect(4, 9, 2, 13, look.hair); rect(18, 9, 2, 13, look.hair); }
   // 顔
   if (!back) {
-  rect(8, 11, 2, 3, '#2a2420'); rect(14, 11, 2, 3, '#2a2420'); set(8, 11, '#ffffff'); set(14, 11, '#ffffff');
+  if (frame === 'blink') { rect(8, 13, 2, 1, '#2a2420'); rect(14, 13, 2, 1, '#2a2420'); }
+  else { rect(8, 11, 2, 3, '#2a2420'); rect(14, 11, 2, 3, '#2a2420'); set(8, 11, '#ffffff'); set(14, 11, '#ffffff'); }
   rect(6, 14, 2, 1, '#f0a0a0'); rect(16, 14, 2, 1, '#f0a0a0');
-  rect(11, 15, 2, 1, '#b8605a');
+  if (frame === 'eat') rect(11, 15, 2, 2, '#7a3030'); else if (frame === 'chew') rect(10, 15, 4, 1, '#b8605a'); else rect(11, 15, 2, 1, '#b8605a');
+  if (frame === 'eat') { const sk = shade(look.skin, 0.66); rect(15, 16, 2, 1, shirtS); rect(13, 14, 3, 2, look.skin); rect(13, 16, 3, 1, sk); rect(16, 14, 1, 2, sk); rect(13, 13, 3, 1, sk); rect(12, 11, 1, 4, '#d8d8e0'); set(12, 10, '#ffffff'); }
   }
   // ふちどり（しあげ）
   const out = polish(buf, W, H, '#2a2220');
   const c = mk(W, H), g = c.getContext('2d');
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (out[y][x]) { g.fillStyle = out[y][x]; g.fillRect(x, y, 1, 1); }
+  putBuf(g, out, W, H);
   return c;
 }
-function makePerson(look) { return { a: makePersonFine(look, 'a'), b: makePersonFine(look, 'b'), sit: makePersonFine(look, 'sit'), back: makePersonFine(look, 'back') }; }
+const PERSON_FRAMES = ['a', 'b', 'c', 'sit', 'blink', 'eat', 'chew', 'back'];
+// 歩きのコマだけ先に描いて、すわりのコマは 使うときに描く
+function makePerson(look) {
+  const o = new Proxy({}, { get(t, f) { if (!(f in t) && PERSON_FRAMES.includes(f)) t[f] = makePersonFine(look, f); return t[f]; } });
+  o.a; o.b; o.c;
+  return o;
+}
 function randomLook() {
   return { hair: pick(LOOKS.hair), skin: pick(LOOKS.skin), shirt: pick(LOOKS.shirt), pants: pick(LOOKS.pants), long: Math.random() < 0.45 };
 }
@@ -1801,9 +1890,36 @@ function drawLighting() {
   ctx.globalAlpha = 1;
 }
 function catImg(pal, pose, face) { return CAT_SPR[pal][pose][face > 0 ? 0 : 1]; }
+// あとで使うコマを すこしずつ 先に描いておく（カクつきを ふせぐ）
+const warmQ = [], warmed = new Set();
+function warmSprites() {
+  const pals = [...new Set([...cats.map(k => k.pal), ...(ponta ? ['ponta'] : [])])].filter(p => CAT_SPR[p]);
+  for (const pal of pals) if (!warmed.has(pal)) { warmed.add(pal); for (const ps in CAT_POSE) if (!/^walk[AB]$|^sit$/.test(ps)) warmQ.push([pal, ps]); }
+  if (tick % 3) return;
+  for (const c of customers) for (const f of PERSON_FRAMES) if (!Object.prototype.hasOwnProperty.call(c.spr, f)) { c.spr[f]; return; }
+  const t = performance.now();
+  while (warmQ.length && performance.now() - t < 4) { const [p, ps] = warmQ.shift(); CAT_SPR[p][ps]; }
+}
+function catSeed(k) { if (k.seed === undefined) k.seed = Math.floor(Math.random() * 1000); return k.seed; }
+const walkPose = k => 'walk' + ((k.anim >> 1) & 7);
+function sitPose(k) {
+  const sd = catSeed(k);
+  if ((tick + sd * 13) % 190 < 6) return 'sitBlink';
+  const t = ((tick + sd) >> 3) % 22;
+  return 'sit' + (t < 8 ? [1, 2, 3, 2, 1, 0, 1, 0][t] : 0);
+}
+const sleepPose = k => ((tick + catSeed(k) * 5) >> 6) & 1 ? 'sleep1' : 'sleep';
+const groomPose = () => ['groomA', 'groomM', 'groomB', 'groomM', 'groomA', 'groomL', 'groomL', 'groomA'][(tick >> 3) & 7];
+function actPose(k) {
+  const e = { yawn: 70, stretch: 110 }[k.act] - k.actT;
+  if (k.act === 'groom') return groomPose();
+  if (k.act === 'yawn') return e < 8 ? 'yawn1' : e < 50 ? 'yawn' : e < 60 ? 'yawn1' : 'sitBlink';
+  if (k.act === 'stretch') return e < 14 || e > 96 ? 'stretchM' : (e >> 4) & 1 ? 'stretchB' : 'stretch';
+  return 'sit0';
+}
 function drawPonta() {
   const p = ponta, moving = p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
-  const pose = p.state === 'nap' ? 'sleep' : p.state === 'slack' ? ((tick >> 3) & 1 ? 'groomA' : 'groomB') : moving ? ((p.anim >> 3) & 1 ? 'walkA' : 'walkB') : 'sit';
+  const pose = p.state === 'nap' ? sleepPose(p) : p.state === 'slack' ? groomPose() : moving ? walkPose(p) : sitPose(p);
   const img = catImg('ponta', pose, p.face);
   const X = Math.round(p.x * 2 - img.width / 2), Y = Math.round(p.y * 2 - img.height);
   floorShadow(p.x * 2, p.y * 2 - 1, Math.round(img.width * 0.32), 3, 0.18);
@@ -1826,10 +1942,10 @@ function drawZzz(x, y) {
   const k = (tick >> 4) % 3; ctx.fillText('z', x, y - k * 3); if (k > 0) { ctx.font = '15px "DotGothic16", monospace'; ctx.fillText('Z', x + 8, y - 10 - k * 2); }
 }
 function drawCat(k) {
-  let pose = 'sit';
-  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink', 'toPickup', 'toServe', 'leaving'].includes(k.state)) { pose = (k.anim >> 3) & 1 ? 'walkA' : 'walkB'; k.act = null; }
-  else if (k.state === 'nap') pose = 'sleep';
-  else if (k.state === 'idle' && k.act) pose = k.act === 'groom' ? ((tick >> 3) & 1 ? 'groomA' : 'groomB') : k.act;
+  let pose = sitPose(k);
+  if (['walk', 'toBowl', 'toVisit', 'toSpot', 'toClean', 'toSink', 'toPickup', 'toServe', 'leaving'].includes(k.state)) { pose = walkPose(k); k.act = null; }
+  else if (k.state === 'nap') pose = sleepPose(k);
+  else if (k.state === 'idle' && k.act) pose = actPose(k);
   const img = catImg(k.pal, pose, k.face);
   let Y = Math.round(k.y * 2 - img.height);
   if (k.state === 'eat' && (k.t >> 4) & 1) Y += 2;
@@ -1849,13 +1965,17 @@ function drawCat(k) {
 }
 function drawCustomer(c) {
   if (c.state === 'enter' || c.state === 'leave') {
-    const img = (c.anim >> 3) & 1 ? c.spr.a : c.spr.b;
-    const Y = Math.round(c.y * 2 - img.height);
+    const f = (c.anim >> 2) & 3, img = c.spr[['a', 'b', 'a', 'c'][f]];
+    const Y = Math.round(c.y * 2 - img.height) - (f & 1);
     floorShadow(c.x * 2, c.y * 2 - 1, 11, 3, 0.2);
     drawAt(img, c.x * 2 - img.width / 2, Y);
     if (c.vip) drawCrown(c.x * 2, Y - 8);
   } else {
-    const img = c.seat.counter ? c.spr.back : c.spr.sit, top = c.seat.y * 2 - (c.seat.counter ? 18 : 10) - img.height;
+    const sd = c.seed === undefined ? (c.seed = Math.floor(Math.random() * 1000)) : c.seed;
+    let f = 'sit', bob = 0;
+    if (c.state === 'eat') { const e = ((c.t + sd) >> 3) % 8; f = ['sit', 'eat', 'eat', 'chew', 'sit', 'chew', 'sit', 'sit'][e]; bob = c.seat.counter && (e === 1 || e === 2) ? 1 : 0; }
+    if (f === 'sit' && (tick + sd * 11) % 170 < 6) f = 'blink';
+    const img = c.seat.counter ? c.spr.back : c.spr[f], top = c.seat.y * 2 - (c.seat.counter ? 18 : 10) - img.height + bob;
     drawAt(img, c.seat.x * 2 - img.width / 2, top);
     if (c.vip && c.state !== 'order') drawCrown(c.seat.x * 2, top - 8);
   }
@@ -2814,7 +2934,7 @@ function loop(now) {
     acc -= 1000 / 60;
   }
   if (!talking && talkQ.length && $('modal').hidden) startTalk();
-  render(); renderKitchen();
+  render(); renderKitchen(); warmSprites();
   if (++hudT % 10 === 0) updateHud();
   requestAnimationFrame(loop);
 }
