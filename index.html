@@ -2554,11 +2554,213 @@ function openCats() {
   $('panel').querySelectorAll('[data-cat]').forEach(c => c.getContext('2d').drawImage(CAT_SPR[c.dataset.cat].sit[0], 0, 0));
   $('mClose').onclick = closeModal;
 }
+// ================= タイトルのキービジュアル（ぐりおが ぽんたに のっかってる） =================
+const KV_W = 176, KV_H = 132;
+const kvTri = (x, y, a, b, c) => {
+  const sg = (p, q, r) => (p[0] - r[0]) * (q[1] - r[1]) - (q[0] - r[0]) * (p[1] - r[1]);
+  const d1 = sg([x, y], a, b), d2 = sg([x, y], b, c), d3 = sg([x, y], c, a);
+  return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+};
+const kvEll = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+// ふわふわの だ円（ふちを ギザギザに）
+const kvFluff = (x, y, cx, cy, rx, ry, amp, n, ph = 0) => { const a = Math.atan2((y - cy) / ry, (x - cx) / rx), k = 1 + amp * (0.5 + 0.5 * Math.sin(a * n + ph)); return ((x - cx) / (rx * k)) ** 2 + ((y - cy) / (ry * k)) ** 2 <= 1; };
+const kvSeg = (x, y, x0, y0, x1, y1, w) => { const dx = x1 - x0, dy = y1 - y0, t = clamp(((x - x0) * dx + (y - y0) * dy) / (dx * dx + dy * dy), 0, 1); return Math.hypot(x - x0 - dx * t, y - y0 - dy * t) <= w; };
+// 正面の顔（似顔絵と同じ設計図 64×64 を、拡大・回転して描く）
+function kvHead(buf, C, cx, cy, s, rot, eyes, pon) {
+  const cs = Math.cos(rot), sn = Math.sin(rot), r = 34 * s;
+  for (let y = Math.max(0, Math.floor(cy - r)); y < Math.min(KV_H, cy + r); y++) for (let x = Math.max(0, Math.floor(cx - r)); x < Math.min(KV_W, cx + r); x++) {
+    const px = x + 0.5 - cx, py = y + 0.5 - cy;
+    const u = (px * cs + py * sn) / s + 32, v = (-px * sn + py * cs) / s + 38;
+    const fur = ((x * 7 + y * 13) % 17 === 0) ? C.furL : ((x * 5 + y * 11) % 19 === 0) ? C.furD : C.fur;
+    let c = null;
+    const earL = [[6, 3], [27, 17], [12, 32]], earR = [[58, 3], [37, 17], [52, 32]];
+    if (kvTri(u, v, ...earL) || kvTri(u, v, ...earR)) c = C.furD;
+    if (kvTri(u, v, [9, 8], [23, 18], [14, 28]) || kvTri(u, v, [55, 8], [41, 18], [50, 28])) c = (x * 3 + y) % 7 === 0 ? C.earInD : C.earIn;
+    const inHead = pon ? kvFluff(u, v, 32, 39, 26, 21, 0.06, 14) || kvEll(u, v, 32, 43, 27, 12) : kvEll(u, v, 32, 35, 23, 19) || kvEll(u, v, 32, 43, 26, 12);
+    if (inHead) { c = kvEll(u, v, 27, 25, 12, 7) ? ((x + y) % 4 === 0 ? C.fur : C.furL) : fur; if (v > 51) c = C.furD; }
+    if (!c) continue;
+    if (inHead) {
+      const st = [[29, 18, 28, 29], [32, 17, 32, 28], [35, 18, 36, 29], [25, 21, 23, 28], [39, 21, 41, 28], [6, 37, 15, 35], [6, 42, 15, 40], [58, 37, 49, 35], [58, 42, 49, 40], [12, 29, 9, 34], [52, 29, 55, 34]];
+      if (st.some(a => kvSeg(u, v, ...a, 0.75))) c = C.stripe;
+      if (kvEll(u, v, 27.5, 47.5, 7, 5) || kvEll(u, v, 36.5, 47.5, 7, 5) || kvEll(u, v, 32, 51, 9, 5)) {
+        if (pon) c = kvEll(u, v, 32, 53, 6, 3) ? C.white : C.muzzle;
+        else c = v > 53 ? C.whiteS : C.white;
+      }
+      for (const ex of [21.5, 42.5]) {
+        const ey = 36;
+        if (eyes === 'closed') { if (kvSeg(u, v, ex - 5, ey + 1, ex + 5, ey + 1, 0.8)) c = C.line; continue; }
+        if (eyes === 'happy') { const dx = u - ex; if (Math.abs(dx) <= 5.5 && Math.abs(v - (ey + 1.5 - Math.sqrt(Math.max(0, 1 - (dx / 5.5) ** 2)) * 3)) < 0.9) c = C.line; if (kvEll(u, v, ex, ey + 6, 3, 1.2)) c = C.blush; continue; }
+        const rx = pon ? 6.2 : 5.8, ry = pon ? 5.4 : 5;
+        const lid = eyes === 'half' ? ey - 0.5 : -99;
+        if (kvEll(u, v, ex, ey, rx + 1, ry + 1)) {
+          c = C.line;
+          if (kvEll(u, v, ex, ey, rx, ry) && v > lid + 0.6) {
+            c = v < ey - 1 ? C.eyeD : C.eye;
+            if (kvEll(u, v, ex + 0.5, ey + 0.4, eyes === 'half' ? 2.6 : 2.2, 3.6)) c = C.pupil;
+            if (kvEll(u, v, ex - 2, ey - 1.6, 1.3, 1.3) && v > lid + 0.6) c = '#ffffff';
+            if (kvEll(u, v, ex + 2.2, ey + 2.4, 0.8, 0.8)) c = '#fffbe0';
+          } else if (v <= lid + 0.6 && v > lid - 1 && kvEll(u, v, ex, ey, rx, ry)) c = C.line;
+          else if (v <= lid - 1 && kvEll(u, v, ex, ey, rx, ry)) c = C.furD;
+        }
+      }
+      if (eyes !== 'happy' && (kvEll(u, v, 14, 44, 3.4, 1.6) || kvEll(u, v, 50, 44, 3.4, 1.6)) && c !== C.stripe) c = C.blush;
+      if (kvTri(u, v, [28.5, 42.5], [35.5, 42.5], [32, 46.5])) c = v < 43.5 ? C.noseD : C.nose;
+      if (kvSeg(u, v, 32, 46.5, 32, 48.5, 0.6) || kvSeg(u, v, 32, 48.5, 28.5, 49.5, 0.6) || kvSeg(u, v, 32, 48.5, 35.5, 49.5, 0.6)) c = C.line;
+    }
+    buf[y][x] = c;
+  }
+}
+// ひげ（しあげの あと）
+function kvWhiskers(out, cx, cy, s, rot) {
+  const cs = Math.cos(rot), sn = Math.sin(rot);
+  const P = (u, v) => [cx + ((u - 32) * cs - (v - 38) * sn) * s, cy + ((u - 32) * sn + (v - 38) * cs) * s];
+  [[20, 47, 3, 44], [20, 49, 2, 50], [21, 51, 5, 55], [43, 47, 60, 44], [43, 49, 61, 50], [42, 51, 58, 55]].forEach(([a, b, c, d]) => {
+    const [x0, y0] = P(a, b), [x1, y1] = P(c, d), n = Math.ceil(Math.hypot(x1 - x0, y1 - y0));
+    for (let i = 0; i <= n; i++) { const x = Math.round(x0 + (x1 - x0) * i / n), y = Math.round(y0 + (y1 - y0) * i / n); if (x >= 0 && x < KV_W && y >= 0 && y < KV_H) out[y][x] = 'rgba(255,252,240,0.9)'; }
+  });
+}
+function kvEach(buf, x0, y0, x1, y1, fn) { for (let y = Math.max(0, y0); y < Math.min(KV_H, y1); y++) for (let x = Math.max(0, x0); x < Math.min(KV_W, x1); x++) { const c = fn(x + 0.5, y + 0.5, x, y); if (c) buf[y][x] = c; } }
+// ねこの層（目の状態・しっぽの位置ごとに 1枚）
+function makeKVCats(gEye, pEye, tail) {
+  const out = Array.from({ length: KV_H }, () => Array(KV_W).fill(null));
+  let buf;
+  // パーツごとに ふちどりして 重ねる
+  const layer = (line, fn) => {
+    buf = Array.from({ length: KV_H }, () => Array(KV_W).fill(null)); fn();
+    const o = polish(buf, KV_W, KV_H, line, { rim: true, despeckle: true });
+    for (let y = 0; y < KV_H; y++) for (let x = 0; x < KV_W; x++) if (o[y][x]) out[y][x] = o[y][x];
+  };
+  const G_ = FACE_C, Pn = PONTA_C;
+  const gFur = (x, y) => ((x * 7 + y * 13) % 17 === 0) ? G_.furL : ((x * 5 + y * 11) % 19 === 0) ? G_.furD : G_.fur;
+  const pFur = (x, y) => ((x * 7 + y * 13) % 13 === 0) ? Pn.furL : ((x * 5 + y * 11) % 11 === 0) ? Pn.furD : Pn.fur;
+  // ぐりおの しっぽ（右うしろで ゆらゆら）
+  layer(G_.line, () => {
+  const tw = [-3, 0, 3][tail];
+  const tp = [[140, 76], [150, 66], [156 + tw * 0.5, 56], [158 + tw, 46], [155 + tw * 1.3, 40]];
+  kvEach(buf, 120, 30, 176, 90, (fx, fy, x, y) => { for (let i = 0; i < tp.length - 1; i++) if (kvSeg(fx, fy, ...tp[i], ...tp[i + 1], 3.6)) return (i + (fy >> 1)) % 3 === 0 ? G_.stripe : i === tp.length - 2 ? G_.stripe : G_.fur; });
+  });
+  layer(G_.line, () => {
+  // ぐりおの 体（香箱ずわり）
+  kvEach(buf, 30, 50, 176, 120, (fx, fy, x, y) => {
+    if (!(kvEll(fx, fy, 102, 82, 46, 26) || kvEll(fx, fy, 128, 88, 26, 18))) return null;
+    // さば柄：背中から おなかへ ゆるくカーブする しま（ところどころ とぎれる）
+    const sx = fx + Math.sin(fy * 0.11) * 3 + (fy - 60) * (fx - 102) * 0.006;
+    const fr = ((sx / 6.5) % 1 + 1) % 1, hsh = (x * 73 + y * 151) % 11;
+    if (fr < 0.2 && hsh > 1 && fy < 101) return G_.stripe;
+    if (fr < 0.32 && fr >= 0.2 && hsh > 6 && fy < 101) return G_.furD;
+    if (kvEll(fx, fy, 108, 60, 30, 5) && hsh > 3) return G_.stripe;
+    if (kvEll(fx, fy, 96, 70, 28, 10)) return (x + y) % 4 ? G_.furL : G_.fur;
+    return fy > 98 ? G_.furD : gFur(x, y);
+  });
+  // ぐりおの 白い前足（右に のびてる）
+  kvEach(buf, 120, 80, 176, 120, (fx, fy, x) => {
+    for (const [cx, cy] of [[148, 96], [158, 106]]) if (kvEll(fx, fy, cx, cy, 7.5, 5)) return (fy > cy + 1 && (x === cx - 2 || x === cx + 2)) ? G_.whiteS : fy > cy + 3 ? G_.whiteS : G_.white;
+    return null;
+  });
+  });
+  layer(Pn.line, () => {
+  // ぽんたの 体（ねころんで 手前に）
+  kvEach(buf, 20, 88, 176, 132, (fx, fy, x, y) => {
+    if (!kvFluff(fx, fy, 104, 117, 62, 17, 0.08, 46)) return null;
+    const sx = fx + Math.sin(fy * 0.2) * 2 + (fy - 100) * 0.25;
+    const fr = ((sx / 7.5) % 1 + 1) % 1, hsh = (x * 73 + y * 151) % 11;
+    if (fr < 0.2 && hsh > 2) return Pn.stripe;
+    if (hsh === 0 && fy > 106) return Pn.furL;
+    if (fy < 103) return (x + y) % 3 ? Pn.furL : Pn.fur;
+    return pFur(x, y);
+  });
+  // ぽんたの 前足（右に のびーっと）
+  kvEach(buf, 120, 100, 176, 132, (fx, fy, x, y) => {
+    if (kvSeg(fx, fy, 130, 118, 168, 116, 5.5) || kvEll(fx, fy, 168, 116, 6, 5.5)) return kvEll(fx, fy, 168, 116, 6, 5.5) && (x % 4 === 0 && fx > 165) ? Pn.furD : ((x + y * 2) % 7 === 0 ? Pn.stripe : pFur(x, y));
+    return null;
+  });
+  });
+  layer(Pn.line, () => kvHead(buf, Pn, 40, 104, 0.72, -2.05, pEye, true));
+  layer(G_.line, () => {
+  // ぐりおの 白い胸
+  kvEach(buf, 50, 70, 110, 112, (fx, fy) => kvEll(fx, fy, 78, 94, 17, 12) ? (fy > 101 ? G_.whiteS : G_.white) : null);
+  // ぐりおの 顔（こっちを見てる）
+  kvHead(buf, G_, 78, 70, 0.82, -0.12, gEye, false);
+  });
+  kvWhiskers(out, 78, 70, 0.82, -0.12);
+  kvWhiskers(out, 40, 104, 0.72, -2.05);
+  const c = mk(KV_W, KV_H); putBuf(c.getContext('2d'), out, KV_W, KV_H);
+  return c;
+}
+// 背景（カフェの床と 窓の光）
+function makeKVBack() {
+  const c = mk(KV_W, KV_H), g = c.getContext('2d');
+  // かべ
+  g.fillStyle = '#efe2c6'; g.fillRect(0, 0, KV_W, 64);
+  for (let x = 4; x < KV_W; x += 12) { g.fillStyle = '#e6d6b6'; g.fillRect(x, 0, 4, 64); }
+  // 肉球もよう
+  g.fillStyle = '#e0cca8';
+  for (let i = 0; i < 9; i++) { const x = 10 + (i * 41) % 166, y = 6 + (i * 23) % 50; g.fillRect(x, y + 2, 4, 3); g.fillRect(x - 1, y, 1, 2); g.fillRect(x + 1, y - 1, 1, 2); g.fillRect(x + 3, y - 1, 1, 2); g.fillRect(x + 5, y, 1, 2); }
+  // 腰板
+  g.fillStyle = '#9a6a42'; g.fillRect(0, 58, KV_W, 8); g.fillStyle = '#b07c50'; g.fillRect(0, 58, KV_W, 2); g.fillStyle = '#6a4428'; g.fillRect(0, 65, KV_W, 1);
+  // ラグ（写真のグレーの じゅうたん）
+  g.fillStyle = '#c9ced6'; g.fillRect(0, 66, KV_W, KV_H - 66);
+  for (let y = 66; y < KV_H; y++) for (let x = (y * 3) % 5; x < KV_W; x += 5) { g.fillStyle = (x + y) % 3 ? '#d4d8de' : '#bcc2cc'; g.fillRect(x, y, 1, 1); }
+  // ねこの かげ
+  g.fillStyle = 'rgba(60,60,90,0.18)';
+  for (let y = 0; y < 30; y++) { const w = Math.round(Math.sqrt(1 - ((y - 15) / 15) ** 2) * 80); g.fillRect(96 - w, 104 + y, w * 2, 1); }
+  // 窓からの光（ななめの帯）
+  for (let y = 0; y < KV_H; y++) { const x0 = Math.round(-30 + y * 0.6); g.fillStyle = 'rgba(255,248,220,0.22)'; g.fillRect(x0, y, 46, 1); g.fillStyle = 'rgba(255,248,220,0.12)'; g.fillRect(x0 + 52, y, 18, 1); }
+  return c;
+}
+// ロゴ「ぐりおの ねこカフェ」（ドットの文字に ふちどり）
+function makeKVLogo() {
+  const W = KV_W, H = 44, c = mk(W, H), g = c.getContext('2d');
+  const t = mk(W, H), tg = t.getContext('2d');
+  tg.textAlign = 'center'; tg.textBaseline = 'top'; tg.fillStyle = '#000';
+  tg.font = '11px "DotGothic16", monospace'; tg.fillText('ぐりおの', W / 2 - 34, 3);
+  tg.font = '24px "DotGothic16", monospace'; tg.fillText('ねこカフェ', W / 2 + 4, 13);
+  const d = tg.getImageData(0, 0, W, H).data, on = (x, y) => x >= 0 && y >= 0 && x < W && y < H && d[(y * W + x) * 4 + 3] > 110;
+  const im = g.createImageData(W, H), o = im.data;
+  const put = (x, y, r, gg, b) => { const i = (y * W + x) * 4; o[i] = r; o[i + 1] = gg; o[i + 2] = b; o[i + 3] = 255; };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (on(x, y)) { const big = y > 12, k = big ? (y - 14) / 22 : 0; big ? put(x, y, 255, Math.round(236 - k * 40), Math.round(170 - k * 90)) : put(x, y, 255, 250, 240); continue; }
+    let near = false, near2 = false;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (on(x + dx, y + dy)) near = true;
+    if (!near) for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (Math.abs(dx) + Math.abs(dy) <= 3 && on(x + dx, y + dy - 1)) near2 = true;
+    if (near) put(x, y, 74, 44, 26); else if (near2) put(x, y, 160, 104, 64);
+  }
+  g.putImageData(im, 0, 0);
+  return c;
+}
+let kvCache = null;
+// 動きのコマを すこしずつ 先に描いておく
+function warmKV() {
+  if (!kvCache) return;
+  for (const ge of ['o', 'c']) for (const pe of ['h', 'c']) for (const tl of [0, 1, 2]) {
+    const key = ge + pe + tl;
+    if (!kvCache.cats[key]) { kvCache.cats[key] = makeKVCats(ge === 'c' ? 'closed' : 'normal', pe === 'c' ? 'closed' : 'half', tl); setTimeout(warmKV, 60); return; }
+  }
+}
+function drawKV(cv) {
+  if (!kvCache) { kvCache = { back: makeKVBack(), logo: makeKVLogo(), cats: {} }; setTimeout(warmKV, 300); }
+  const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+  const t = performance.now() / 1000;
+  const gBlink = (t % 4.2) < 0.15, pBlink = ((t + 1.7) % 5.5) < 0.6;
+  const tail = [0, 1, 2, 1][Math.floor(t * 2.5) % 4];
+  const key = `${gBlink ? 'c' : 'o'}${pBlink ? 'c' : 'h'}${tail}`;
+  if (!kvCache.cats[key]) kvCache.cats[key] = makeKVCats(gBlink ? 'closed' : 'normal', pBlink ? 'closed' : 'half', tail);
+  g.drawImage(kvCache.back, 0, 0);
+  // 光のつぶ
+  for (let i = 0; i < 10; i++) {
+    const ph = (t * 0.08 + i * 0.137) % 1, x = Math.round(8 + (i * 37) % 70 + ph * 30), y = Math.round(14 + ((i * 53) % 90) - ph * 12);
+    g.fillStyle = `rgba(255,250,220,${(0.8 * Math.sin(ph * Math.PI)).toFixed(2)})`; g.fillRect(x, y, 1, 1);
+  }
+  g.drawImage(kvCache.cats[key], 0, 0);
+  g.drawImage(kvCache.logo, 0, 0);
+  // ハート
+  const hp = (t * 0.35) % 1, hx = Math.round(118 + Math.sin(hp * 6) * 3), hy = Math.round(58 - hp * 16);
+  if (hp < 0.8) { g.globalAlpha = 1 - hp / 0.8; g.drawImage(HEART2, hx, hy); g.globalAlpha = 1; }
+}
 function openTitle() {
   const saved = loadSave();
   openModal(`
-    <canvas id="titleArt" class="title-art" width="160" height="80"></canvas>
-    <h2>ぐりおのねこカフェ</h2>
+    <canvas id="titleArt" class="title-art" width="${KV_W}" height="${KV_H}" role="img" aria-label="ぐりおのねこカフェ"></canvas>
     <p>店長ねこ「ぐりお」といっしょに、小さなねこカフェを人気のお店にしよう。</p>
     <p class="sub">・ふきだしをタップ → 注文をうける<br>・下のキッチンで設備をタップ → 調理。ちょうどいいときにもう一度タップでパーフェクト<br>・できあがり台の料理をタップ → はこぶ<br>・テーブルのお皿をタップ → かたづけ<br>・ねこをタップ → なでる（ごきげんUP）<br>・ゆかのねこの毛をタップ → おそうじ<br>・ねこのごはんがなくなる前に補充しよう<br>・料理の材料は「仕入れ」で。閉店後に買うとやすい</p>
     <p class="sub">目標：ひょうばん ★5 と もちきん ¥100,000</p>
@@ -2567,12 +2769,20 @@ function openTitle() {
       <button type="button" id="mNew">はじめから</button>
     </div>
   `);
-  const tg = $('titleArt').getContext('2d'); tg.imageSmoothingEnabled = false;
-  tg.fillStyle = '#e9dcc0'; tg.fillRect(0, 0, 160, 80);
-  tg.fillStyle = '#c99a68'; tg.fillRect(0, 64, 160, 16); tg.fillStyle = '#8a5e3a'; tg.fillRect(0, 60, 160, 4);
-  tg.drawImage(FACES.grio.happy, 34, 2); tg.drawImage(FACES.ponta.sleep, 82, 6);
-  tg.drawImage(CAT_SPR.mike.sit[0], 0, 34, 26, 23.5); tg.drawImage(CAT_SPR.kuro.sleep[1], 132, 50, 26, 14);
-  tg.drawImage(ICON2.coffee, 22, 52, 12, 12); tg.drawImage(ICON2.cake, 146, 40, 12, 12);
+  const art = $('titleArt');
+  const anim = () => {
+    if (!art.isConnected || $('modal').hidden) return;
+    if (kvCache && !kvCache.fontOk && document.fonts && document.fonts.check('24px "DotGothic16"')) { kvCache.logo = makeKVLogo(); kvCache.fontOk = true; }
+    drawKV(art); requestAnimationFrame(anim);
+  };
+  let started = false;
+  const startKV = () => {
+    if (started) return; started = true;
+    if (kvCache && !kvCache.fontOk) kvCache.logo = makeKVLogo();
+    drawKV(art); kvCache.fontOk = !document.fonts || document.fonts.check('24px "DotGothic16"'); anim();
+  };
+  // ロゴの文字は ドットのフォントが 読みこめてから 描く（まにあわなければ そのまま）
+  if (document.fonts) { document.fonts.load('24px "DotGothic16"').then(startKV, startKV); setTimeout(startKV, 1500); } else startKV();
   const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) event('intro'); };
   if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, kitchen: { ...base.kitchen, ...(saved.kitchen || {}) }, market: saved.market || base.market, sns: saved.sns || base.sns, flags: saved.flags || {} }, false); };
   $('mNew').onclick = () => go(newSave(), true);
