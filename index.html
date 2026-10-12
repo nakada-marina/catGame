@@ -78,11 +78,6 @@ body {
   cursor: pointer;
 }
 #stage { position: relative; }
-#registerBar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; padding:7px 9px; background:#293e32; border:1px solid #b89b5a; border-radius:6px; }
-#registerBar[hidden] { display:none; }
-#registerInfo { font-size:11px; line-height:1.4; color:#eee3c9; }
-#btnRegister { min-height:44px; padding:7px 10px; font-size:13px; background:#f2c14e; color:#3a2a10; border-bottom-color:#a07a10; white-space:nowrap; }
-#btnRegister:disabled { opacity:.6; }
 #talk {
   position: absolute;
   left: 8px; right: 8px; bottom: 8px;
@@ -321,7 +316,6 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
   <canvas id="kitchenCv" aria-label="キッチン：設備をタップして調理、下段のシンクをタップして洗い物"></canvas>
   </div>
   <div id="dock">
-  <div id="registerBar" hidden aria-label="レジのお会計"><span id="registerInfo" role="status" aria-live="polite"></span><button type="button" id="btnRegister" disabled>お会計</button></div>
   <div id="actions">
     <button type="button" id="btnFood">ごはん<small id="foodLeft">のこり0</small></button>
     <button type="button" id="btnStock">仕入れ<small id="stockInfo">ざいこ</small></button>
@@ -991,17 +985,6 @@ function updateCheckout() {
       if (pay(head) && staffReady) staffBusy = REGISTER.paymentTime;
     }
   }
-  refreshRegister();
-}
-function refreshRegister() {
-  const bar = $('registerBar'), line = checkoutLine(), waiting = checkoutWaiting(), count = line.length + waiting.length;
-  bar.hidden = !count || !!firstGuide || (mode !== 'open' && mode !== 'closing');
-  const head = line[0], ready = head?.state === 'checkout' && !head.paid;
-  const info = head?.state === 'paying' ? 'お支払いありがとうございます' : ready ? 'レジ待ち ' + count + '人・少し待つと自動会計' : 'お会計へ移動中・待ち ' + count + '人';
-  if ($('registerInfo').textContent !== info) $('registerInfo').textContent = info;
-  const button = $('btnRegister'), label = ready ? (head.paymentMethod==='card'?'カード会計 ¥':'現金会計 ¥') + head.bill.total.toLocaleString() : head?.state === 'paying' ? 'お支払い中' : 'レジへ移動中';
-  button.disabled = !ready || !!firstGuide;
-  if (button.textContent !== label) button.textContent = label;
 }
 function tapRegister() {
   if (!G || firstGuide || isPaused() || !['open','closing'].includes(mode)) return false;
@@ -2799,7 +2782,7 @@ function updateHud() {
   $('hudReceivable').textContent=balance.cardGross?'売掛 '+financeYen(balance.cardGross):'使えるお金';
   const st = stars();
   $('hudStars').innerHTML = '★'.repeat(st) + `<span class="off">${'★'.repeat(5 - st)}</span>`;
-  updateFoodLabel(); refreshRegister(); refreshDishes();
+  updateFoodLabel(); refreshDishes();
 }
 
 function clearTable(s) {
@@ -3166,7 +3149,6 @@ onCafeTap(e => {
   const fi = furs.findIndex(f => Math.hypot(x - f.x, y - f.y / 2) < 10);
   if (fi >= 0) { furs.splice(fi, 1); sfx.clean(); addFx('spark', x, y); }
 });
-$('btnRegister').onclick = () => { initAudio(); tapRegister(); };
 $('btnWash').onclick = () => { initAudio(); if(G)openDishes(mode==='report'); };
 $('btnShift').onclick = () => { initAudio(); if(G)openShifts(mode==='report'); };
 $('btnFinance').onclick = () => { initAudio(); if(G)openFinance(mode==='report'); };

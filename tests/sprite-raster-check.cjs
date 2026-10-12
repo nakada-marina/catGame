@@ -85,9 +85,9 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
   drawThumb(thumb,'ponta');assert.equal(thumb.rasterLogicalWidth,52,'repeat render keeps logical size instead of multiplying DPR');
   const keep=thumb.width;window.devicePixelRatio=2;drawThumb(thumb,'ponta');assert(thumb.width<keep,'resolution responds to DPR change');
 
-  // Execute the live fit with measured HUD/guide/dock space, borders and safe-area padding.
+  // Execute the live fit with measured HUD/guide/dock space without a checkout bar, borders and safe-area padding.
   const viewports=[[320,568,2],[375,667,2],[393,852,3],[393,640,3],[430,932,3],[1280,900,1],[852,393,3],[640,320,2],[393,724,2.625]];
-  for(const [width,height,ratio]of viewports)for(const [guideHeight,dockHeight]of [[0,154],[84,154],[0,218]]){
+  for(const [width,height,ratio]of viewports)for(const [guideHeight,dockHeight]of [[0,154],[84,154],[0,111]]){
     window.devicePixelRatio=ratio;window.visualViewport={width,height};
     const padding={left:8,right:width===852?44:8,top:height===724?47:8,bottom:height===724?34:8};
     const hudHeight=height<550?40:54,dockMeasured=width>=600?dockHeight-43:dockHeight;
@@ -141,5 +141,5 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
     assert(code.includes('SpriteRaster.draw'),'screen uses direct drawing');
     for(const m of code.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(m[1].trim())new Function(m[1]);
   }
-  console.log('PASS '+poses+' body frames drawn from original atlases, fixed sizes/baselines, mirrors and bows, retina thumbnails, 27 viewport/guide/register/DPR layouts and toolbar resize, unchanged procedural art, preview wiring and syntax');
+  console.log('PASS '+poses+' body frames drawn from original atlases, fixed sizes/baselines, mirrors and bows, retina thumbnails, 27 viewport/guide/dock/DPR layouts and toolbar resize, unchanged procedural art, preview wiring and syntax');
 })().catch(error=>{console.error(error);process.exitCode=1;});

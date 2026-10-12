@@ -50,20 +50,16 @@ fs.mkdirSync(artifacts, {recursive:true});
       assert(layout.bodyScroll<=layout.bodyHeight+1,'page content does not require scrolling');
       assert.equal(layout.scrollY,0);assert.equal(layout.wide,width>=600&&width>height);
       assert.equal(layout.grio,79,'Grio reduced across all poses');assert.equal(layout.ponta,75,'Ponta reduced across all poses');
-      const fitWithExtra=await page.evaluate(()=>{
-        const guide=$('firstGuide'),bar=$('registerBar'),wasGuide=guide.hidden,wasBar=bar.hidden,results=[];
-        for(const extra of [{guide:true,bar:false},{guide:false,bar:true}]){
-          guide.hidden=!extra.guide;$('firstGuideStep').textContent='2 / 3 コーヒーをつくる';$('firstGuideText').textContent='下のキッチンで、光っているコーヒーマシンをタップしてね。';
-          bar.hidden=!extra.bar;$('registerInfo').textContent='お会計待ち 1人・コーヒー ¥500';fitLayout();
-          const boxes=['hud','firstGuide','cafe','kitchenCv','dock'].filter(id=>!$(id).hidden).map(id=>$(id).getBoundingClientRect().toJSON());
-          results.push({boxes,body:document.body.scrollHeight,visible:document.body.clientHeight});
-        }
-        guide.hidden=wasGuide;bar.hidden=wasBar;fitLayout();return results;
+      assert.equal(await page.locator('#registerBar,#btnRegister').count(),0,'checkout controls do not take space below the game');
+      const fitWithGuide=await page.evaluate(()=>{
+        const guide=$('firstGuide'),wasGuide=guide.hidden;
+        guide.hidden=false;$('firstGuideStep').textContent='2 / 3 コーヒーをつくる';$('firstGuideText').textContent='下のキッチンで、光っているコーヒーマシンをタップしてね。';fitLayout();
+        const boxes=['hud','firstGuide','cafe','kitchenCv','dock'].map(id=>$(id).getBoundingClientRect().toJSON());
+        const result={boxes,body:document.body.scrollHeight,visible:document.body.clientHeight};
+        guide.hidden=wasGuide;fitLayout();return result;
       });
-      for(const extra of fitWithExtra){
-        for(const box of extra.boxes)assert(box.top>=-1&&box.bottom<=height+1&&box.left>=-1&&box.right<=width+1,'guide or checkout still fit screen');
-        assert(extra.body<=extra.visible+1,'checkout/guide do not introduce page scrolling');
-      }
+      for(const box of fitWithGuide.boxes)assert(box.top>=-1&&box.bottom<=height+1&&box.left>=-1&&box.right<=width+1,'guide still fits screen');
+      assert(fitWithGuide.body<=fitWithGuide.visible+1,'guide does not introduce page scrolling');
       if (width===393) await page.screenshot({path:path.join(artifacts,'game.png')});
       if(width===393){
         const cdp=await page.context().newCDPSession(page);
@@ -272,10 +268,13 @@ fs.mkdirSync(artifacts, {recursive:true});
       const c=customers[0],a=jobs[0],b=jobs[1];a.state=b.state='ready';a.q=b.q='normal';deliver(a,false);
       if(c.state!=='wait'||c.receivedItems.length!==1)throw Error('set completed before both dishes');
       deliver(b,false);if(c.state!=='eat')throw Error('complete set never begins eating');
-      c.t=420;updateCustomer(c);updateCheckout();c.x=REGISTER.queueX;c.y=REGISTER.queueY;c.state='checkout';c.t=0;refreshRegister();render();
+      c.t=420;updateCustomer(c);updateCheckout();c.x=REGISTER.queueX;c.y=REGISTER.queueY;c.state='checkout';c.t=0;render();
       return{total:c.bill.total,money:G.money};
     });
-    await servicePage.locator('#btnRegister').click();assert.equal(await servicePage.evaluate(()=>G.money),setBill.money+setBill.total);
+    const setRegisterPoint=await servicePage.evaluate(()=>{
+      const r=cv.getBoundingClientRect();return{x:r.left+3+REGISTER.x/VW*(r.width-6),y:r.top+3+(REGISTER.y/2)/(VH/2)*(r.height-6)};
+    });
+    await servicePage.mouse.click(setRegisterPoint.x,setRegisterPoint.y);assert.equal(await servicePage.evaluate(()=>G.money),setBill.money+setBill.total);
     const dirtyPoint=await servicePage.evaluate(()=>{
       const s=seats.find(s=>s.dirty),r=cv.getBoundingClientRect();return{x:r.left+3+s.itemX/VW*(r.width-6),y:r.top+3+(s.itemY/2)/(VH/2)*(r.height-6)};
     });
@@ -365,43 +364,47 @@ fs.mkdirSync(artifacts, {recursive:true});
     const prepareCash=async(method='cash')=>cashPage.evaluate(method=>{
       finishFirstGuide(true);talking=null;talkQ.length=0;$('talk').hidden=true;closeModal();
       G=newSave();G.flags={intro:true,firstCustomerDone:true,register:true};buildSeats();spawnCats();startDay();
-      spawnTimer=100000;cats=[];ponta=null;
+      spawnTimer=100000;cats=[];ponta=null;fitLayout();
+      const before=kcv.getBoundingClientRect();
       const seat=seats[0],look=randomLook(),c={seat,x:seat.x,y:seat.y,state:'eat',t:420,anim:0,order:MENU[0],patAtServe:700,maxPat:760,pat:700,visits:2,quality:'perfect',paymentMethod:method,look,spr:makePerson(look)};
       seat.cust=c;customers=[c];updateCustomer(c);updateCheckout();
-      // Freeze only the travel setup, then exercise actual UI payment and animation.
       c.x=REGISTER.queueX;c.y=REGISTER.queueY;c.state='checkout';c.t=0;c.walkFacing='back';
-      refreshRegister();render();return{money:G.money,total:c.bill.total};
+      fitLayout();render();renderKitchen();const after=kcv.getBoundingClientRect();
+      return{money:G.money,total:c.bill.total,kitchenStable:before.width===after.width&&before.height===after.height};
     },method);
+    const tapCanvasRegister=async()=>{
+      const point=await cashPage.evaluate(()=>{
+        const r=cv.getBoundingClientRect();return{x:r.left+3+REGISTER.x/VW*(r.width-6),y:r.top+3+(REGISTER.y/2)/(VH/2)*(r.height-6)};
+      });
+      await cashPage.mouse.click(point.x,point.y);
+    };
     let cash=await prepareCash();
-    assert(await cashPage.locator('#btnRegister').isEnabled());
-    assert((await cashPage.locator('#btnRegister').textContent()).includes('¥'+cash.total));
-    await cashPage.locator('#cafe').scrollIntoViewIfNeeded();
-    const registerPoint=await cashPage.evaluate(()=>{
-      const r=cv.getBoundingClientRect();return{x:r.left+3+REGISTER.x/VW*(r.width-6),y:r.top+3+(REGISTER.y/2)/(VH/2)*(r.height-6)};
+    assert.equal(await cashPage.locator('#registerBar,#btnRegister').count(),0,'no checkout bar or button');
+    assert(cash.kitchenStable,'checkout does not shrink the kitchen');
+    const washPoint=await cashPage.evaluate(()=>{
+      CafeService.soil(G,CafeService.reserve(G,{id:'coffee'}));renderKitchen();
+      const r=kcv.getBoundingClientRect();return{x:r.left+3+258/KW*(r.width-6),y:r.top+3+210/KH*(r.height-6)};
     });
-    await cashPage.mouse.click(registerPoint.x,registerPoint.y);
+    await cashPage.mouse.click(washPoint.x,washPoint.y);
+    assert(await cashPage.evaluate(()=>!!G.tableware.wash),'sink remains usable while a customer waits to pay');
+    await tapCanvasRegister();
     let payment=await cashPage.evaluate(()=>({money:G.money,sales:dayLog.sales,served:G.served,saved:loadSave().money}));
     assert.equal(payment.money,cash.money+cash.total);assert.equal(payment.sales,cash.total);assert.equal(payment.served,1);assert.equal(payment.saved,payment.money);
-    await cashPage.mouse.click(registerPoint.x,registerPoint.y);assert.equal(await cashPage.evaluate(()=>G.money),payment.money,'repeat canvas tap pays once');
+    await tapCanvasRegister();assert.equal(await cashPage.evaluate(()=>G.money),payment.money,'repeat canvas tap pays once');
     await cashPage.screenshot({path:path.join(artifacts,'cash-register-paid.png')});
     cash=await prepareCash();await cashPage.setViewportSize({width:320,height:568});
-    const registerBounds=await cashPage.locator('#btnRegister').boundingBox();
-    assert(registerBounds.x>=0&&registerBounds.x+registerBounds.width<=321&&registerBounds.height>=44,'mobile checkout control fits');
-    await cashPage.locator('#btnRegister').click();
-    assert.equal(await cashPage.evaluate(()=>G.money),cash.money+cash.total,'button uses same payment');
+    await cashPage.evaluate(()=>fitLayout());await tapCanvasRegister();
+    assert.equal(await cashPage.evaluate(()=>G.money),cash.money+cash.total,'mobile register canvas tap pays');
     await cashPage.reload();await cashPage.evaluate(()=>artworkReady);await cashPage.locator('#mCont').click();
     assert.equal(await cashPage.evaluate(()=>G.money),cash.money+cash.total,'collected money persists');
-    const cardPayment=await prepareCash('card');
-    assert((await cashPage.locator('#btnRegister').textContent()).includes('カード会計'));
-    await cashPage.locator('#btnRegister').click();
+    const cardPayment=await prepareCash('card');await tapCanvasRegister();
     const cardState=await cashPage.evaluate(()=>({money:G.money,gross:CafeFinance.view(G).cardGross,net:CafeFinance.view(G).cardNet,saved:loadSave().finance.cards[0]}));
     assert.equal(cardState.money,cardPayment.money);assert.equal(cardState.gross,cardPayment.total);
     assert.equal(cardState.net,cardPayment.total-Math.round(cardPayment.total*.03));assert.equal(cardState.saved.gross,cardPayment.total);
     await cashPage.locator('#btnFinance').click();
     assert((await cashPage.locator('#panel').textContent()).includes('2月2日'));
-    await cashPage.locator('#mClose').click();
-    await cashPage.close();
-    console.log('PASS cash register canvas tap and checkout button, repeat tap, mobile control and saved income');
+    await cashPage.locator('#mClose').click();await cashPage.close();
+    console.log('PASS checkout without extra controls or kitchen shrink, washing during checkout, cash/card register taps, repeat tap, mobile canvas and saved income');
 
     const financePage=await browser.newPage({viewport:{width:393,height:852}});
     financePage.on('pageerror',e=>errors.push(e.message));
