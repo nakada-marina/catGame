@@ -85,26 +85,47 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
   drawThumb(thumb,'ponta');assert.equal(thumb.rasterLogicalWidth,52,'repeat render keeps logical size instead of multiplying DPR');
   const keep=thumb.width;window.devicePixelRatio=2;drawThumb(thumb,'ponta');assert(thumb.width<keep,'resolution responds to DPR change');
 
-  // Execute the live layout code with CSS content boxes, including border widths.
-  for(const [width,ratio]of [[320,2],[375,2],[393,3],[430,3],[1280,1],[393,2.625]]){
-    window.devicePixelRatio=ratio;window.visualViewport={width};
-    const wrap={style:{},get clientWidth(){return Number.parseFloat(this.style.width);}};
-    const cv=canvas(),kcv=canvas();cv.style={};
-    Object.defineProperties(cv,{clientWidth:{get:()=>parseFloat(cv.style.width)-6},clientHeight:{get:()=>parseFloat(cv.style.height)-6}});
-    Object.defineProperties(kcv,{clientWidth:{get:()=>wrap.clientWidth-6},clientHeight:{get:()=>(wrap.clientWidth-6)*KH/KW}});
-    const fit=new Function('$','window','document','getComputedStyle','innerWidth','cv','kcv','VW','VH','KW','KH','SpriteRaster','positionDialogue',
+  // Execute the live fit with measured HUD/guide/dock space, borders and safe-area padding.
+  const viewports=[[320,568,2],[375,667,2],[393,852,3],[393,640,3],[430,932,3],[1280,900,1],[852,393,3],[640,320,2],[393,724,2.625]];
+  for(const [width,height,ratio]of viewports)for(const [guideHeight,dockHeight]of [[0,154],[84,154],[0,218]]){
+    window.devicePixelRatio=ratio;window.visualViewport={width,height};
+    const padding={left:8,right:width===852?44:8,top:height===724?47:8,bottom:height===724?34:8};
+    const hudHeight=height<550?40:54,dockMeasured=width>=600?dockHeight-43:dockHeight;
+    const wrap={style:{},get clientWidth(){return Number.parseFloat(this.style.width);},get clientHeight(){return Number.parseFloat(this.style.height);}};
+    let wide=false;
+    const field={
+      classList:{toggle(name,enabled){assert.equal(name,'side-by-side');wide=enabled;}},
+      get clientWidth(){return wrap.clientWidth;},
+      get clientHeight(){return wrap.clientHeight-hudHeight-guideHeight-dockMeasured-(guideHeight?21:14);}
+    };
+    const cv=canvas(),kcv=canvas();cv.style={};kcv.style={};
+    for(const surface of [cv,kcv])Object.defineProperties(surface,{clientWidth:{get:()=>parseFloat(surface.style.width)-6},clientHeight:{get:()=>parseFloat(surface.style.height)-6}});
+    const rootStyle={},body={};
+    const styles=el=>el===body?{paddingLeft:padding.left+'px',paddingRight:padding.right+'px',paddingTop:padding.top+'px',paddingBottom:padding.bottom+'px'}
+      :el===field?{rowGap:'7px',columnGap:'7px'}:{borderLeftWidth:'3px',borderRightWidth:'3px',borderTopWidth:'3px',borderBottomWidth:'3px'};
+    const fit=new Function('$','window','document','getComputedStyle','innerWidth','innerHeight','cv','kcv','VW','VH','KW','KH','SpriteRaster','positionDialogue',
       source('fitLayout')+';return fitLayout;')(
-      ()=>wrap,window,{body:{}},()=>({paddingLeft:'8px',paddingRight:'8px',borderTopWidth:'3px',borderBottomWidth:'3px'}),width,cv,kcv,224,300,KW,KH,raster,()=>{});
+      id=>id==='wrap'?wrap:field,window,{body,documentElement:{style:{setProperty:(name,value)=>rootStyle[name]=value}}},styles,width,height,cv,kcv,224,300,KW,KH,raster,()=>{});
     fit();
-    assert.equal(wrap.clientWidth,Math.floor(Math.min(width-16,640)),'full-width layout retained');
-    assert.equal(cv.width,Math.round(cv.clientWidth*ratio),'backing matches content width in device pixels');
-    assert.equal(cv.height,Math.round(cv.clientHeight*ratio),'backing matches content height in device pixels');
-    assert.equal(kcv.width,Math.round(kcv.clientWidth*ratio),'kitchen has no second CSS reduction');
-    assert.equal(kcv.height,Math.round(kcv.clientWidth*KH/KW*ratio),'extended washing row retains correct physical height');
+    assert.equal(wrap.clientWidth,Math.floor(Math.min(width-padding.left-padding.right,wide?1040:640)),'controls retain available width');
+    assert.equal(wrap.clientHeight,height-padding.top-padding.bottom,'viewport height reserves safe areas');
+    assert.equal(rootStyle['--game-height'],height+'px');
+    assert(cv.clientWidth===kcv.clientWidth,'both canvases share display scale');
+    const drawnWidth=wide?parseFloat(cv.style.width)+7+parseFloat(kcv.style.width):Math.max(parseFloat(cv.style.width),parseFloat(kcv.style.width));
+    const drawnHeight=wide?Math.max(parseFloat(cv.style.height),parseFloat(kcv.style.height)):parseFloat(cv.style.height)+7+parseFloat(kcv.style.height);
+    assert(drawnWidth<=field.clientWidth&&drawnHeight<=field.clientHeight,'both surfaces fit '+[width,height,guideHeight,dockHeight,drawnWidth,drawnHeight,field.clientWidth,field.clientHeight].join(','));
+    assert(Math.abs(cv.clientHeight/cv.clientWidth-300/448)<1e-8,'cafe keeps aspect ratio');
+    assert(Math.abs(kcv.clientHeight/kcv.clientWidth-KH/KW)<1e-8,'kitchen and sink keep aspect ratio');
+    assert.equal(cv.width,Math.round(cv.clientWidth*ratio),'cafe backing matches device pixels');
+    assert.equal(cv.height,Math.round(cv.clientHeight*ratio),'cafe height matches device pixels');
+    assert.equal(kcv.width,Math.round(kcv.clientWidth*ratio),'kitchen backing matches device pixels');
+    assert.equal(kcv.height,Math.round(kcv.clientHeight*ratio),'kitchen height matches device pixels');
     const draw=canvas(),ctx=draw.getContext('2d');
     const render=new Function('cv','ctx','FW','FH','G','drawWallAndFloor','OPEN',source('render')+';return render;')(
       cv,ctx,448,600,null,()=>{},600);
     render();const m=ctx.getTransform();close(m.a,cv.width/448,'horizontal physical scale');close(m.a,m.d,'uniform physical scale');assert(Math.abs(m.d*300-cv.height)<=.5,'vertical pixel rounding stays within half a physical pixel');
+    const oldWidth=cv.clientWidth;
+    window.visualViewport.height=height-40;fit();assert(cv.clientWidth<=oldWidth,'toolbar expansion recomputes available height');
   }
   const room=canvas(),ctx=room.getContext('2d'),drawArtwork=new Function('ctx','SpriteRaster',
     source('catBowAngle')+'\n'+source('drawCatArtwork')+';return drawCatArtwork;')(ctx,raster);
@@ -120,5 +141,5 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
     assert(code.includes('SpriteRaster.draw'),'screen uses direct drawing');
     for(const m of code.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(m[1].trim())new Function(m[1]);
   }
-  console.log('PASS '+poses+' body frames drawn from original atlases, fixed sizes/baselines, mirrors and bows, retina thumbnails, six viewport/DPR layouts, unchanged procedural art, preview wiring and syntax');
+  console.log('PASS '+poses+' body frames drawn from original atlases, fixed sizes/baselines, mirrors and bows, retina thumbnails, 27 viewport/guide/register/DPR layouts and toolbar resize, unchanged procedural art, preview wiring and syntax');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -302,7 +302,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .shift-controls select,.shift-day-label select { min-height:44px; max-width:100%; padding:6px; border:1px solid #b6a28c; border-radius:6px; font:inherit; background:#fffdf6; color:#3b2c21; }
 .shift-controls button { font-size:13px; min-height:44px; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261012-kitchen-sink">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261012-fit-screen">
 </head>
 <body>
 <div id="wrap">
@@ -312,6 +312,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
     <div class="stars" id="hudStars" aria-label="ひょうばん"></div>
   </div>
   <aside id="firstGuide" hidden aria-label="はじめての接客の案内"><strong id="firstGuideStep"></strong><p id="firstGuideText" role="status" aria-live="polite"></p><button type="button" id="firstGuideSkip">スキップ</button></aside>
+  <div id="playfield">
   <div id="stage">
     <canvas id="cafe" aria-label="カフェの店内"></canvas>
     <div id="talk" hidden role="dialog" aria-live="polite">
@@ -320,6 +321,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
     </div>
   </div>
   <canvas id="kitchenCv" aria-label="キッチン：設備をタップして調理、下段のシンクをタップして洗い物"></canvas>
+  </div>
   <div id="dock">
   <div id="registerBar" hidden aria-label="レジのお会計"><span id="registerInfo" role="status" aria-live="polite"></span><button type="button" id="btnRegister" disabled>お会計</button></div>
   <div id="actions">
@@ -883,7 +885,6 @@ function refreshFirstGuide() {
   };
   $('firstGuideStep').textContent = hints[firstGuide.step][0];
   $('firstGuideText').textContent = hints[firstGuide.step][1];
-  if (['start','brew','finish','deliver'].includes(firstGuide.step)) kcv.scrollIntoView({block:'nearest'});
 }
 function finishFirstGuide(skipped = false) {
   if (!firstGuide) return;
@@ -3630,23 +3631,29 @@ function loop(now) {
 openTitle();
 // 店内は横幅いっぱい。操作ドックを残してページをスクロールする。
 function fitLayout() {
-  const wrap = $('wrap'), vv = window.visualViewport, bs = getComputedStyle(document.body);
-  const width = vv ? vv.width : innerWidth;
-  const px = parseFloat(bs.paddingLeft) + parseFloat(bs.paddingRight);
-  wrap.style.width = Math.floor(Math.min(width - px, 640)) + 'px';
-  wrap.style.height = 'auto';
-  // Never shrink the game to fit a short viewport. The page scrolls and
-  // the action dock stays visible; the cafe uses the full available width.
-  const sceneWidth = wrap.clientWidth;
-  cv.style.width = sceneWidth + 'px';
-  const contentWidth=cv.clientWidth,contentHeight=contentWidth*VH/VW/2,cs=getComputedStyle(cv);
-  const borders=(parseFloat(cs.borderTopWidth)||0)+(parseFloat(cs.borderBottomWidth)||0);
-  cv.style.height=(contentHeight+borders)+'px';
-  // Match device pixels and preserve the content aspect ratio, including borders.
-  SpriteRaster.resize(cv,contentWidth,contentHeight);
-  const kitchenHeight=kcv.clientWidth*KH/KW,ks=getComputedStyle(kcv);
-  kcv.style.height=(kitchenHeight+(parseFloat(ks.borderTopWidth)||0)+(parseFloat(ks.borderBottomWidth)||0))+'px';
-  SpriteRaster.resize(kcv,kcv.clientWidth,kitchenHeight);
+  const wrap=$('wrap'),field=$('playfield'),vv=window.visualViewport,bs=getComputedStyle(document.body);
+  const width=vv?vv.width:innerWidth,height=vv?vv.height:innerHeight;
+  const number=v=>parseFloat(v)||0;
+  const px=number(bs.paddingLeft)+number(bs.paddingRight),py=number(bs.paddingTop)+number(bs.paddingBottom);
+  const wide=width>=600&&width>height;
+  document.documentElement.style.setProperty('--game-height',height+'px');
+  wrap.style.width=Math.max(1,Math.floor(Math.min(width-px,wide?1040:640)))+'px';
+  wrap.style.height=Math.max(1,Math.floor(height-py))+'px';
+  field.classList.toggle('side-by-side',wide);
+  // Reserve the real HUD, guide and dock heights before fitting both canvases.
+  const fs=getComputedStyle(field),cs=getComputedStyle(cv),ks=getComputedStyle(kcv);
+  const gap=number(wide?fs.columnGap:fs.rowGap);
+  const cx=number(cs.borderLeftWidth)+number(cs.borderRightWidth),cy=number(cs.borderTopWidth)+number(cs.borderBottomWidth);
+  const kx=number(ks.borderLeftWidth)+number(ks.borderRightWidth),ky=number(ks.borderTopWidth)+number(ks.borderBottomWidth);
+  const cafeRatio=VH/VW/2,kitchenRatio=KH/KW;
+  const maxWidth=wide?(field.clientWidth-gap-cx-kx)/2:Math.min(field.clientWidth-cx,field.clientWidth-kx);
+  const maxHeight=wide?Math.min((field.clientHeight-cy)/cafeRatio,(field.clientHeight-ky)/kitchenRatio)
+    :(field.clientHeight-gap-cy-ky)/(cafeRatio+kitchenRatio);
+  const contentWidth=Math.max(1,Math.floor(Math.min(maxWidth,maxHeight)));
+  cv.style.width=(contentWidth+cx)+'px';cv.style.height=(contentWidth*cafeRatio+cy)+'px';
+  kcv.style.width=(contentWidth+kx)+'px';kcv.style.height=(contentWidth*kitchenRatio+ky)+'px';
+  SpriteRaster.resize(cv,contentWidth,contentWidth*cafeRatio);
+  SpriteRaster.resize(kcv,contentWidth,contentWidth*kitchenRatio);
   positionDialogue();
 }
 function positionDialogue() {
@@ -3654,7 +3661,11 @@ function positionDialogue() {
   document.documentElement.style.setProperty('--talk-bottom', Math.max(12, innerHeight - top + 12) + 'px');
 }
 addEventListener('scroll', positionDialogue, {capture:true,passive:true});
-if (window.ResizeObserver) new ResizeObserver(positionDialogue).observe($('dock'));
+if (window.ResizeObserver) {
+  const observer=new ResizeObserver(fitLayout);
+  observer.observe($('playfield'));
+  observer.observe($('dock'));
+}
 addEventListener('resize', fitLayout);
 if (window.visualViewport) visualViewport.addEventListener('resize', fitLayout);
 fitLayout();

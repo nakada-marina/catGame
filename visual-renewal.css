@@ -99,7 +99,7 @@ body {
   height:100dvh; align-items:flex-start;
   padding: max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right))
            max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
-  overflow-y:auto;
+  overflow-y:hidden;
 }
 #wrap {max-width:480px;flex-shrink:0;gap:7px}
 #wrap > * {flex-shrink:0}
@@ -118,7 +118,6 @@ body {
 @media(max-height:550px) {
   #hud {padding:4px 8px}
   #actions button {min-height:44px;padding:4px 1px}
-  #wrap {height:auto!important}
 }
 
 /* iOS double-tap must act on the game, not zoom the page. Pinch/scroll
@@ -127,20 +126,20 @@ html, body, #wrap, #stage, #talk, #actions, #sub, .panel, button {
   touch-action: manipulation;
 }
 
-/* Larger room and pixel characters: scrolling replaces fit-to-height shrink. */
-body {display:block;padding-inline:max(8px,env(safe-area-inset-left));padding-bottom:max(8px,env(safe-area-inset-bottom))}
-#wrap {max-width:640px;height:auto;margin-inline:auto}
+/* The game fits the visible viewport; panels keep their own scrolling. */
+body {display:block;padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right));padding-bottom:max(8px,env(safe-area-inset-bottom))}
+#wrap {max-width:1040px;height:100%;margin-inline:auto}
 #stage {flex:0 0 auto;min-height:0;align-items:flex-start}
-#cafe {touch-action:pan-y}
+#cafe {touch-action:none}
 #dock {
-  position:sticky;bottom:0;z-index:10;background:#fff5e7;
-  display:flex;flex-direction:column;gap:7px;padding:8px 4px max(8px,env(safe-area-inset-bottom));
+  position:relative;z-index:10;background:#fff5e7;
+  display:flex;flex-direction:column;gap:7px;padding:8px 4px;
   border:2px solid #dfc2a8;border-radius:14px;
   box-shadow:0 -4px 16px rgba(79,47,29,.15);
 }
 #dock #actions button {min-height:48px}
 
-/* Keep dialogue readable above the dock while the larger room scrolls. */
+/* Keep dialogue readable above the controls. */
 #wrap {filter:none}
 #talk {
   position:fixed;left:50%;right:auto;transform:translateX(-50%);
@@ -159,3 +158,16 @@ body {display:block;padding-inline:max(8px,env(safe-area-inset-left));padding-bo
 #cafe,#kitchenCv,.catrow canvas,.nya-card canvas {image-rendering:auto}
 
 #sub .tools {flex-wrap:wrap;max-width:100%;min-width:0}
+
+/* Fit the two drawing surfaces after reserving full-size controls. */
+body {height:var(--game-height,100dvh);overflow:hidden}
+#playfield {
+  display:flex;flex:1 1 0;flex-direction:column;gap:7px;
+  align-items:center;justify-content:center;min-height:0;min-width:0;width:100%;
+}
+#playfield.side-by-side {flex-direction:row}
+#playfield > * {flex-shrink:0}
+#playfield #stage {flex:0 0 auto;min-height:0}
+#playfield #cafe,#playfield #kitchenCv {max-width:100%;margin:0}
+#hud,#firstGuide,#dock {flex-shrink:0}
+.panel {overscroll-behavior:contain}

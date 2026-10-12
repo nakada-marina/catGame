@@ -20,7 +20,7 @@ fs.mkdirSync(artifacts, {recursive:true});
   const browser = await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH ? {executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox','--disable-gpu']} : {})});
   const errors = [];
   try {
-    for (const [width,height,dpr] of [[320,568,2],[375,667,2],[393,852,3],[430,932,3],[1280,900,1]]) {
+    for (const [width,height,dpr] of [[320,568,2],[375,667,2],[393,852,3],[393,640,3],[430,932,3],[852,393,3],[640,320,2],[1280,900,1]]) {
       const page = await browser.newPage({viewport:{width,height},deviceScaleFactor:dpr,isMobile:width<500,hasTouch:width<500});
       page.on('pageerror', e => {errors.push(e.message);console.error('Runtime error:',e.message);});
       await page.goto(base); await page.evaluate(() => artworkReady);
@@ -40,13 +40,30 @@ fs.mkdirSync(artifacts, {recursive:true});
       for (const r of result.controls) { assert(r.left>=0&&r.right<=width+1, 'horizontal clipping'); assert(r.top>=0&&r.bottom<=height+1, `vertical clipping ${width}x${height}`); }
       assert(result.backing>=result.physical-1);
       const layout=await page.evaluate(()=>({scene:cv.getBoundingClientRect().width,sceneHeight:cv.getBoundingClientRect().height,wrap:$('wrap').clientWidth,
-        grio:catDisplaySize('grio',CHAR_SPR.grio.idle[0]).height, ponta:catDisplaySize('ponta',CHAR_SPR.ponta.idle[0]).height}));
-      assert.equal(layout.scene,layout.wrap,'game uses full width instead of height fitting');
-      assert(Math.abs(layout.sceneHeight-layout.scene*300/224/2)<2,'cafe height halved without squashing actors');
+        grio:catDisplaySize('grio',CHAR_SPR.grio.idle[0]).height, ponta:catDisplaySize('ponta',CHAR_SPR.ponta.idle[0]).height,
+        cafe:cv.getBoundingClientRect().toJSON(),kitchen:kcv.getBoundingClientRect().toJSON(),field:$('playfield').getBoundingClientRect().toJSON(),
+        bodyHeight:document.body.clientHeight,bodyScroll:document.body.scrollHeight,scrollY:scrollY,wide:$('playfield').classList.contains('side-by-side'),kitchenRatio:KH/KW}));
+      assert(layout.scene<=layout.wrap,'drawing surfaces fit inside full-width controls');
+      assert(Math.abs((layout.sceneHeight-6)/(layout.scene-6)-300/448)<.01,'cafe retains aspect ratio');
+      assert(Math.abs((layout.kitchen.height-6)/(layout.kitchen.width-6)-layout.kitchenRatio)<.01,'kitchen retains aspect ratio');
+      for(const box of [layout.cafe,layout.kitchen])assert(box.top>=layout.field.top-1&&box.bottom<=layout.field.bottom+1&&box.left>=layout.field.left-1&&box.right<=layout.field.right+1,'both canvases visible together');
+      assert(layout.bodyScroll<=layout.bodyHeight+1,'page content does not require scrolling');
+      assert.equal(layout.scrollY,0);assert.equal(layout.wide,width>=600&&width>height);
       assert.equal(layout.grio,79,'Grio reduced across all poses');assert.equal(layout.ponta,75,'Ponta reduced across all poses');
-      await page.evaluate(()=>{document.body.scrollTop=document.body.scrollHeight;});
-      const scrollCheck=await page.evaluate(()=>({bottom:$('dock').getBoundingClientRect().bottom,kitchen:$('kitchenCv').getBoundingClientRect().bottom,top:$('kitchenCv').getBoundingClientRect().top}));
-      assert(scrollCheck.bottom<=height+1);assert(scrollCheck.kitchen<=height+1);assert(scrollCheck.top>=0,'kitchen reachable by scrolling');
+      const fitWithExtra=await page.evaluate(()=>{
+        const guide=$('firstGuide'),bar=$('registerBar'),wasGuide=guide.hidden,wasBar=bar.hidden,results=[];
+        for(const extra of [{guide:true,bar:false},{guide:false,bar:true}]){
+          guide.hidden=!extra.guide;$('firstGuideStep').textContent='2 / 3 コーヒーをつくる';$('firstGuideText').textContent='下のキッチンで、光っているコーヒーマシンをタップしてね。';
+          bar.hidden=!extra.bar;$('registerInfo').textContent='お会計待ち 1人・コーヒー ¥500';fitLayout();
+          const boxes=['hud','firstGuide','cafe','kitchenCv','dock'].filter(id=>!$(id).hidden).map(id=>$(id).getBoundingClientRect().toJSON());
+          results.push({boxes,body:document.body.scrollHeight,visible:document.body.clientHeight});
+        }
+        guide.hidden=wasGuide;bar.hidden=wasBar;fitLayout();return results;
+      });
+      for(const extra of fitWithExtra){
+        for(const box of extra.boxes)assert(box.top>=-1&&box.bottom<=height+1&&box.left>=-1&&box.right<=width+1,'guide or checkout still fit screen');
+        assert(extra.body<=extra.visible+1,'checkout/guide do not introduce page scrolling');
+      }
       if (width===393) await page.screenshot({path:path.join(artifacts,'game.png')});
       if(width===393){
         const cdp=await page.context().newCDPSession(page);
@@ -57,7 +74,7 @@ fs.mkdirSync(artifacts, {recursive:true});
           assert.equal(await page.evaluate(()=>speed),expected,'one action for each rapid button tap');
         }
         assert.equal(await page.evaluate(()=>visualViewport.scale),1,'rapid taps must not zoom');
-        await page.evaluate(()=>{document.body.scrollTop=0;cats[0].mood=20;mode='open';});
+        await page.evaluate(()=>{cats[0].mood=20;mode='open';});
         const catPoint=await page.evaluate(()=>{const r=cv.getBoundingClientRect(),k=cats[0];return {x:r.left+3+k.x/VW*(r.width-6),y:r.top+3+(k.y/2-20)/(VH/2)*(r.height-6)};});
         const before=await page.evaluate(()=>cats[0].mood);
         await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[catPoint]});
@@ -67,8 +84,8 @@ fs.mkdirSync(artifacts, {recursive:true});
         await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[catPoint]});
         await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:catPoint.x,y:catPoint.y-90}]});
         await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-        assert((await page.evaluate(()=>cats[0].mood))<=dragBefore,'scroll must not pet the cat');
-        await page.evaluate(()=>{document.body.scrollTop=document.body.scrollHeight;});
+        assert((await page.evaluate(()=>cats[0].mood))<=dragBefore,'drag must not pet the cat');
+        assert.equal(await page.evaluate(()=>scrollY),0,'dragging does not scroll the fitted game');
         // A second native tap is cancelled, while drags and two-finger gestures are left intact.
         const gestures=await page.evaluate(()=>{
           const target=$('btnSpeed');
@@ -84,7 +101,7 @@ fs.mkdirSync(artifacts, {recursive:true});
           return {tap:end.defaultPrevented,drag:drag.defaultPrevented,pinch:pinch.defaultPrevented};
         });
         assert.deepEqual(gestures,{tap:true,drag:false,pinch:false});
-        console.log('PASS rapid touch buttons execute once; zoom default cancelled; scrolling/pinch preserved');
+        console.log('PASS rapid touch buttons execute once; zoom default cancelled; drags do not pet cats or scroll the fitted game');
       }
 
       await page.locator('#btnShift').click();
