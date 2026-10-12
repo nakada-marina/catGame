@@ -249,7 +249,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .title-art { display: block; width: 100%; height: auto; aspect-ratio: 1248 / 1242; border-radius: 8px; background: #3a2a1c; }
 #sub { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--chalk-dim); gap: 8px; }
 #sub > span:not(.tools) { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#kitchenCv { display: block; width: 100%; max-width: 100%; aspect-ratio: 448 / 168; image-rendering: pixelated; border: 3px solid #0f1814; border-radius: 6px; touch-action: none; cursor: pointer; background: #f2f4f0; }
+#kitchenCv { display: block; width: 100%; max-width: 100%; aspect-ratio: 448 / 256; image-rendering: pixelated; border: 3px solid #0f1814; border-radius: 6px; touch-action: none; cursor: pointer; background: #f2f4f0; }
 #kitchen { display: flex; align-items: center; gap: 8px; min-height: 58px; background: #18241f; border-radius: 8px; padding: 6px 8px; }
 #kitchen .klabel { font-size: 11px; color: var(--chalk-dim); writing-mode: vertical-rl; letter-spacing: 2px; flex-shrink: 0; }
 #jobs { display: flex; gap: 6px; overflow-x: auto; min-width: 0; flex: 1; }
@@ -302,7 +302,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .shift-controls select,.shift-day-label select { min-height:44px; max-width:100%; padding:6px; border:1px solid #b6a28c; border-radius:6px; font:inherit; background:#fffdf6; color:#3b2c21; }
 .shift-controls button { font-size:13px; min-height:44px; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261012-service">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261012-kitchen-sink">
 </head>
 <body>
 <div id="wrap">
@@ -319,7 +319,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
       <div class="msg"><span class="who">ぐりお</span><p id="talkText"></p><span class="next" id="talkNext">▼</span></div>
     </div>
   </div>
-  <canvas id="kitchenCv" aria-label="キッチン：設備をタップして調理"></canvas>
+  <canvas id="kitchenCv" aria-label="キッチン：設備をタップして調理、下段のシンクをタップして洗い物"></canvas>
   <div id="dock">
   <div id="registerBar" hidden aria-label="レジのお会計"><span id="registerInfo" role="status" aria-live="polite"></span><button type="button" id="btnRegister" disabled>お会計</button></div>
   <div id="actions">
@@ -343,6 +343,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./cafe-service.js?v=20261012-service"></script>
 <script src="./cat-shifts.js?v=20261012-cat-shifts"></script>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
+<script src="./kitchen-wash.js?v=20261012-kitchen-sink"></script>
 <script src="./nyax-art.js?v=20261012-food-photos"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
 <script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./stray-art.js?v=20261012-single-pass"></script><script src="./rear-walk.js?v=20261012-single-pass"></script>
@@ -1515,7 +1516,7 @@ function pay(c) {
 }
 
 // ================= ねこ =================
-const SINK = { x: 150, y: 100 };
+const SINK = { x: 193, y: 100 }; // 食器をキッチンへ渡すカウンター側の位置
 function assignClean(k) {
   const dirty = seats.filter(s => s.dirty && !s.cleaner);
   if (!dirty.length) return false;
@@ -1648,7 +1649,7 @@ function updateCat(k) {
       k.anim++;
       if (moveTo(k, k.tx, k.ty, 0.55)) {
         k.carry = false; k.state = 'idle'; k.t = 80; k.mood = clamp(k.mood + 3, 0, 100);
-        addFx('spark', k.x, k.y - 16); addFx('text', k.x, k.y - 28, { text: 'ピカピカ', color: '#ffffff', life: 40 }); sfx.clean();
+        addFx('spark', k.x, k.y - 16); addFx('text', k.x, k.y - 28, { text: '洗い場へ', color: '#ffffff', life: 40 }); sfx.clean();
       }
       break;
     case 'walk': k.anim++; if (Math.random() < 0.06 && catWork(k)) break; if (Math.random() < 0.006 && assignClean(k)) break; if (moveTo(k, k.tx, k.ty, sp)) { k.state = 'idle'; k.t = Math.floor(rnd(90, 260)); } break;
@@ -2002,18 +2003,6 @@ function drawLamps() {
   }
 }
 
-function drawWashStation() {
-  const w=CafeService.init(G),X=272,Y=82;
-  P('#765339',X,Y+8,56,38);P('#ab845e',X+2,Y+9,52,35);P('#dfd6be',X,Y+6,56,9);
-  P('#627d80',X+7,Y+9,41,16);P('#9bb5b5',X+9,Y+10,37,13);P('#d6e5df',X+11,Y+12,33,1);
-  P('#8a9c9e',X+33,Y-1,3,15);P('#d8e2dc',X+27,Y-2,9,3);P('#8a9c9e',X+26,Y,3,7);
-  if(w.wash){for(let i=0;i<3;i++)P('#b6e0e5',X+27,Y+8+((tick+i*3)%9),2,3);}
-  const dirty=CafeService.sum(w.dirty),washing=!!w.wash;
-  for(let i=0;i<Math.min(3,dirty);i++){P('#f0e4c9',X+2,Y-i*3,17,3);P('#bfa580',X+3,Y+2-i*3,15,1);}
-  ctx.font='9px "DotGothic16",monospace';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillStyle='#493624';
-  ctx.fillText(washing?'洗い中':'洗い場 '+dirty,X+28,Y+47);
-}
-
 function drawRoom() {
   drawWallAndFloor(G.time);
   sceneAsset(.85,0,0,drawChalkboard);
@@ -2026,7 +2015,6 @@ function drawRoom() {
   }
   sceneAsset(.68,FW*(1-.68),0,drawPantry);
   sceneAsset(.68,FW*(1-.68),0,drawCounter);
-  drawWashStation();
   if(G.furniture.lamp)sceneAsset(.85,0,0,drawLamps);
 }
 
@@ -2589,7 +2577,7 @@ function render() {
 
 // ================= キッチン画面（設備をタップして調理） =================
 const kcv = $('kitchenCv');
-const KW = 448, KH = 168;            // 2倍の細かさの座標
+const KW = 448, KH = 256;            // 2倍の細かさの座標
 kcv.width = KW * 2; kcv.height = KH * 2;
 const kctx = kcv.getContext('2d');
 const kfx = [];
@@ -2781,6 +2769,7 @@ function renderKitchen() {
     if (s.j.q === 'perfect') { K('#8affa0', s.x + 24, s.y - 4, 3, 3); }
     if (!cold && (tick >> 4) & 1) { K('#ffffff', s.x + 2, s.y, 1, 3); }
   }
+  KitchenWash.draw(kctx,CafeService.init(G));
   drawFirstGuideKitchenTarget();
   // 文字の演出
   for (const f of kfx) { kctx.globalAlpha = Math.min(1, (60 - f.t) / 20); kctx.font = '12px "DotGothic16", monospace'; const hw = kctx.measureText(f.text).width / 2 + 3; KT(f.text, clamp(f.x, hw, KW - hw), Math.max(2, f.y - f.t * 0.4), 12, f.color); kctx.globalAlpha = 1; }
@@ -2791,6 +2780,7 @@ kcv.addEventListener('pointerdown', e => {
   if (!G || isPaused() || (mode !== 'open' && mode !== 'closing')) return;
   const r = kcv.getBoundingClientRect(), b = 3;
   const x = (e.clientX - r.left - b) / (r.width - b * 2) * KW, y = (e.clientY - r.top - b) / (r.height - b * 2) * KH;
+  if(KitchenWash.hit(x,y)){if(!firstGuide)washDishes();return;}
   for (const s of passSlots()) if (x >= s.x - 2 && x <= s.x + 30 && y >= s.y - 16 && y < s.y + 16) { deliver(s.j, false); return; }
   for (const u of kitchenUnits()) { const top = u.h > 40 ? u.y - 16 : u.y, bot = u.y + u.h >= 110 ? 124 : u.y + u.h; if (x >= u.x && x <= u.x + u.w && y >= top && y <= bot) { tapUnit(u); return; } }
 });
@@ -2825,12 +2815,12 @@ function washDishes() {
   if(mode==='report'){
     if(!w.wash&&!CafeService.startWash(G)){toast('洗い物はありません');return;}
     w.wash.t=w.wash.duration-1;CafeService.tickWash(G);
-  }else if(!CafeService.startWash(G)){toast(w.wash?'洗っているところです':'お皿を片付けると洗い物が届きます');return;}
+  }else if(!CafeService.startWash(G)){toast(w.wash?'洗っているところです':'お皿を片付けるとキッチンのシンクへ届きます');return;}
   toast(mode==='report'?'食器を洗いました':'3個ずつ洗っています');refreshDishes();save();updateStockInfo();
 }
 function openDishes(fromReport=false) {
   const w=CafeService.init(G);
-  openModal(`<h2>食器と洗い物</h2><p class="sub">洗ってある食器だけを使えます。注文時に必要な数を確保し、食後に片付けると洗い物へ。コップ・皿・フォークを3個ずつ洗います。営業中は「洗う」で画面を閉じ、3秒で洗えます。閉店後はこの画面で洗えます。アルバイトは空き時間に洗います。</p>
+  openModal(`<h2>食器と洗い物</h2><p class="sub">洗ってある食器だけを使えます。注文時に必要な数を確保し、食後に片付けると洗い物へ。コップ・皿・フォークを3個ずつ洗います。営業中はキッチン下段のシンクをタップして洗えます。この画面の「洗う」でも開始でき、3秒で3個洗います。閉店後はこの画面で洗えます。アルバイトは空き時間に洗います。</p>
     <div class="stat">${CafeService.keys.map(k=>'<span>'+CafeService.types[k].name+'</span><span>清潔 '+w.clean[k]+' ／ 使用中 '+w.used[k]+' ／ 洗い待ち '+w.dirty[k]+' ／ 全部 '+w.total[k]+'</span>').join('')}</div>
     <p class="sub">${w.wash?'洗っている食器 '+CafeService.sum(w.wash.items)+'個（あと'+Math.ceil((w.wash.duration-w.wash.t)/60)+'秒）':'洗い待ち '+CafeService.sum(w.dirty)+'個'}</p>
     <div class="actions-row"><button type="button" id="mWash">洗う</button><button type="button" id="mWareShop">食器を増やす</button><button type="button" id="mClose">${fromReport?'リザルトへ戻る':'とじる'}</button></div>`);
@@ -3241,7 +3231,6 @@ onCafeTap(e => {
   for (const s of seats) {
     if (s.dirty && Math.abs(x - s.itemX) < 12 && y > s.itemY / 2 - 13 && y < s.itemY / 2 + 9) { clearTable(s); sfx.clean(); addFx('spark', s.itemX, s.itemY - 5); return; }
   }
-  if(x>=135&&x<=166&&y>=36&&y<=68){washDishes();return;}
   if (x >= 168 && y < 26) { openStock(); return; }
   if (ponta) { const py = ponta.state === 'nap' ? ponta.y / 2 - 9 : ponta.y / 2 - 20; if (Math.hypot(x - ponta.x, y - py) < 24) { wakePonta(); return; } }
   let best = null, bd = 26;

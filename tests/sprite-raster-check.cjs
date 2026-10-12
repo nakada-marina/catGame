@@ -2,6 +2,7 @@
  * Checks the actual atlas-to-screen drawing path; no browser screenshot assertions. */
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8'),html=read('index.html');
+const kitchenSize=html.match(/const KW = (\d+), KH = (\d+);/),KW=Number(kitchenSize[1]),KH=Number(kitchenSize[2]);
 function multiply(a,b){
   return [a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 }
@@ -90,15 +91,16 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
     const wrap={style:{},get clientWidth(){return Number.parseFloat(this.style.width);}};
     const cv=canvas(),kcv=canvas();cv.style={};
     Object.defineProperties(cv,{clientWidth:{get:()=>parseFloat(cv.style.width)-6},clientHeight:{get:()=>parseFloat(cv.style.height)-6}});
-    Object.defineProperties(kcv,{clientWidth:{get:()=>wrap.clientWidth-6},clientHeight:{get:()=>(wrap.clientWidth-6)*168/448}});
+    Object.defineProperties(kcv,{clientWidth:{get:()=>wrap.clientWidth-6},clientHeight:{get:()=>(wrap.clientWidth-6)*KH/KW}});
     const fit=new Function('$','window','document','getComputedStyle','innerWidth','cv','kcv','VW','VH','KW','KH','SpriteRaster','positionDialogue',
       source('fitLayout')+';return fitLayout;')(
-      ()=>wrap,window,{body:{}},()=>({paddingLeft:'8px',paddingRight:'8px',borderTopWidth:'3px',borderBottomWidth:'3px'}),width,cv,kcv,224,300,448,168,raster,()=>{});
+      ()=>wrap,window,{body:{}},()=>({paddingLeft:'8px',paddingRight:'8px',borderTopWidth:'3px',borderBottomWidth:'3px'}),width,cv,kcv,224,300,KW,KH,raster,()=>{});
     fit();
     assert.equal(wrap.clientWidth,Math.floor(Math.min(width-16,640)),'full-width layout retained');
     assert.equal(cv.width,Math.round(cv.clientWidth*ratio),'backing matches content width in device pixels');
     assert.equal(cv.height,Math.round(cv.clientHeight*ratio),'backing matches content height in device pixels');
     assert.equal(kcv.width,Math.round(kcv.clientWidth*ratio),'kitchen has no second CSS reduction');
+    assert.equal(kcv.height,Math.round(kcv.clientWidth*KH/KW*ratio),'extended washing row retains correct physical height');
     const draw=canvas(),ctx=draw.getContext('2d');
     const render=new Function('cv','ctx','FW','FH','G','drawWallAndFloor','OPEN',source('render')+';return render;')(
       cv,ctx,448,600,null,()=>{},600);

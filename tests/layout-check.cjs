@@ -15,8 +15,8 @@ const bounds=list=>({x:Math.min(...list.map(p=>p.x)),y:Math.min(...list.map(p=>p
 const overlap=(a,b)=>a.x<b.right&&a.right>b.x&&a.y<b.bottom&&a.bottom>b.y;
 const boxes=tables.map(([x,y])=>({x:x*2-44,right:x*2+44,y:y-56,bottom:y+20}));
 for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++)assert(!overlap(boxes[i],boxes[j]),'table/chair groups overlap '+i+' '+j);
-const counter={x:350,right:448,y:76,bottom:131},sink={x:272,right:328,y:80,bottom:138};
-for(const box of boxes){assert(!overlap(box,counter),'tables clear counter');assert(!overlap(box,sink),'tables clear washing station');assert(box.x>=0&&box.right<=448&&box.y>=0&&box.bottom<=300,'floor furniture in room');}
+const counter={x:350,right:448,y:76,bottom:131};
+for(const box of boxes){assert(!overlap(box,counter),'tables clear counter');assert(box.x>=0&&box.right<=448&&box.y>=0&&box.bottom<=300,'floor furniture in room');}
 for(const state of ['empty','checkout','paying']){
   paint=[];matrix=[1,0,0,1,0,0];
   const head=state==='empty'?null:{state,bill:{total:1200},t:18,x:REGISTER.queueX,y:REGISTER.queueY,paymentMethod:'card'};
@@ -51,4 +51,4 @@ assert(food[1].x+food[1].size<food[2].x,'opposite customers sets do not overlap'
 food.length=0;drawFood({counter:true,itemX:stools[0][0],cust:{state:'eat',receivedItems:[{id:'coffee'},{id:'cake'}]}});
 assert.equal(food.length,2);assert(food.every(item=>item.y===76),'counter food drawn on fixed countertop, not compacted twice');
 for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(m[1].trim())new Function(m[1]);
-console.log('PASS floor tables/chairs, counter/sink/register clearance, register art and hit position, horizontal queue, visible clipped counter guests, set food spacing and counter layer');
+console.log('PASS floor tables/chairs, counter/register clearance, register art and hit position, horizontal queue, visible clipped counter guests, set food spacing and counter layer');

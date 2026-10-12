@@ -264,14 +264,38 @@ fs.mkdirSync(artifacts, {recursive:true});
     });
     await servicePage.mouse.click(dirtyPoint.x,dirtyPoint.y);
     assert.deepEqual(await servicePage.evaluate(()=>({...G.tableware.dirty})),{cup:1,plate:1,fork:1});
-    await servicePage.locator('#btnWash').click();await servicePage.locator('#mWash').click();
-    assert(await servicePage.locator('#modal').isHidden(),'washing starts after closing its panel');
+    await servicePage.locator('#kitchenCv').scrollIntoViewIfNeeded();
+    const sinkPoint=await servicePage.evaluate(()=>{
+      const r=kcv.getBoundingClientRect();return{x:r.left+3+258/KW*(r.width-6),y:r.top+3+210/KH*(r.height-6)};
+    });
+    await servicePage.mouse.click(sinkPoint.x,sinkPoint.y);
+    assert(await servicePage.locator('#modal').isHidden(),'sink washing keeps the game running');
+    assert(await servicePage.evaluate(()=>!!G.tableware.wash),'real sink tap starts a wash batch');
     await servicePage.waitForFunction(()=>!G.tableware.wash);
     assert.deepEqual(await servicePage.evaluate(()=>({...G.tableware.clean})),setSetup.clean);
     await servicePage.evaluate(()=>{Object.assign(G.furniture,{table:6,stool:3,cushion:4,plant:3,tower:1});buildSeats();render();});
-    await servicePage.screenshot({path:path.join(artifacts,'entrance-register-and-dishes.png'),fullPage:true});
+    await servicePage.screenshot({path:path.join(artifacts,'entrance-register-and-kitchen-sink.png'),fullPage:true});
+    const sinkFrames=await servicePage.evaluate(()=>{
+      const saved=JSON.parse(JSON.stringify(G.tableware)),beforeMode=mode;mode='report';
+      const sheet=document.createElement('canvas');sheet.width=KW;sheet.height=88*6;
+      const g=sheet.getContext('2d');g.imageSmoothingEnabled=false;const frames=[];
+      try{
+        for(const [n,count]of [0,1,3,6,12].entries()){
+          for(const key of CafeService.keys){G.tableware.dirty[key]=count;G.tableware.total[key]=count;G.tableware.clean[key]=0;G.tableware.used[key]=0;}
+          G.tableware.wash=null;renderKitchen();
+          const lower=document.createElement('canvas');lower.width=KW;lower.height=88;
+          lower.getContext('2d').drawImage(kcv,0,168/KH*kcv.height,kcv.width,88/KH*kcv.height,0,0,KW,88);
+          frames.push(lower.toDataURL());g.drawImage(lower,0,n*88);
+        }
+        G.tableware.dirty={cup:3,plate:3,fork:3};G.tableware.total={cup:3,plate:3,fork:3};CafeService.startWash(G);G.tableware.wash.t=42;
+        renderKitchen();g.drawImage(kcv,0,168/KH*kcv.height,kcv.width,88/KH*kcv.height,0,5*88,KW,88);
+        return{distinct:new Set(frames).size,image:sheet.toDataURL().split(',')[1]};
+      }finally{G.tableware=saved;mode=beforeMode;renderKitchen();}
+    });
+    assert.equal(sinkFrames.distinct,5,'dirty piles visibly change from empty through increased inventory');
+    fs.writeFileSync(path.join(artifacts,'kitchen-sink-piles.png'),Buffer.from(sinkFrames.image,'base64'));
     await servicePage.close();
-    console.log('PASS supply-day and credit UI, month-end supplier payment, wash and extra tableware, persisted inventory, real set order tap and combined bill, plate clearing and washing');
+    console.log('PASS supply-day and credit UI, month-end supplier payment, wash and extra tableware, persisted inventory, real set order and combined bill, kitchen sink tap and growing dirty piles');
 
     const straysPage=await browser.newPage({viewport:{width:393,height:852}});
     straysPage.on('pageerror',e=>errors.push(e.message));
@@ -612,7 +636,7 @@ fs.mkdirSync(artifacts, {recursive:true});
     await p.screenshot({path:path.join(artifacts,'renewed-cafe.png')});
     const kitchenArt = await p.evaluate(() => {
       for (const m of MENU) { const im=KitchenArt.food(m.id); if(im.width!==32||im.height!==32||!im.getContext('2d').getImageData(0,0,32,32).data.some((v,i)=>i%4===3&&v)) throw Error('Missing food '+m.id); }
-      const sheet=document.createElement('canvas');sheet.width=448;sheet.height=168*4+64;const g=sheet.getContext('2d');g.imageSmoothingEnabled=false;
+      const sheet=document.createElement('canvas');sheet.width=KW;sheet.height=KH*4+64;const g=sheet.getContext('2d');g.imageSmoothingEnabled=false;
       g.fillStyle='#f6edda';g.fillRect(0,0,448,64);MENU.forEach((m,i)=>g.drawImage(KitchenArt.food(m.id),i*64,0,64,64));
       G.kitchen={drink:2,stove:2,oven:2};
       for(let phase=0;phase<4;phase++){
@@ -622,7 +646,7 @@ fs.mkdirSync(artifacts, {recursive:true});
           if(phase)jobs.push({id:n,c:{vip:false},item,st:u.st,unit:u.i,state:'cook',dur:item.time,t:item.time*[0,.3,.8,.99][phase],missed:phase===3});
         }
         MENU.slice(0,6).forEach((item,n)=>jobs.push({id:20+n,item,c:{vip:false},state:'ready',readyT:n===5?COLD_AFTER+1:0,q:n===0?'perfect':'normal'}));
-        renderKitchen();g.drawImage(kcv,0,64+phase*168,448,168);
+        renderKitchen();g.drawImage(kcv,0,64+phase*KH,KW,KH);
       }
       jobs=[];
       return sheet.toDataURL().split(',')[1];
