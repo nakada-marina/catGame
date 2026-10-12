@@ -28,6 +28,7 @@
     // Align soles to the same foot anchor in front and back views.
     const dh = Math.round(h * scale), dy = height - 2 - dh;
     g.drawImage(image, x, y, w, h, dx, dy, Math.round(w * scale), dh);
+    c.spriteSource={image,crop:[x,y,w,h],placement:[dx,dy,Math.round(w*scale),dh],width,height};
     c.artBounds = [0, 0, width, height]; c.spriteScale = scale; c.footAnchor = height - 2;
     cache.set(key, c); return c;
   }

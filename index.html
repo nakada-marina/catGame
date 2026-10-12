@@ -299,7 +299,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .shift-controls select,.shift-day-label select { min-height:44px; max-width:100%; padding:6px; border:1px solid #b6a28c; border-radius:6px; font:inherit; background:#fffdf6; color:#3b2c21; }
 .shift-controls button { font-size:13px; min-height:44px; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261012-walk">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261012-single-pass">
 </head>
 <body>
 <div id="wrap">
@@ -335,11 +335,12 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
+<script src="./sprite-raster.js?v=20261012-single-pass"></script>
 <script src="./finance.js?v=20261012-ten-day-month"></script>
 <script src="./cat-shifts.js?v=20261012-cat-shifts"></script>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
-<script src="./cat-motions.js?v=20261011-ponta-brown"></script><script src="./stray-art.js?v=20261011-nyaimee"></script><script src="./rear-walk.js?v=20261011-nyaimee"></script>
+<script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./stray-art.js?v=20261012-single-pass"></script><script src="./rear-walk.js?v=20261012-single-pass"></script>
 <script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
 <script src="./character-art.js?v=20261011-nyaimee"></script>
@@ -358,7 +359,7 @@ function sprite(rows, pal) {
   rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) { const col = pal[r[x]]; if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } } });
   return c;
 }
-function flipH(c) { const f = mk(c.width, c.height), g = f.getContext('2d'); g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(c, 0, 0); return f; }
+function flipH(c) { const f = mk(c.width, c.height), g = f.getContext('2d'); g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(c, 0, 0); return SpriteRaster.mirror(c,f); }
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -2231,11 +2232,11 @@ function catBowAngle(k) {
 function drawCatArtwork(img, x, y, size, actor) {
   ctx.imageSmoothingEnabled = false;
   const angle = catBowAngle(actor);
-  if (!angle) { ctx.drawImage(img, Math.round(x), Math.round(y), size.width, size.height); return; }
+  if (!angle) { SpriteRaster.draw(ctx,img,Math.round(x),Math.round(y),size.width,size.height); return; }
   ctx.save();
   ctx.translate(Math.round(x + size.width / 2), Math.round(y + size.height));
   ctx.rotate(angle);
-  ctx.drawImage(img, -size.width / 2, -size.height, size.width, size.height);
+  SpriteRaster.draw(ctx,img,-size.width/2,-size.height,size.width,size.height);
   ctx.restore();
 }
 // 歩行の足元は固定。
@@ -2247,13 +2248,11 @@ function catMotionOffset(k, pose) {
 
 // 一覧の 小さな 絵（わくに おさまるように）
 function drawCatThumb(c, pal) {
-  const g = c.getContext('2d'), cs = CHAR_SPR[pal], im = cs ? cs.idle[0] : CAT_SPR[pal].sit[0];
-  const rect = cs ? (im.width===128 ? [0,0,im.width,im.height] : CatArtwork.meta[pal + '.idle']) : null;
-  const w = rect ? rect[2] : im.width, h = rect ? rect[3] : im.height;
-  g.imageSmoothingEnabled = false; g.clearRect(0, 0, c.width, c.height);
-  const scale = Math.min(1, c.width / w, c.height / h);
-  g.drawImage(im, im.artBounds ? im.artBounds[0] : 0, im.height - h, w, h,
-    Math.round((c.width - w * scale) / 2), Math.round(c.height - h * scale), Math.round(w * scale), Math.round(h * scale));
+  const width=c.rasterLogicalWidth||c.width,height=c.rasterLogicalHeight||c.height;
+  const g=SpriteRaster.prepare(c,width,height),cs=CHAR_SPR[pal],im=cs?cs.idle[0]:CAT_SPR[pal].sit[0];
+  const scale=Math.min(1,width/im.width,height/im.height),w=Math.round(im.width*scale),h=Math.round(im.height*scale);
+  g.imageSmoothingEnabled=false;g.clearRect(0,0,width,height);
+  SpriteRaster.draw(g,im,Math.round((width-w)/2),height-h,w,h);
 }
 // あとで使うコマを すこしずつ 先に描いておく（カクつきを ふせぐ）
 const warmQ = [], warmed = new Set();
@@ -2506,8 +2505,7 @@ function compactAt(y, draw) {
   ctx.save(); ctx.translate(0, -Math.round(y)); draw(); ctx.restore();
 }
 function render() {
-  const unit = cv.width / FW;
-  ctx.setTransform(unit, 0, 0, unit, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(cv.width/FW,0,0,cv.height/(FH/2),0,0); ctx.imageSmoothingEnabled=false;
   if (!G) { drawWallAndFloor(OPEN); return; }
   drawRoom();
   drawSunbeam();
@@ -3553,13 +3551,10 @@ function fitLayout() {
   const sceneWidth = wrap.clientWidth;
   cv.style.width = sceneWidth + 'px';
   cv.style.height = Math.floor(sceneWidth * VH / VW / 2) + 'px';
-  // The game renders on a 448x600 pixel-art grid. Use an integer backing
-  // multiplier that covers the physical display, without inventing sprite detail.
-  const raster = Math.max(1, Math.ceil(sceneWidth * (window.devicePixelRatio || 1) / FW));
-  const bw = FW * raster, bh = FH / 2 * raster;
-  if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
-  const kr = Math.max(1, Math.ceil(kcv.clientWidth * (window.devicePixelRatio || 1) / KW));
-  if (kcv.width !== KW * kr || kcv.height !== KH * kr) { kcv.width = KW * kr; kcv.height = KH * kr; }
+  // Match the actual canvas content box to the device pixels. The browser
+  // no longer shrinks an oversized integer backing canvas a second time.
+  SpriteRaster.resize(cv,cv.clientWidth,cv.clientHeight);
+  SpriteRaster.resize(kcv,kcv.clientWidth,kcv.clientHeight);
   positionDialogue();
 }
 function positionDialogue() {

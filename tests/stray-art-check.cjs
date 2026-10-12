@@ -1,6 +1,7 @@
 /* Run: node tests/stray-art-check.cjs. No external dependencies required. */
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const read = name => fs.readFileSync(path.join(__dirname, '..', name), 'utf8');
+const raster=read('sprite-raster.js');
 const html = read('index.html'), stray = read('stray-art.js'), rear = read('rear-walk.js'), artwork = read('character-art.js');
 function canvas(width = 0, height = 0) {
   const c = { width, height, operations: [] };
@@ -8,7 +9,10 @@ function canvas(width = 0, height = 0) {
     drawImage(...args) { c.operations.push(['image', ...args]); },
     clearRect(...args) { c.operations.push(['clear', ...args]); },
     translate(...args) { c.operations.push(['translate', ...args]); },
-    scale(...args) { c.operations.push(['scale', ...args]); }
+    scale(...args) { c.operations.push(['scale', ...args]); },
+    save(){this.saved={enabled:this.imageSmoothingEnabled,quality:this.imageSmoothingQuality};},
+    restore(){this.imageSmoothingEnabled=this.saved.enabled;this.imageSmoothingQuality=this.saved.quality;},
+    setTransform(){}
   };
   c.getContext = () => g; return c;
 }
@@ -25,6 +29,7 @@ class FakeImage {
 function setup() {
   const body = () => ({ idle: canvas(128,144), walk0: canvas(128,144) });
   const window = { CatMotions: { load: Promise.resolve({ grio: body(), ponta: body() }) } };
+  new Function('window',raster)(window);
   for (const source of [stray, rear, artwork])
     new Function('document','window','Image','URL','location',source)(document,window,FakeImage,URL,location);
   return window;
@@ -78,7 +83,7 @@ function verify(frame) {
   }
   const initCode=html.slice(html.indexOf('const CHAR_SPR ='),html.indexOf('// ゲームの ポーズ名'));
   const flipCode=html.slice(html.indexOf('function flipH('),html.indexOf('\n',html.indexOf('function flipH(')));
-  const flipH=new Function('mk',flipCode+';return flipH;')(canvas);
+  const flipH=new Function('mk','SpriteRaster',flipCode+';return flipH;')(canvas,window.SpriteRaster);
   const errors=[],faces={grio:{},ponta:{}};
   const native=new Function('mk','CatArtwork','GuestArt','RearWalk','StrayArt','flipH','FACES','console','$',initCode+';return {CHAR_SPR,artworkReady};')(
     canvas,window.CatArtwork,{load:Promise.resolve()},window.RearWalk,window.StrayArt,flipH,faces,
@@ -100,11 +105,11 @@ function verify(frame) {
     assert.equal(catImg(pal,'sit0',1,{pal,carryDish:true}),sprites[pal].serve,'serving pose');
   }
   const thumbCode=html.slice(html.indexOf('function drawCatThumb('),html.indexOf('// あとで使うコマ'));
-  const drawThumb=new Function('CHAR_SPR','CAT_SPR','CatArtwork',thumbCode+';return drawCatThumb;')(native.CHAR_SPR,{},window.CatArtwork);
+  const drawThumb=new Function('CHAR_SPR','CAT_SPR','CatArtwork','SpriteRaster',thumbCode+';return drawCatThumb;')(native.CHAR_SPR,{},window.CatArtwork,window.SpriteRaster);
   for(const pal of names)for(const [w,h]of [[112,126],[52,47]]){
     const c=canvas(w,h);drawThumb(c,pal);
     const op=c.operations.find(o=>o[0]==='image');
-    assert.equal(op[1],sprites[pal].idle,'card and room share same artwork');
+    assert.equal(op[1],sprites[pal].idle.spriteSource.image,'thumbnail paints original atlas directly');
     assert(op[6]>=0&&op[7]>=0&&op[6]+op[8]<=w&&op[7]+op[9]<=h,'thumb fits with no clipping');
   }
   const pending=[];
@@ -121,7 +126,7 @@ function verify(frame) {
   let rejected=false;try{await failed.StrayArt.load;}catch{rejected=true;}assert(rejected,'failed sheet reports failure');
   for(const file of ['index.html','stray-preview.html']){
     const source=read(file);
-    assert(source.includes('src="./stray-art.js?v=20261011-nyaimee"'),'cache-busted provider');
+    assert(source.includes('src="./stray-art.js?v=20261012-single-pass"'),'cache-busted provider');
     for(const m of source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(m[1].trim())new Function(m[1]);
   }
   console.log('PASS 96 cells, six worker IDs, three sheets, crops, scale, baseline, left/right and diagonals, activities, shared thumbnails, loading and syntax');

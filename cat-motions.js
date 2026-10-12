@@ -36,6 +36,7 @@
     const canvas = document.createElement('canvas'); canvas.width = frameWidth; canvas.height = frameHeight;
     const g = canvas.getContext('2d'); g.imageSmoothingEnabled = false;
     g.drawImage(images[pal], x, y, w, h, dx, dy, dw, dh);
+    canvas.spriteSource={image:images[pal],crop:[x,y,w,h],placement:[dx,dy,dw,dh],width:frameWidth,height:frameHeight};
     canvas.artBounds = [0, 0, frameWidth, frameHeight];
     canvas.motionArtwork = true; canvas.motionPose = pose; canvas.spriteScale = scale;
     canvas.footAnchor = frameHeight - 2;

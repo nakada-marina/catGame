@@ -154,3 +154,6 @@ body {display:block;padding-inline:max(8px,env(safe-area-inset-left));padding-bo
 #face {height:auto;aspect-ratio:1 / 1;object-fit:contain}
 .catrow canvas,.nya-card canvas {height:auto;aspect-ratio:auto;object-fit:contain}
 .nx-body img,.title-art {height:auto;object-fit:contain}
+
+/* Canvas backing sizes now match device pixels; do not quantize them again in CSS. */
+#cafe,#kitchenCv,.catrow canvas,.nya-card canvas {image-rendering:auto}

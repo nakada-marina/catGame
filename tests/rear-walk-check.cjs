@@ -1,6 +1,7 @@
 /* Run: node tests/rear-walk-check.cjs. No external dependencies required. */
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+const raster=read('sprite-raster.js');
 const html = read('index.html'), rear = read('rear-walk.js'), artwork = read('character-art.js'), motions = read('cat-motions.js');
 function canvas() {
   const c = { width: 0, height: 0, operations: [] };
@@ -21,6 +22,7 @@ class FakeImage {
 }
 function setup(ImageClass=FakeImage) {
   const window={};
+  new Function('window',raster)(window);
   new Function('document','window','Image','URL','location',motions)(document,window,ImageClass,URL,location);
   new Function('document','window','Image',rear)(document,window,ImageClass);
   new Function('document','window','Image','URL','location',artwork)(document,window,ImageClass,URL,location);

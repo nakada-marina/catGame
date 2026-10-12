@@ -2,7 +2,7 @@
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ニャイミーのねこたち</title>
 <style>
-:root{font-family:system-ui,sans-serif;color:#493624;background:#f6ecdb}body{max-width:960px;margin:auto;padding:24px 16px}h1{font-size:24px;margin:0 0 12px}p{line-height:1.7}a{color:#26654b}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:20px 0}button,select{font:inherit;min-height:44px;border:1px solid #a7906c;border-radius:6px;background:#fffaf0;padding:8px 12px;color:inherit}button{cursor:pointer}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}article{background:#fffaf0;border:1px solid #dfcbae;border-radius:10px;padding:14px;text-align:center}h2{font-size:18px;margin:0 0 8px}canvas{display:block;max-width:100%;height:auto;margin:auto;image-rendering:pixelated;background:#e8dcc5;border-radius:6px}small{display:block;margin-top:8px;color:#756049}.reference{margin-top:28px}.reference .grid{max-width:450px}
+:root{font-family:system-ui,sans-serif;color:#493624;background:#f6ecdb}body{max-width:960px;margin:auto;padding:24px 16px}h1{font-size:24px;margin:0 0 12px}p{line-height:1.7}a{color:#26654b}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:20px 0}button,select{font:inherit;min-height:44px;border:1px solid #a7906c;border-radius:6px;background:#fffaf0;padding:8px 12px;color:inherit}button{cursor:pointer}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}article{background:#fffaf0;border:1px solid #dfcbae;border-radius:10px;padding:14px;text-align:center}h2{font-size:18px;margin:0 0 8px}canvas{display:block;max-width:100%;height:auto;margin:auto;image-rendering:auto;background:#e8dcc5;border-radius:6px}small{display:block;margin-top:8px;color:#756049}.reference{margin-top:28px}.reference .grid{max-width:450px}
 </style></head><body>
 <h1>ニャイミーのねこたち</h1>
 <p>黄色いバンダナの6匹。お店と同じ大きさで、歩く向きや仕事・休憩の姿を見られます。</p>
@@ -13,8 +13,9 @@
 <p id="status" role="status" aria-live="polite">素材を読み込んでいます…</p>
 <div class="grid" id="cats"></div>
 <div class="reference"><h2>大きさの比較</h2><p>ぐりおとぽんたの待機姿と、同じ足元の位置で並べています。</p><div class="grid" id="reference"></div></div>
-<script src="./cat-motions.js?v=20261011-ponta-brown"></script>
-<script src="./stray-art.js?v=20261011-nyaimee"></script>
+<script src="./sprite-raster.js?v=20261012-single-pass"></script>
+<script src="./cat-motions.js?v=20261012-single-pass"></script>
+<script src="./stray-art.js?v=20261012-single-pass"></script>
 <script src="./character-art.js?v=20261011-nyaimee"></script>
 <script>
 (async function(){
@@ -33,12 +34,12 @@
     function draw(){
       const chosen=select.value;
       for(const {pal,cv,reference}of views){
-        const g=cv.getContext('2d');g.clearRect(0,0,cv.width,cv.height);g.imageSmoothingEnabled=false;
+        const g=SpriteRaster.prepare(cv,168,164);g.clearRect(0,0,168,164);g.imageSmoothingEnabled=false;
         const left=chosen==='leftWalk',walking=['frontWalk','backWalk','walk','leftWalk'].includes(chosen);
         const pose=walking?(left?'walk':chosen)+(phase%2):chosen;
-        const im=reference?originals[pal].idle:StrayArt.frame(pal,pose),size=CatArtwork.displaySize(pal,im),x=Math.round((cv.width-size.width)/2),y=cv.height-12-size.height;
-        if(left&&!reference){g.save();g.translate(x+size.width,y);g.scale(-1,1);g.drawImage(im,0,0,size.width,size.height);g.restore();}
-        else g.drawImage(im,x,y,size.width,size.height);
+        const im=reference?originals[pal].idle:StrayArt.frame(pal,pose),size=CatArtwork.displaySize(pal,im),x=Math.round((168-size.width)/2),y=164-12-size.height;
+        if(left&&!reference){g.save();g.translate(x+size.width,y);g.scale(-1,1);SpriteRaster.draw(g,im,0,0,size.width,size.height);g.restore();}
+        else SpriteRaster.draw(g,im,x,y,size.width,size.height);
         cv.setAttribute('aria-label',(reference?(pal==='grio'?'ぐりお':'ぽんた'):StrayArt.names[pal])+'：'+(reference?'待機':select.selectedOptions[0].textContent));
       }
     }

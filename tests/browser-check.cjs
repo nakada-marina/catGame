@@ -32,7 +32,7 @@ fs.mkdirSync(artifacts, {recursive:true});
       await page.evaluate(() => { talking=null; talkQ.length=0; $('talk').hidden=true; fitLayout(); render(); renderKitchen(); });
       const result = await page.evaluate(() => {
         const controls = [...$('actions').querySelectorAll('button'), ...$('sub').querySelectorAll('button')].map(el => el.getBoundingClientRect().toJSON());
-        return {controls,width:innerWidth,height:innerHeight,backing:cv.width,physical:cv.getBoundingClientRect().width*devicePixelRatio,atlas:!!CHAR_SPR.grio && !!CHAR_SPR.ponta};
+        return {controls,width:innerWidth,height:innerHeight,backing:cv.width,physical:cv.clientWidth*devicePixelRatio,atlas:!!CHAR_SPR.grio && !!CHAR_SPR.ponta};
       });
       assert(result.atlas);
       const touch=await page.evaluate(()=>['wrap','talk','actions','sub','btnFood'].map(id=>getComputedStyle($(id)).touchAction));
@@ -215,10 +215,10 @@ fs.mkdirSync(artifacts, {recursive:true});
     await straysPage.locator('#btnNyaimee').click();
     assert.equal(await straysPage.locator('[data-stray]').count(),6);
     const thumbs=await straysPage.evaluate(()=>[...$('panel').querySelectorAll('[data-stray]')].map(cv=>({
-      id:cv.dataset.stray,width:cv.width,height:cv.height,
+      id:cv.dataset.stray,width:cv.rasterLogicalWidth,height:cv.rasterLogicalHeight,physical:cv.width,expected:Math.round(cv.clientWidth*devicePixelRatio),
       visible:cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data.some((v,i)=>i%4===3&&v>16)
     })));
-    for(const t of thumbs){assert.equal(t.width,112);assert.equal(t.height,126);assert(t.visible,t.id+' thumbnail');}
+    for(const t of thumbs){assert.equal(t.width,112);assert.equal(t.height,126);assert(t.visible,t.id+' thumbnail');assert.equal(t.physical,t.expected,'thumbnail matches display density');}
     for(const id of ['sabi','hachi','gure','milk','boss','kotetsu'])await straysPage.locator('[data-hire="'+id+'"]').click();
     const hired=await straysPage.evaluate(()=>({
       money:G.money,fee:dayLog.nyaimee,pals:cats.filter(k=>k.temp).map(k=>k.pal),stored:loadSave().nyaimee.every(o=>o.hired),
@@ -324,6 +324,29 @@ fs.mkdirSync(artifacts, {recursive:true});
     console.log('PASS card customer, ledger/result navigation, ten-day month, card payout, monthly bills and reload');
     const p=await browser.newPage({viewport:{width:393,height:852}});p.on('pageerror',e=>errors.push(e.message));
     await p.goto(base);await p.evaluate(()=>artworkReady);
+
+    const directDrawing=await p.evaluate(()=>{
+      const comparison=document.createElement('canvas');comparison.width=448;comparison.height=184;
+      const g=comparison.getContext('2d');g.fillStyle='#f6ecdb';g.fillRect(0,0,448,184);
+      const chosen=[['grio',CHAR_SPR.grio.idle[0]],['ponta',CHAR_SPR.ponta.idle[0]],['stray_sabi',CHAR_SPR.stray_sabi.idle[0]]];
+      const results=[];
+      for(const [n,[pal,image]]of chosen.entries()){
+        const size=catDisplaySize(pal,image),record=image.spriteSource;
+        if(!record)throw Error('missing original sprite '+pal);
+        const trace=[],native=g.drawImage.bind(g);
+        g.drawImage=(...args)=>{trace.push({image:args[0]===record.image,smooth:g.imageSmoothingEnabled,quality:g.imageSmoothingQuality});native(...args);};
+        g.imageSmoothingEnabled=false;g.drawImage(image,20+n*140,80-size.height,size.width,size.height);
+        trace.length=0;SpriteRaster.draw(g,image,20+n*140,174-size.height,size.width,size.height);
+        results.push({pal,original:trace.length===1&&trace[0].image,filtered:trace[0].smooth&&trace[0].quality==='high',width:size.width,height:size.height});
+        g.drawImage=native;
+      }
+      const measure=canvas=>({actual:canvas.width,expected:Math.round(canvas.clientWidth*devicePixelRatio)});
+      return {results,room:measure(cv),kitchen:measure(kcv),comparison:comparison.toDataURL().split(',')[1]};
+    });
+    assert(directDrawing.results.every(r=>r.original&&r.filtered));
+    assert.deepEqual(directDrawing.results.map(r=>[r.width,r.height]),[[70,79],[67,75],[67,75]]);
+    assert.equal(directDrawing.room.actual,directDrawing.room.expected);assert.equal(directDrawing.kitchen.actual,directDrawing.kitchen.expected);
+    fs.writeFileSync(path.join(artifacts,'sprite-reduction-comparison.png'),Buffer.from(directDrawing.comparison,'base64'));
     const spriteChecks=await p.evaluate(async()=>{
       const frames=await CatArtwork.load(); const issues=[];
       const atlas=await new Promise(resolve=>{const image=new Image();image.onload=()=>resolve(image);image.src=new URL('chars.webp',location.href).href;});
