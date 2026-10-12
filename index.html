@@ -244,9 +244,6 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .bar.hunger i { background: var(--butter); }
 .actions-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .actions-row button { flex: 1; min-width: 120px; }
-.kv-wrap { position: relative; border-radius: 8px; overflow: hidden; }
-.kv-anim { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.title-art { display: block; width: 100%; height: auto; aspect-ratio: 1248 / 1242; border-radius: 8px; background: #3a2a1c; }
 #sub { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--chalk-dim); gap: 8px; }
 #sub > span:not(.tools) { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #kitchenCv { display: block; width: 100%; max-width: 100%; aspect-ratio: 448 / 256; image-rendering: pixelated; border: 3px solid #0f1814; border-radius: 6px; touch-action: none; cursor: pointer; background: #f2f4f0; }
@@ -303,6 +300,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .shift-controls button { font-size:13px; min-height:44px; }
 </style>
 <link rel="stylesheet" href="./visual-renewal.css?v=20261012-fit-screen">
+<link rel="stylesheet" href="./title-screen.css?v=20261012-cafe-title">
 </head>
 <body>
 <div id="wrap">
@@ -340,6 +338,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
+<section id="titleScreen" class="title-screen" hidden aria-labelledby="titleName"></section>
 <script src="./sprite-raster.js?v=20261012-service"></script>
 <script src="./finance.js?v=20261012-payables"></script>
 <script src="./cafe-service.js?v=20261012-service"></script>
@@ -352,6 +351,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
 <script src="./character-art.js?v=20261011-nyaimee"></script>
+<script src="./title-scene.js?v=20261012-cafe-title"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -3096,110 +3096,32 @@ function openCats() {
   $('mClose').onclick=closeModal;
 }
 
-// ================= タイトルのキービジュアルを 動かす =================
-// kv-anim.webp に、看板の板・ロゴの文字・とじた目 が入っている。座標は キービジュアル（1248×1242）の ピクセル
-const KV_META = {"W":1248,"H":1242,"parts":{"board":[300,100,700,310,0,0],"ぐ":[360,125,115,129,702,0],"り":[476,132,104,122,819,0],"お":[588,126,137,125,925,0],"の":[726,174,86,77,1064,0],"paw":[834,120,149,131,0,312],"ね":[327,264,145,126,151,312],"こ":[474,270,110,120,298,312],"カ":[592,258,138,132,410,312],"フ":[733,267,127,125,550,312],"ェ":[861,315,94,77,679,312],"g_closed":[276,534,282,150,775,312],"p_closed":[786,696,264,144,0,464]},"glyphs":["ぐ","り","お","の","paw","ね","こ","カ","フ","ェ"]};
-function startKVAnim(wrap) {
-  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const M = KV_META, P = M.parts, cv = document.createElement('canvas');
-  cv.width = M.W; cv.height = M.H; cv.className = 'kv-anim';
-  const atlas = new Image();
-  atlas.onload = () => {
-    wrap.appendChild(cv);
-    const g = cv.getContext('2d'), tmp = document.createElement('canvas'), tg = tmp.getContext('2d');
-    const part = (n, dx = 0, dy = 0) => { const [x, y, w, h, ax, ay] = P[n]; g.drawImage(atlas, ax, ay, w, h, x + dx, y + dy, w, h); };
-    const t0 = performance.now(), LP = 4.6;
-    let last = 0;
-    const px = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); };
-    // ゆげ（ドットの つぶが ゆらゆら のぼる）
-    const steam = (x, y, t, k) => {
-      for (let i = 0; i < 12; i++) {
-        const p = ((t * 0.4 + i / 12 + k * 0.31) % 1), a = Math.sin(p * Math.PI) * 0.62, r = Math.round(4 + p * 4);
-        const sx = x + Math.sin(p * 7 + i * 1.3 + k) * 9 * p * 1.6, sy = y - p * 85;
-        px(sx - r, sy - r, r * 2, r * 2, `rgba(255,252,245,${a.toFixed(2)})`);
-      }
-    };
-    const frame = now => {
-      if (!cv.isConnected || $('modal').hidden) return;
-      requestAnimationFrame(frame);
-      if (now - last < 32) return; last = now;
-      const t = (now - t0) / 1000;
-      g.clearRect(0, 0, M.W, M.H);
-      // ランプの 明かりが ふわっと
-      g.globalCompositeOperation = 'lighter';
-      [[175, 185], [1160, 255]].forEach(([x, y], i) => {
-        const a = 0.13 + 0.07 * Math.sin(t * 1.6 + i * 2.1), gr = g.createRadialGradient(x, y, 4, x, y, 90);
-        gr.addColorStop(0, `rgba(255,210,120,${a.toFixed(3)})`); gr.addColorStop(1, 'rgba(255,200,100,0)');
-        g.fillStyle = gr; g.fillRect(x - 90, y - 90, 180, 180);
-      });
-      g.globalCompositeOperation = 'source-over';
-      // ロゴ：ぴょこぴょこ → キラッ
-      const ph = (t + LP - 0.5) % LP;
-      if (ph < 1.6) {
-        part('board');
-        M.glyphs.forEach((n, i) => {
-          const [x, y, w, h, ax, ay] = P[n], p = clamp((ph - i * 0.09) / 0.5, 0, 1), hop = Math.sin(Math.PI * p);
-          const sq = p > 0 && p < 1 ? 1 + 0.07 * Math.sin(Math.PI * 2 * p) : 1;
-          g.save(); g.translate(x + w / 2, y + h - hop * 16);
-          if (n === 'paw') g.rotate(Math.sin(p * Math.PI * 3) * 0.22 * hop);
-          g.scale(1 / sq, sq); g.drawImage(atlas, ax, ay, w, h, -w / 2, -h, w, h); g.restore();
-        });
-      } else if (ph > 1.9 && ph < 2.9) {
-        const [bx0] = P.board, bx = bx0 - 120 + (ph - 1.9) * (P.board[2] + 240);
-        for (const n of M.glyphs) {
-          const [x, y, w, h, ax, ay] = P[n];
-          if (bx + 60 < x - 40 || bx - 60 > x + w + 40) continue;
-          tmp.width = w; tmp.height = h; tg.drawImage(atlas, ax, ay, w, h, 0, 0, w, h);
-          tg.globalCompositeOperation = 'source-in';
-          const gr = tg.createLinearGradient(bx - x - 50, 0, bx - x + 50, h);
-          gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.4, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,240,0.85)'); gr.addColorStop(0.6, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-          tg.fillStyle = gr; tg.fillRect(0, 0, w, h); tg.globalCompositeOperation = 'source-over';
-          g.globalCompositeOperation = 'overlay'; g.drawImage(tmp, x, y); g.globalCompositeOperation = 'source-over';
-        }
-      }
-      [[262, 112], [1028, 98], [262, 405], [1042, 300], [640, 82], [820, 428]].forEach(([x, y], i) => {
-        const a = Math.sin(t * 2.2 + i * 1.7); if (a < 0.35) return;
-        const r = Math.round(3 + (a - 0.35) * 9);
-        px(x - 2, y - r, 4, r * 2, `rgba(255,248,200,${(0.5 + a * 0.5).toFixed(2)})`); px(x - r, y - 2, r * 2, 4, `rgba(255,248,200,${(0.5 + a * 0.5).toFixed(2)})`); px(x - 2, y - 2, 4, 4, '#ffffff');
-      });
-      // おめめ ぱちぱち（とじた目の コマを ふわっと 重ねる。ぐりおは すばやく、ぽんたは ねむそうに ゆっくり）
-      const lid = (b, dur) => b < 0 || b > dur ? 0 : Math.min(1, Math.sin(Math.PI * b / dur) * 1.6);
-      const bg = t % 3.7, bg2 = (t + 0.4) % 3.7;
-      const ga = Math.max(lid(bg, 0.2), t % 11 > 7.4 ? lid(bg2, 0.2) : 0), pa = lid((t + 1.9) % 5.3, 0.65);
-      if (ga > 0) { g.globalAlpha = ga; part('g_closed'); }
-      if (pa > 0) { g.globalAlpha = pa; part('p_closed'); }
-      g.globalAlpha = 1;
-      // コーヒー：お湯が ながれる
-      for (let y = 850; y < 928; y += 3) {
-        const hi = ((y - t * 170) % 24 + 24) % 24 < 8, wob = y > 912 ? Math.round(Math.sin(t * 20 + y) * 1) : 0;
-        px(371 + wob, y, 6, 3, hi ? 'rgba(255,240,200,0.95)' : 'rgba(225,165,95,0.9)');
-      }
-      for (let i = 0; i < 3; i++) { const p = (t * 2.2 + i / 3) % 1; px(372 + (i - 1) * 10 * p, 926 - Math.sin(p * Math.PI) * 10, 4, 4, `rgba(255,230,190,${(1 - p).toFixed(2)})`); }
-      // ポタポタ しずく と 波もん
-      const dp = (t % 0.9) / 0.9, dyp = 1002 + dp * dp * 68;
-      if (dp < 0.85) { px(372, dyp, 5, 7, '#4a2412'); px(372, dyp, 2, 2, '#c08060'); }
-      else { const r = (dp - 0.85) / 0.15; g.strokeStyle = `rgba(210,150,100,${(1 - r).toFixed(2)})`; g.lineWidth = 2.5; g.beginPath(); g.ellipse(375, 1076, 6 + r * 22, 2 + r * 3, 0, 0, Math.PI * 2); g.stroke(); }
-      // ゆげ
-      steam(165, 1040, t, 0); steam(376, 900, t, 1.3); steam(1030, 318, t, 2.1);
-    };
-    requestAnimationFrame(frame);
-  };
-  atlas.src = 'kv-anim.webp';
-}
+// ================= 動くカフェのタイトル画面 =================
+let titleScene = null;
 function openTitle() {
   const saved = loadSave();
-  openModal(`
-    <div class="kv-wrap" id="kvWrap"><img id="titleArt" class="title-art" src="keyvisual.webp" width="1248" height="1242" alt="ぐりおのねこカフェ"></div>
-    <p>店長ねこ「ぐりお」といっしょに、小さなねこカフェを人気のお店にしよう。</p>
-    <p class="sub">注文をうけて、料理をつくって、お客さんへ。はじめての方には、ぐりおが最初の接客をひとつずつ案内します。</p>
-    <p class="sub">目標：ひょうばん ★5 と もちきん ¥100,000</p>
-    <div class="actions-row">
-      ${saved ? `<button type="button" id="mCont">つづきから（${saved.day}日目）</button>` : ''}
-      <button type="button" id="mNew">はじめから</button>
-    </div>
-  `);
-  startKVAnim($('kvWrap'));
-  const go = (g, fresh) => { G = g; buildSeats(); spawnCats(); closeModal(); initAudio(); startDay(); if (fresh) event('intro'); };
+  mode = 'title';
+  titleScene?.stop(); closeModal();
+  $('wrap').hidden = true; $('wrap').inert = true;
+  document.body.classList.add('at-title');
+  const screen = $('titleScreen'); screen.hidden = false;
+  screen.innerHTML = `
+    <canvas id="titleScene" class="title-scene" role="img" aria-label="朝のねこカフェ。ぐりおがコーヒーを運び、ぽんたがひと休みしています。"></canvas>
+    <div class="title-shade" aria-hidden="true"></div>
+    <div class="title-topline"><span class="title-open">10:00 ・ OPEN</span><button type="button" id="titleMotion" class="title-motion" aria-pressed="true">動き ON</button></div>
+    <header class="title-brand"><div class="title-sign"><h1 id="titleName" class="title-name"><span>ぐりおの</span><strong>ねこカフェ</strong></h1></div><p class="title-copy">ねこと育てる、小さなカフェ。</p></header>
+    <p id="titleGreeting" class="title-greeting">いらっしゃいませ、だにゃ。</p>
+    <nav class="title-menu" aria-label="ゲームをはじめる">
+      ${saved ? `<button type="button" id="mCont" class="title-primary">つづきから（${saved.day}日目）</button>` : ''}
+      <button type="button" id="mNew" class="${saved ? 'title-secondary' : 'title-primary'}">はじめから</button>
+      <p class="title-hint">注文をきいて、つくって、とどけて。<br>今日も、ねこといっしょに。</p>
+    </nav>`;
+  titleScene = TitleScene.mount($('titleScene'), $('titleGreeting'), $('titleMotion'));
+  const go = (g, fresh) => {
+    titleScene.stop(); titleScene = null; screen.hidden = true; screen.innerHTML = '';
+    document.body.classList.remove('at-title'); $('wrap').hidden = false; $('wrap').inert = false;
+    G = g; buildSeats(); spawnCats(); closeModal(); fitLayout(); initAudio(); startDay(); if (fresh) event('intro');
+  };
   if (saved) $('mCont').onclick = () => { const base = newSave(); go({ ...base, ...saved, furniture: { ...base.furniture, ...saved.furniture }, stock: saved.stock || base.stock, kitchen: { ...base.kitchen, ...(saved.kitchen || {}) }, market: saved.market || base.market, sns: saved.sns || base.sns, flags: saved.flags || {} }, false); };
   $('mNew').onclick = () => go(newSave(), true);
 }

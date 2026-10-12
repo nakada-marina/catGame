@@ -1,0 +1,109 @@
+/* Run with Playwright installed; CHROMIUM_PATH and BASE_URL are optional. */
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), path = require('node:path'), http = require('node:http');
+const root = path.join(__dirname, '..');
+const artifacts = path.join(require('node:os').tmpdir(), 'catgame-title-check');
+fs.mkdirSync(artifacts, { recursive: true });
+(async () => {
+  let server, browser;
+  const base = process.env.BASE_URL || 'http://127.0.0.1:8768/';
+  try {
+    if (!process.env.BASE_URL) {
+      server = http.createServer((req, res) => {
+        const name = new URL(req.url, base).pathname;
+        const file = path.join(root, name === '/' ? 'index.html' : name);
+        if (!file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
+        try {
+          res.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.png') ? 'image/png' : file.endsWith('.webp') ? 'image/webp' : 'text/html');
+          res.end(fs.readFileSync(file));
+        } catch { res.writeHead(404); res.end(); }
+      });
+      await new Promise(resolve => server.listen(8768, '127.0.0.1', resolve));
+    }
+    browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox', '--disable-gpu'] } : {}) });
+    const errors = [], failures = [];
+    for (const [width, height, dpr] of [[320, 568, 2], [393, 852, 3], [430, 932, 3], [1280, 900, 1], [844, 390, 2]]) {
+      const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: dpr });
+      page.on('pageerror', e => errors.push(e.message));
+      page.on('response', r => { if (r.url().startsWith(base) && r.status() >= 400) failures.push(r.url()); });
+      await page.goto(base); await page.evaluate(() => titleScene.ready);
+      assert(await page.locator('#titleScreen').isVisible());
+      assert(await page.locator('#modal').isHidden());
+      assert(await page.locator('#wrap').isHidden());
+      assert.equal(await page.locator('#mCont').count(), 0, 'no resume button without a save');
+      const state = await page.evaluate(() => ({ g: G, mode, saved: localStorage.getItem(SAVE_KEY), inert: $('wrap').inert, scroll: document.body.scrollHeight }));
+      assert.equal(state.g, null); assert.equal(state.mode, 'title'); assert.equal(state.saved, null); assert(state.inert);
+      assert(state.scroll <= height + 1, 'no hidden game scroll behind title');
+      const boxes = await page.locator('#mNew,#titleMotion,.title-sign,.title-greeting').evaluateAll(elements => elements.map(e => e.getBoundingClientRect().toJSON()));
+      for (const r of boxes) assert(r.left >= 0 && r.top >= 0 && r.right <= width + 1 && r.bottom <= height + 1, 'visible title controls at ' + width + 'x' + height);
+      const previous = await page.locator('#titleScene').evaluate(c => ({ frame: c.dataset.frame, pixels: c.toDataURL() }));
+      await page.waitForFunction(frame => $('titleScene').dataset.frame !== frame, previous.frame);
+      assert.notEqual(await page.locator('#titleScene').evaluate(c => c.toDataURL()), previous.pixels, 'scene actually animates');
+      if (width === 393) {
+        await page.locator('#titleScene').click({ position: { x: width * .74, y: height * .75 } });
+        assert((await page.locator('#titleGreeting').textContent()).includes('なでてくれて'));
+      }
+      await page.locator('#titleMotion').click();
+      assert.equal(await page.locator('#titleMotion').getAttribute('aria-pressed'), 'false');
+      const frozen = await page.locator('#titleScene').evaluate(c => c.toDataURL());
+      await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+      assert.equal(await page.locator('#titleScene').evaluate(c => c.toDataURL()), frozen, 'motion toggle freezes the scene');
+      await page.locator('#titleMotion').click();
+      assert.equal(await page.locator('#titleMotion').getAttribute('aria-pressed'), 'true');
+      if (width === 393 || width === 1280) await page.screenshot({ path: path.join(artifacts, `title-${width}.png`) });
+      const oldCanvas = await page.locator('#titleScene').elementHandle();
+      await page.locator('#mNew').click();
+      await page.evaluate(() => artworkReady);
+      assert(await page.locator('#titleScreen').isHidden()); assert(await page.locator('#wrap').isVisible());
+      assert.equal(await page.evaluate(() => $('wrap').inert), false);
+      assert.equal(await page.evaluate(() => mode), 'open');
+      assert.equal(await page.evaluate(() => G.day), 1);
+      assert.equal(await oldCanvas.evaluate(c => c.isConnected), false, 'title animation canvas removed after starting');
+      assert((await page.locator('#cafe').boundingBox()).width > 0, 'game canvas refitted after unhiding');
+      await page.close();
+      console.log(`PASS title layout, actual motion/toggle and new game ${width}x${height} DPR ${dpr}`);
+    }
+    const resumed = await browser.newPage({ viewport: { width: 320, height: 568 } });
+    resumed.on('pageerror', e => errors.push(e.message));
+    await resumed.goto(base); await resumed.evaluate(() => titleScene.ready);
+    await resumed.evaluate(() => {
+      const saved = newSave(); saved.day = 7; saved.money = 12345; saved.pop = 48;
+      saved.flags = { intro: true, firstCustomerDone: true }; saved.menu.push('tea');
+      localStorage.setItem(SAVE_KEY, JSON.stringify(saved));
+    });
+    await resumed.reload(); await resumed.evaluate(() => titleScene.ready);
+    assert((await resumed.locator('#mCont').textContent()).includes('7日目'));
+    const before = await resumed.evaluate(() => localStorage.getItem(SAVE_KEY));
+    const frame = await resumed.locator('#titleScene').getAttribute('data-frame');
+    await resumed.waitForFunction(f => $('titleScene').dataset.frame !== f, frame);
+    assert.equal(await resumed.evaluate(() => localStorage.getItem(SAVE_KEY)), before, 'title animation never advances or rewrites saved progress');
+    const menu = await resumed.locator('.title-menu').boundingBox();
+    assert(menu.y + menu.height <= 568, 'both start/resume options fit on a short phone');
+    await resumed.locator('#mCont').click();
+    const progress = await resumed.evaluate(() => ({ day: G.day, money: G.money, pop: G.pop, menu: G.menu }));
+    assert.equal(progress.day, 7); assert.equal(progress.money, 12345); assert.equal(progress.pop, 48); assert(progress.menu.includes('tea'));
+    console.log('PASS saved-day label, unchanged saved progress while title animates, and resume');
+    const reduced = await browser.newPage({ reducedMotion: 'reduce' });
+    reduced.on('pageerror', e => errors.push(e.message));
+    await reduced.goto(base); await reduced.evaluate(() => titleScene.ready);
+    assert.equal(await reduced.locator('#titleMotion').getAttribute('aria-pressed'), 'false');
+    const staticPixels = await reduced.locator('#titleScene').evaluate(c => c.toDataURL());
+    await reduced.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+    assert.equal(await reduced.locator('#titleScene').evaluate(c => c.toDataURL()), staticPixels);
+    await reduced.locator('#mNew').click(); assert(await reduced.locator('#wrap').isVisible());
+    console.log('PASS reduced motion shows a complete still scene and can start the game');
+    const fallback = await browser.newPage();
+    fallback.on('pageerror', e => errors.push(e.message));
+    await fallback.route('**/title-cafe.png*', route => route.abort());
+    await fallback.goto(base); await fallback.evaluate(() => titleScene.ready);
+    assert(await fallback.locator('#mNew').isVisible());
+    assert(await fallback.locator('#titleScene').evaluate(c => c.getContext('2d').getImageData(0, 0, 1, 1).data[3] > 0));
+    await fallback.locator('#mNew').click(); assert(await fallback.locator('#wrap').isVisible());
+    assert.deepEqual(errors, []); assert.deepEqual(failures, []);
+    console.log('PASS missing background fallback, usable start button, no local asset or runtime errors');
+  } finally {
+    if (browser) await browser.close();
+    if (server) await new Promise(resolve => server.close(resolve));
+  }
+})().catch(e => { console.error(e); process.exitCode = 1; });
