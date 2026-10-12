@@ -76,7 +76,7 @@ button small {color:#775b47}
 #talk p {font-size:clamp(12px,3.5vw,16px);line-height:1.48;min-height:0;overflow-wrap:anywhere;word-break:normal;line-break:strict}
 #talk .who {font-size:clamp(12px,3.2vw,14px)}
 #talk .next {right:0;bottom:0}
-#actions {grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+#actions {grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
 #actions button {min-width:0;min-height:56px;padding:7px 1px;font-size:clamp(10px,2.75vw,13px);line-height:1.2;letter-spacing:-.4px;white-space:normal;overflow-wrap:anywhere}
 #actions button small {font-size:clamp(9px,2.4vw,11px);letter-spacing:-.4px;white-space:normal;overflow:visible;text-overflow:clip;margin-top:3px}
 #actions button.nyaimee {letter-spacing:-.7px}

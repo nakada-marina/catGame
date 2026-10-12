@@ -33,7 +33,7 @@ function source(name) {
 }
 const constants=['STAFF','TABLE_POS','STOOL_POS'].map(name=>html.match(new RegExp('const '+name+' = [^\\n]+'))[0]).join('\n')
   +'\n'+html.slice(html.indexOf('const ADOPT ='),html.indexOf('\n];',html.indexOf('const ADOPT ='))+3);
-const functions=['clearTable','refreshDishes','newSave','syncCatRoster','makeCat','spawnCats','makePonta','beginPontaExit','updateShiftAttendance','endShift','dropOrder','updateCat','updatePonta','moveTo','buildSeats','startDay','endDay','showDayResult','nyaxPhotoHtml','drawNyaxPhotos','save','loadSave','event','buy','openShop','row','openCats','shiftHours','openShifts','financeResultHtml','financeRows','financeDate','financeYen','financeEscape'];
+const functions=['clearTable','newSave','syncCatRoster','makeCat','spawnCats','makePonta','beginPontaExit','updateShiftAttendance','endShift','dropOrder','updateCat','updatePonta','moveTo','buildSeats','startDay','endDay','showDayResult','nyaxPhotoHtml','drawNyaxPhotos','save','loadSave','event','buy','openShop','row','openCats','shiftHours','openShifts','financeResultHtml','financeRows','financeDate','financeYen','financeEscape'];
 const elements={},$=id=>elements[id]||(elements[id]={value:'',hidden:true,textContent:'',disabled:false,style:{}});
 
 const api=new Function('$','CafeFinance','CafeShifts','CafeService',String.raw`

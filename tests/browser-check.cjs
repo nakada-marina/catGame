@@ -50,7 +50,9 @@ fs.mkdirSync(artifacts, {recursive:true});
       assert(layout.bodyScroll<=layout.bodyHeight+1,'page content does not require scrolling');
       assert.equal(layout.scrollY,0);assert.equal(layout.wide,width>=600&&width>height);
       assert.equal(layout.grio,79,'Grio reduced across all poses');assert.equal(layout.ponta,75,'Ponta reduced across all poses');
-      assert.equal(await page.locator('#registerBar,#btnRegister').count(),0,'checkout controls do not take space below the game');
+      assert.equal(await page.locator('#registerBar,#btnRegister,#btnCats,#btnWash').count(),0,'removed buttons do not take space below the game');
+      assert.equal(await page.locator('#actions > button').count(),4,'four main actions fill the row');
+      assert.equal(await page.evaluate(()=>getComputedStyle($('actions')).gridTemplateColumns.split(' ').length),4,'main action grid has no empty fifth slot');
       const fitWithGuide=await page.evaluate(()=>{
         const guide=$('firstGuide'),wasGuide=guide.hidden;
         guide.hidden=false;$('firstGuideStep').textContent='2 / 3 コーヒーをつくる';$('firstGuideText').textContent='下のキッチンで、光っているコーヒーマシンをタップしてね。';fitLayout();
@@ -196,8 +198,8 @@ fs.mkdirSync(artifacts, {recursive:true});
       save();return {active:cats.filter(k=>k.pal==='mike'&&k.state!=='leaving').length,owned:G.cats.map(k=>k.pal),saved:loadSave().shifts.days[3]};
     });
     assert.equal(departed.active,0);assert.deepEqual(departed.owned,['grio','mike','kuro']);
-    await shiftsPage.locator('#btnCats').click();
-    assert((await shiftsPage.locator('#panel').innerText()).includes('クロ'),'off-shift cat remains in roster');
+    await shiftsPage.locator('#btnShift').click();
+    assert((await shiftsPage.locator('#panel').innerText()).includes('クロ'),'off-shift cat remains in shift planner');
     await shiftsPage.locator('#mClose').click();
     await shiftsPage.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;endDay();});
     await shiftsPage.locator('#mShift').click();
@@ -667,7 +669,7 @@ fs.mkdirSync(artifacts, {recursive:true});
     await p.reload();await p.evaluate(()=>artworkReady);await p.locator('#mCont').click();
     const restored=await p.evaluate(()=>({money:G.money,day:G.day,ponta:G.ponta,stock:G.stock,menu:G.menu,key:SAVE_KEY}));
     assert.equal(restored.money,12345);assert.equal(restored.day,7);assert.equal(restored.ponta,true);assert.deepEqual(restored.menu,simulation.saved.menu);assert.deepEqual(restored.stock,simulation.saved.stock);assert.equal(restored.key,'grio-cafe-v1');
-    for(const id of ['btnShop','btnCats','btnStock','btnNyaimee','btnNyax']){
+    for(const id of ['btnShop','btnStock','btnNyaimee','btnNyax']){
       await p.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;closeModal();});await p.locator('#'+id).click();assert(await p.locator('#modal').isVisible());
     }
     await p.evaluate(()=>{

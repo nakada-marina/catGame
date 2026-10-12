@@ -106,7 +106,7 @@ body {
 #talk .next { position: absolute; right: 2px; bottom: 0; color: var(--butter); animation: blink 0.9s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #talk .next { animation: none; } }
-#actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+#actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 #actions button { font-size: clamp(11px, 3.2vw, 13px); padding: 9px 1px; letter-spacing: -0.5px; }
 #actions button.nyaimee { letter-spacing: -1.5px; background: #e8b43a; color: #3a2a10; border-bottom-color: #a07a10; }
 #actions button.nyaimee small { color: #5a4010; }
@@ -294,7 +294,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .shift-controls select,.shift-day-label select { min-height:44px; max-width:100%; padding:6px; border:1px solid #b6a28c; border-radius:6px; font:inherit; background:#fffdf6; color:#3b2c21; }
 .shift-controls button { font-size:13px; min-height:44px; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261012-fit-screen">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261012-fewer-buttons">
 <link rel="stylesheet" href="./title-screen.css?v=20261012-menu-clearance">
 </head>
 <body>
@@ -320,13 +320,12 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
     <button type="button" id="btnFood">ごはん<small id="foodLeft">のこり0</small></button>
     <button type="button" id="btnStock">仕入れ<small id="stockInfo">ざいこ</small></button>
     <button type="button" id="btnShop">ショップ<small>家具など</small></button>
-    <button type="button" id="btnCats">ねこ<small>ようす</small></button>
     <button type="button" id="btnNyaimee" class="nyaimee">ニャイミー<small>のらねこ</small></button>
   </div>
   <div id="sub">
     <button type="button" id="btnNyax" class="nyax-btn">ニャックス<span id="nyaxBadge" class="badge" hidden>0</span></button>
     <span>ふきだし＝注文・設備＝調理・レジ＝会計</span>
-    <span class="tools"><button type="button" id="btnWash">洗い物</button><button type="button" id="btnShift">シフト</button><button type="button" id="btnFinance">帳簿</button><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
+    <span class="tools"><button type="button" id="btnShift">シフト</button><button type="button" id="btnFinance">帳簿</button><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
   </div>
   </div>
 </div>
@@ -338,7 +337,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./cafe-service.js?v=20261012-service"></script>
 <script src="./cat-shifts.js?v=20261012-cat-shifts"></script>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
-<script src="./kitchen-wash.js?v=20261012-kitchen-sink"></script>
+<script src="./kitchen-wash.js?v=20261012-fewer-buttons"></script>
 <script src="./nyax-art.js?v=20261012-white-paws"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
 <script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./stray-art.js?v=20261012-single-pass"></script><script src="./rear-walk.js?v=20261012-single-pass"></script>
@@ -866,7 +865,7 @@ function beginFirstGuide() {
 function refreshFirstGuide() {
   const panel = $('firstGuide');
   panel.hidden = !firstGuide;
-  for (const id of ['btnFood','btnShop','btnNyaimee','btnNyax','btnSpeed','btnFinance','btnShift','btnWash']) $(id).disabled = !!firstGuide;
+  for (const id of ['btnFood','btnShop','btnNyaimee','btnNyax','btnSpeed','btnFinance','btnShift']) $(id).disabled = !!firstGuide;
   $('btnStock').disabled=false;
   if (!firstGuide || firstGuide.shown === firstGuide.step) return;
   firstGuide.shown = firstGuide.step;
@@ -1335,7 +1334,7 @@ function serve(c, byStaff) {
   if(!canMake(c.order)){
     if(!byStaff){
       const miss=Object.entries(c.order.need).filter(([id,n])=>stockOf(id)<n).map(([id])=>ingr(id).name).join('・');
-      toast(miss?miss+'が足りない！「仕入れ」で補充しよう':'洗った食器が足りません。「洗い物」で洗うか、ショップで増やそう');
+      toast(miss?miss+'が足りない！「仕入れ」で補充しよう':'洗った食器が足りません。キッチンのシンクで洗うか、ショップで増やそう');
       sfx.angry();if(miss)event('stockout');
     }return false;
   }
@@ -1347,7 +1346,7 @@ function serve(c, byStaff) {
   addFx('text',c.seat.x,c.seat.y-40,{text:requested.length>1?'セット注文うけたよ':'注文うけたよ',color:'#ffffff',life:40});
   if(firstGuide){firstGuide.job=c.job;firstGuide.step='start';refreshFirstGuide();}
   if(!byStaff){tone(988,.08,'triangle',.5);if(!firstGuide)event('cook');}
-  refreshDishes();return true;
+  return true;
 }
 function cookTap(job, u) {
   if (job.state === 'ready') { deliver(job, false); return; }
@@ -1500,7 +1499,7 @@ function leaveAngry(c) {
   chat(c, ['もう かえる！', 'おそい…！', 'またこんど…']);
   snsFromCustomer(c, 10, c.order ? c.order.name : '');
   jobs=jobs.filter(j=>j.c!==c);c.job=null;
-  CafeService.soil(G,c.tableware);c.tableware=null;refreshDishes();
+  CafeService.soil(G,c.tableware);c.tableware=null;
   c.state = 'leave'; s.cust = null; dayLog.angry++;
   G.pop = clamp(G.pop - 2, 0, 100); sfx.angry(); addFx('anger', s.x, s.y - 26, { life: 70 });
   dayLog.reviews.push({ sat: 10, item: c.order.name, cat: false });
@@ -1793,7 +1792,7 @@ function update() {
   if(tick%10===0)updateShiftAttendance();
   if (staffBusy > 0) staffBusy--;
   if(G.staff&&!staffBusy&&CafeService.startWash(G))staffBusy=180;
-  if(CafeService.tickWash(G)){refreshDishes();save();}
+  if(CafeService.tickWash(G)){save();}
   updateJobs(); updatePonta(); updateKitchenFx();
   customers.forEach(updateCustomer);
   updateCheckout();
@@ -2810,17 +2809,12 @@ function updateHud() {
   $('hudReceivable').textContent=balance.cardGross?'売掛 '+financeYen(balance.cardGross):'使えるお金';
   const st = stars();
   $('hudStars').innerHTML = '★'.repeat(st) + `<span class="off">${'★'.repeat(5 - st)}</span>`;
-  updateFoodLabel(); refreshDishes();
+  updateFoodLabel();
 }
 
 function clearTable(s) {
   if(!s)return;
   CafeService.soil(G,s.tableware);s.tableware=null;s.dirty=false;s.cleaner=null;
-}
-function refreshDishes() {
-  if(!G)return;const w=CafeService.init(G);
-  $('btnWash').textContent=w.wash?'洗い中…':'洗い物 '+CafeService.sum(w.dirty);
-  $('btnWash').title='清潔なコップ '+w.clean.cup+'・皿 '+w.clean.plate+'・フォーク '+w.clean.fork;
 }
 function washDishes() {
   const w=CafeService.init(G);
@@ -2828,7 +2822,7 @@ function washDishes() {
     if(!w.wash&&!CafeService.startWash(G)){toast('洗い物はありません');return;}
     w.wash.t=w.wash.duration-1;CafeService.tickWash(G);
   }else if(!CafeService.startWash(G)){toast(w.wash?'洗っているところです':'お皿を片付けるとキッチンのシンクへ届きます');return;}
-  toast(mode==='report'?'食器を洗いました':'3個ずつ洗っています');refreshDishes();save();updateStockInfo();
+  toast(mode==='report'?'食器を洗いました':'3個ずつ洗っています');save();updateStockInfo();
 }
 function openDishes(fromReport=false) {
   const w=CafeService.init(G);
@@ -3177,7 +3171,6 @@ onCafeTap(e => {
   const fi = furs.findIndex(f => Math.hypot(x - f.x, y - f.y / 2) < 10);
   if (fi >= 0) { furs.splice(fi, 1); sfx.clean(); addFx('spark', x, y); }
 });
-$('btnWash').onclick = () => { initAudio(); if(G)openDishes(mode==='report'); };
 $('btnShift').onclick = () => { initAudio(); if(G)openShifts(mode==='report'); };
 $('btnFinance').onclick = () => { initAudio(); if(G)openFinance(mode==='report'); };
 $('btnFood').onclick = () => {
@@ -3187,7 +3180,6 @@ $('btnFood').onclick = () => {
 };
 $('btnStock').onclick = () => { initAudio(); if (G && mode !== 'report') openStock(); };
 $('btnShop').onclick = () => { initAudio(); if (G && mode !== 'report') openShop(); };
-$('btnCats').onclick = () => { initAudio(); if (G && mode !== 'report') openCats(); };
 $('btnNyaimee').onclick = () => { initAudio(); if (G && mode !== 'report') openNyaimee(); };
 $('btnNyax').onclick = () => { initAudio(); if (G) openNyax(); };
 $('btnSpeed').onclick = () => { speed = speed % 3 + 1; $('speedLabel').textContent = '×' + speed; };

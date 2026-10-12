@@ -75,7 +75,7 @@
       r('#263e35',336,226,94,4);r('#c8d4b3',337,227,92,2);
       r('#83b6a1',337,227,Math.round(92*Math.min(1,t/w.wash.duration)),2);
     }
-    text('食器の数は「洗い物」へ',383,242,9);
+    text('食器の追加はショップへ',383,242,9);
     ctx.restore();
   }
   window.KitchenWash={bounds,hit,draw};

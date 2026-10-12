@@ -12,7 +12,7 @@ function source(name){
 }
 const controller=html.slice(html.indexOf('// ================= レジでのお会計 ================='),html.indexOf('// ================= レジでのお会計ここまで ================='));
 const constants=['TABLE_POS','STOOL_POS'].map(name=>html.match(new RegExp('const '+name+' = [^\\n]+'))[0]).join('\n');
-const functions=['clearTable','refreshDishes','washDishes','syncCatRoster','makeCat','spawnCats','beginPontaExit','updateShiftAttendance','makePonta','newSave','buildSeats','startDay','moveTo','updateCustomer','pay','earn','update','endDay','save','loadSave','drawCustomer','drawSay','drawRegister','render','canvasPoint','financeResultHtml','financeRows','financeDate','financeYen','financeEscape','showDayResult','nyaxPhotoHtml','drawNyaxPhotos'];
+const functions=['clearTable','washDishes','syncCatRoster','makeCat','spawnCats','beginPontaExit','updateShiftAttendance','makePonta','newSave','buildSeats','startDay','moveTo','updateCustomer','pay','earn','update','endDay','save','loadSave','drawCustomer','drawSay','drawRegister','render','canvasPoint','financeResultHtml','financeRows','financeDate','financeYen','financeEscape','showDayResult','nyaxPhotoHtml','drawNyaxPhotos'];
 const tapHandler=html.slice(html.indexOf('onCafeTap(e => {'),html.indexOf('\n});',html.indexOf('onCafeTap(e => {'))+4);
 const elements={},$=id=>{assert(!['registerBar','registerInfo','btnRegister'].includes(id),'runtime must not access removed checkout controls');return elements[id]||(elements[id]={hidden:true,textContent:'',disabled:false,style:{},querySelectorAll:()=>[]});};
 const api=new Function('$','CafeFinance','CafeShifts','CafeService',`

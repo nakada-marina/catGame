@@ -11,7 +11,7 @@ function source(name) {
   assert(start>=0&&end>start,'function exists: '+name);return html.slice(start,end);
 }
 const guide=html.slice(html.indexOf('// ================= 最初のお客さんの操作案内 ================='),html.indexOf('// ================= 最初のお客さんの操作案内ここまで ================='));
-const functions=['clearTable','refreshDishes','washDishes','syncCatRoster','makeCat','spawnCats','beginPontaExit','updateShiftAttendance','makePonta','newSave','spawnCustomer','moveTo','chooseOrder','serve','cookTap','deliver','updateCustomer','updateJobs','startCook','startDay','update','updateCheckout','checkoutLine','checkoutWaiting','admitCheckout','checkoutPosition','beginCheckout','makeBill','save','loadSave'];
+const functions=['clearTable','washDishes','syncCatRoster','makeCat','spawnCats','beginPontaExit','updateShiftAttendance','makePonta','newSave','spawnCustomer','moveTo','chooseOrder','serve','cookTap','deliver','updateCustomer','updateJobs','startCook','startDay','update','updateCheckout','checkoutLine','checkoutWaiting','admitCheckout','checkoutPosition','beginCheckout','makeBill','save','loadSave'];
 const elements={};
 const $=id=>elements[id]||(elements[id]={hidden:true,textContent:'',disabled:false,scrollIntoView(){}});
 const api=new Function('$','assert','CafeFinance','CafeShifts','CafeService',`
