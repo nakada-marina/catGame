@@ -5,6 +5,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), http = require('node:http');
 const artifacts = path.join(require('node:os').tmpdir(), 'catgame-check');
 fs.mkdirSync(artifacts, {recursive:true});
+async function dismissTalks(page) {
+  for (let i = 0; i < 30; i++) {
+    if (!await page.evaluate(() => !!talking || talkQ.length > 0)) return;
+    await page.locator('#talk').click();
+  }
+  throw new Error('Dialogue did not finish before the next game action');
+}
 (async () => {
   let server;
   const base = process.env.BASE_URL || 'http://127.0.0.1:8765/';
@@ -303,6 +310,10 @@ fs.mkdirSync(artifacts, {recursive:true});
     const setRegisterPoint=await servicePage.evaluate(()=>{
       const r=cv.getBoundingClientRect();return{x:r.left+3+REGISTER.x/VW*(r.width-6),y:r.top+3+(REGISTER.y/2)/(VH/2)*(r.height-6)};
     });
+    // The first checkout queues Grio's register explanation. Finish it through
+    // the UI before attempting a tap; the game correctly pauses for dialogue.
+    await dismissTalks(servicePage);
+    assert.equal(await servicePage.evaluate(()=>isPaused()),false);
     await servicePage.mouse.click(setRegisterPoint.x,setRegisterPoint.y);assert.equal(await servicePage.evaluate(()=>G.money),setBill.money+setBill.total);
     const dirtyPoint=await servicePage.evaluate(()=>{
       const s=seats.find(s=>s.dirty),r=cv.getBoundingClientRect();return{x:r.left+3+s.itemX/VW*(r.width-6),y:r.top+3+(s.itemY/2)/(VH/2)*(r.height-6)};
@@ -468,6 +479,8 @@ fs.mkdirSync(artifacts, {recursive:true});
     console.log('PASS card customer, ledger/result navigation, ten-day month, card payout, monthly bills and reload');
     const p=await browser.newPage({viewport:{width:393,height:852}});p.on('pageerror',e=>errors.push(e.message));
     await p.goto(base);await p.evaluate(()=>artworkReady);
+    await p.locator('#mNew').click();
+    await p.evaluate(()=>finishFirstGuide(true));
 
     const directDrawing=await p.evaluate(()=>{
       const comparison=document.createElement('canvas');comparison.width=448;comparison.height=184;
@@ -620,7 +633,6 @@ fs.mkdirSync(artifacts, {recursive:true});
       return sheet.toDataURL('image/png').split(',')[1];
     });
     fs.writeFileSync(path.join(artifacts,'bow-motion.png'),Buffer.from(bowSheet,'base64'));
-    await p.locator('#mNew').click();
     await p.evaluate(()=>finishFirstGuide(true));
     // No manual serve(): the manager must walk to the guest and create a job,
     // including while visiting/napping and while the human helper is hired.

@@ -1147,7 +1147,16 @@ function save() {
   if (G && G.sns) G.sns.posts.forEach((p, i) => { if (i >= 5) delete p.img; });
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (_) {}
 }
-function loadSave() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (_) { return null; } }
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY), s = raw ? JSON.parse(raw) : null;
+    if (!s || typeof s !== 'object' || Array.isArray(s) || !Number.isInteger(s.day) || s.day < 1) return null;
+    if (!Number.isFinite(s.money) || !Number.isFinite(s.pop) || !Number.isFinite(s.bowl)) return null;
+    if (!Array.isArray(s.cats) || !s.cats.length || !s.cats.every(c => c && typeof c.name === 'string' && typeof c.pal === 'string' && Number.isFinite(c.mood) && Number.isFinite(c.hunger))) return null;
+    if (!Array.isArray(s.menu) || !s.menu.every(id => typeof id === 'string')) return null;
+    return s;
+  } catch (_) { return null; }
+}
 
 const stars = () => clamp(1 + Math.floor(G.pop / 20), 1, 5);
 const decor = () => FURNITURE.reduce((n, f) => n + (f.decor || 0) * G.furniture[f.id], 0);
@@ -3368,7 +3377,7 @@ const TALKS = {
     ['normal', 'スキマ時間に はたらきたい 野良ねこさんと お店を つなぐ アプリだにゃ。'],
     ['happy', '数時間だけ 来てもらえるよ。いそがしい お昼や 夕方に たのむと べんりだにゃ。'],
   ],
-  register: [['normal', '食べ終わったお客さんは レジでお会計するにゃ。'], ['happy', 'レジか「お会計」をタップするとすぐお支払い。少し待つと自動で進むよ！']],
+  register: [['normal', '食べ終わったお客さんは レジでお会計するにゃ。'], ['happy', '入口の右にあるレジをタップするとすぐお支払い。少し待つと自動で進むよ！']],
   catServe: [['happy', 'おまたせしましたにゃ〜。ねこが 料理を はこんだよ！']],
   catOrder: [['happy', 'ねこも 注文を ききに行けるにゃ！'], ['normal', 'しばらく だれも 行かないと、手の空いた ねこが ききに行くよ。いそぐときは ふきだしを タップしてね']],
   catClean: [
