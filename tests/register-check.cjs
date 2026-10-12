@@ -1,6 +1,7 @@
 /* Run: node tests/register-check.cjs. No external dependencies required. */
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+const roomHeight=Number(html.match(/VH = (\d+)/)[1]);
 const financeWindow={};new Function('window',fs.readFileSync(path.join(__dirname,'..','finance.js'),'utf8'))(financeWindow);const CafeFinance=financeWindow.CafeFinance;
 new Function('window',fs.readFileSync(path.join(__dirname,'..','cat-shifts.js'),'utf8'))(financeWindow);const CafeShifts=financeWindow.CafeShifts;
 new Function('window',fs.readFileSync(path.join(__dirname,'..','cafe-service.js'),'utf8'))(financeWindow);const CafeService=financeWindow.CafeService;
@@ -20,7 +21,7 @@ let G,customers=[],jobs=[],cats=[],particles=[],furs=[],seats=[],ponta=null,mode
 let moneySounds=0,reviewsSent=0,reports=0,hudCalls=0,ordersTaken=0,lastToast='',memory={},paint=[],cafeAction;
 const tone=()=>{},openFinance=()=>{},openShifts=()=>{},updateStockInfo=()=>{};
 const onCafeTap=fn=>cafeAction=fn,initAudio=()=>{},wakePonta=()=>{},petCat=()=>{};
-const PONTA_HOME={x:92,y:108},OPEN=600,CLOSE=1140,RENT=1000,STAFF={wage:2000},SAVE_KEY='grio-cafe-v1',ENTRANCE={x:112,y:312},STRAYS=[],TALKS={},FW=448,FH=600,VW=224,VH=300;
+const PONTA_HOME={x:92,y:108},OPEN=600,CLOSE=1140,RENT=1000,STAFF={wage:2000},SAVE_KEY='grio-cafe-v1',ENTRANCE={x:112,y:312},STRAYS=[],TALKS={},FW=448,FH=${roomHeight*2},VW=224,VH=${roomHeight};
 const MENU=[{id:'coffee',name:'コーヒー',price:400,time:150,need:{beans:1},st:'drink'},{id:'cookie',name:'ねこクッキー',price:300,time:260,need:{flour:1},st:'oven'}];
 ${constants}
 const kcv={scrollIntoView(){}},localStorage={setItem:(k,v)=>memory[k]=v,getItem:k=>memory[k]};
@@ -31,11 +32,12 @@ const updateFirstGuide=()=>{throw Error('unexpected tutorial update');},updateHu
 const updateJobs=()=>{},updatePonta=()=>{},updateKitchenFx=()=>{},updateCat=()=>{},snsTick=()=>{},checkEvents=()=>{},spawnCustomer=()=>{},endShift=()=>{};
 const expireStock=()=>[],stars=()=>1,grioDailyPost=()=>({text:'閉店',img:''}),reviewText=()=>'声',say=()=>{};
 const sfx={coin:()=>moneySounds++,bell(){}},clearTimeout=()=>{},openModal=()=>{reports++;$('modal').hidden=false;},openShop=()=>{},openStock=()=>{},closeModal=()=>{};
-const cv={width:448,height:300,getBoundingClientRect:()=>({left:10,top:20,width:454,height:306})};
+const cv={width:448,height:${roomHeight},getBoundingClientRect:()=>({left:10,top:20,width:454,height:${roomHeight+6}})};
 const ctx={drawImage(){},setTransform(){},save(){},restore(){},translate(){},scale(){},fillRect(...a){paint.push(a);},fillText(){},measureText:t=>({width:String(t).length*7})};
 const P=(color,x,y,w=1,h=1)=>{assertFinite(x,y,w,h);paint.push([x,y,w,h]);},ellipse=(...a)=>assertFinite(...a.slice(0,4));
 function assertFinite(...a){if(!a.every(Number.isFinite))throw Error('invalid drawing coordinates: '+a);}
 const drawAt=(im,x,y)=>{if(!im)throw Error('missing image');assertFinite(x,y);},floorShadow=()=>{},drawCrown=()=>{};
+const CounterArt={person:()=>null},SpriteRaster={draw:(g,img,x,y)=>drawAt(img,x,y)},drawDiningCounter=()=>{};
 const GuestArt={person:()=>({logicalWidth:58,logicalHeight:84,width:96,height:144}),walk:()=>({logicalWidth:64,logicalHeight:84,width:128,height:168})},RearWalk={guest:()=>({logicalWidth:64,logicalHeight:84,width:128,height:168})};
 const customerPose=()=> 'sit',sayBoxes=[],FACES={grio:{happy:{}}},ICON2={coffee:{}},PLATE2={};
 const isPaused=()=>!$('modal').hidden,drawRoom=()=>{},drawSunbeam=()=>{},drawPawTrail=()=>{},drawSign=()=>{},drawUmbrella=()=>{},drawBox=()=>{},drawCushion=()=>{},drawPlant=()=>{},drawTower=()=>{},drawBowl=()=>{},drawChair=()=>{},drawTable=()=>{},drawTableItems=()=>{},drawStool=()=>{},drawPonta=()=>{},drawCat=()=>{},drawLighting=()=>{},drawBubble=()=>{},drawParticles=()=>{},drawFirstGuideTarget=()=>{};
@@ -55,7 +57,7 @@ return {
  front(limit=1000){for(let i=0;i<limit;i++){if(checkoutLine()[0]?.state==='checkout')return checkoutLine()[0];update();}throw Error('front never reaches register');},
  close(){G.time=CLOSE;mode='closing';},cleanSeats(){seats.forEach(s=>{if(s.dirty)s.dirty=false;});},
  canvasTap(x,y){return cafeAction({preventDefault(){},clientX:13+x*2,clientY:23+y*2});},
- edgeOrder(){const seat=seats.find(s=>s.ti===5&&s.side===1);const c={seat,state:'order',order:MENU[0],pat:760,maxPat:760,t:31};seat.cust=c;customers.push(c);return c;},
+ edgeOrder(){const seat={...seats.find(s=>s.ti===5&&s.side===1),x:176,y:272};const c={seat,state:'order',order:MENU[0],pat:760,maxPat:760,t:31};seat.cust=c;customers.push(c);return c;},
  snapshot(){return{G,customers,seats,dayLog,mode,moneySounds,ordersTaken,reviewsSent,reports,hudCalls,registerFlash,checkoutSeq,staffBusy,lastToast};},
  saved(){return loadSave();},reload(){G=loadSave();startDay();spawnTimer=100000;},
  render(){paint=[];render();return paint;},

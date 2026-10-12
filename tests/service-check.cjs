@@ -40,6 +40,7 @@ const ctx={drawImage(){},setTransform(){},save(){},restore(){},translate(){},sca
 const P=(color,x,y,w=1,h=1)=>{assertFinite(x,y,w,h);paint.push([x,y,w,h]);},ellipse=(...a)=>assertFinite(...a.slice(0,4));
 function assertFinite(...a){if(!a.every(Number.isFinite))throw Error('invalid drawing coordinates: '+a);}
 const drawAt=(im,x,y)=>{if(!im)throw Error('missing image');assertFinite(x,y);},floorShadow=()=>{},drawCrown=()=>{};
+const CounterArt={person:()=>null},SpriteRaster={draw:(g,img,x,y)=>drawAt(img,x,y)},drawDiningCounter=()=>{};
 const GuestArt={person:()=>({logicalWidth:58,logicalHeight:84,width:96,height:144}),walk:()=>({logicalWidth:64,logicalHeight:84,width:128,height:168})},RearWalk={guest:()=>({logicalWidth:64,logicalHeight:84,width:128,height:168})};
 const customerPose=()=> 'sit',sayBoxes=[],FACES={grio:{happy:{}}},ICON2={coffee:{}},PLATE2={};
 const isPaused=()=>!$('modal').hidden,drawRoom=()=>{},drawSunbeam=()=>{},drawPawTrail=()=>{},drawSign=()=>{},drawUmbrella=()=>{},drawBox=()=>{},drawCushion=()=>{},drawPlant=()=>{},drawTower=()=>{},drawBowl=()=>{},drawChair=()=>{},drawTable=()=>{},drawTableItems=()=>{},drawStool=()=>{},drawPonta=()=>{},drawCat=()=>{},drawLighting=()=>{},drawBubble=()=>{},drawParticles=()=>{},drawFirstGuideTarget=()=>{};
