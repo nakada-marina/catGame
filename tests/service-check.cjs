@@ -15,7 +15,11 @@ function data(name){const start=html.indexOf('const '+name+' =');return html.sli
 const constants=['TABLE_POS','STOOL_POS','stockOf','capOf','usedOf','ingr','unitPrice','canMake','makeCount'].map(name=>html.match(new RegExp('^const '+name+' = [^\\n]+','m'))[0]).join('\n')+'\n'+data('MENU')+'\n'+data('INGR');
 const functions=['expireStock','addStock','daysLeft','consume','chooseOrder','serve','deliver','leaveAngry','startCook','cookTap','updateJobs','openStock','buy','clearTable','refreshDishes','washDishes','syncCatRoster','makeCat','spawnCats','beginPontaExit','updateShiftAttendance','makePonta','newSave','buildSeats','startDay','moveTo','updateCustomer','pay','earn','update','endDay','save','loadSave','drawCustomer','drawSay','drawRegister','render','canvasPoint','financeResultHtml','financeRows','financeDate','financeYen','financeEscape','showDayResult'];
 const tapHandler=html.slice(html.indexOf('onCafeTap(e => {'),html.indexOf('\n});',html.indexOf('onCafeTap(e => {'))+4);
-const elements={},$=id=>elements[id]||(elements[id]={hidden:true,textContent:'',disabled:false,style:{},querySelectorAll:()=>[]});
+const elements={},$=id=>elements[id]||(elements[id]={hidden:true,textContent:'',disabled:false,style:{},querySelectorAll(selector){
+  if(selector!=='[data-add]')return [];
+  this.stockButtons=[...this.innerHTML.matchAll(/data-add="([^"]+)"([^>]*)>/g)].map(m=>({dataset:{add:m[1]},disabled:m[2].includes('disabled')}));
+  return this.stockButtons;
+}});
 const api=new Function('$','CafeFinance','CafeShifts','CafeService',`
 let G,customers=[],jobs=[],cats=[],particles=[],furs=[],seats=[],ponta=null,mode='title',tick=0,speed=1,spawnTimer=100000,staffBusy=0,dayLog,weather,dayFlags,rushUntil,vipNext,bgmOn,firstGuide=null,toastTimer=0,lastResultHtml='';
 let moneySounds=0,reviewsSent=0,reports=0,hudCalls=0,ordersTaken=0,lastToast='',memory={},paint=[],cafeAction;
@@ -61,8 +65,10 @@ return {
  wash(){return washDishes();},
  clear(s){clearTable(s);},
  expire(day){return expireStock(day);},
- stock(id,n){return addStock(id,n);},
- stockPanel(){openStock();return $('panel').innerHTML;},
+ stock(id,n,daily=false){return addStock(id,n,daily);},
+ stockPanel(fromReport=false){openStock(fromReport);return $('panel').innerHTML;},
+ stockClick(id,n,fromReport=false){openStock(fromReport);const button=$('panel').stockButtons.find(b=>b.dataset.add===id+':'+n);if(!button||button.disabled)return false;button.onclick();return true;},
+ choose(){return chooseOrder();},
  setDay(day){G.day=day;startDay();spawnTimer=100000;},
  purchase(type){buy('buy-w-'+type);},
  checkpoint(){save();},
@@ -145,12 +151,44 @@ assert.deepEqual(api.dishes().clean,{cup:6,plate:6,fork:6});invariant(api.snapsh
 
 api.reset();api.snapshot().G.money=0;assert.equal(api.stock('beans',5),5,'supplies can be received on credit without cash');
 assert.equal(api.snapshot().G.money,0);assert.equal(F.view(api.snapshot().G).payable,400);
-api.setDay(2);assert.equal(api.stock('beans',5),0);assert(api.stockPanel().includes('data-add="beans:5" disabled'),'off-day buttons disabled');api.pause(false);
-api.setDay(4);assert.equal(api.stock('beans',5),5);assert.equal(F.view(api.snapshot().G).payable,800);
-api.checkpoint();api.reload();assert.equal(F.view(api.snapshot().G).payable,800,'supplier debt persists');assert.equal(api.snapshot().G.money,0);
+api.setDay(2);assert.equal(api.stock('beans',5),0,'regular report purchases stay on three-day schedule');
+assert(api.stockPanel(true).includes('data-add="beans:5" disabled'),'off-day report buttons disabled');assert(!api.stockClick('beans',5,true));
+assert(!api.stockPanel().includes('data-add="beans:5" disabled'),'manual button permits every day');
+assert(api.stockClick('beans',5),'real manual add-button handler buys on day2');assert.equal(F.view(api.snapshot().G).payable,800);
+api.setDay(3);assert(api.stockClick('beans',5),'manual purchases also allowed on day3');assert.equal(F.view(api.snapshot().G).payable,1200);
+api.setDay(4);assert(api.stockClick('beans',5,true),'regular report purchases allowed on day4');assert.equal(F.view(api.snapshot().G).payable,1600);
+api.checkpoint();api.reload();assert.equal(F.view(api.snapshot().G).payable,1600,'supplier debt persists');assert.equal(api.snapshot().G.money,0);
 api.snapshot().G.money=1000;const cups=api.dishes().total.cup;api.purchase('cup');assert.equal(api.dishes().total.cup,cups+2);assert.equal(api.snapshot().G.money,400);invariant(api.snapshot().G);
 api.reset();assert.equal(api.expire(1).length,0);assert.equal(api.expire(2).length,0,'three-day ingredients last until next supply');
 const spoiled=api.expire(3).map(row=>row[0]);assert(spoiled.includes('いちご')&&spoiled.includes('生クリーム'),'unused perishables expire after third trading day');
 assert.equal(api.snapshot().G.stock.berry.length,0);assert.equal(api.snapshot().G.stock.cream.length,0);
+// Real menu selection excludes missing ingredients, including shared ingredients across set components.
+api.reset();let shop=api.snapshot().G;shop.menu=['coffee','cookie'];shop.stock.beans=[];
+for(let i=0;i<80;i++)assert.equal(api.choose().id,'cookie','sold-out coffee never ordered');
+shop.menu=['tea','parfait'];shop.stock={leaf:[{n:1,day:1}],milk:[{n:1,day:1}],berry:[{n:1,day:1}],cream:[{n:1,day:1}]};
+for(let i=0;i<80;i++){const order=api.choose();assert(!order.items,'set needing two milks excluded when only one remains');}
+const oldRandom=Math.random;
+try{Math.random=()=>0;shop.stock.milk[0].n=2;assert.equal(api.choose().need.milk,2,'set allowed when aggregate recipe is in stock');}finally{Math.random=oldRandom;}
+shop.stock={};assert.equal(api.choose(),null,'empty menu has no order');
+c=api.diners(1,{state:'sit',t:70})[0];api.step();assert.equal(c.state,'menuWait');assert.equal(c.order,null);assert.equal(api.snapshot().jobs.length,0);api.render();
+assert(api.stockClick('leaf',5),'manual restock from empty menu');assert(api.stockClick('milk',5));api.pause(false);api.step();
+assert.equal(c.state,'order');assert.equal(c.order.id,'tea','customer can order again after restocking');assert(api.accept(c));
+
+api.reset();shop=api.snapshot().G;shop.menu=['coffee','cookie'];shop.stock.beans=[{n:1,day:1}];
+const pending=api.diners(2,{state:'order',t:31});assert(api.accept(pending[0]));
+api.step();assert.equal(pending[1].order.id,'cookie','pending sold-out request switches to an in-stock item');
+assert.equal(pending[1].state,'order');assert.equal(api.snapshot().jobs.length,1,'reselection does not accept/consume automatically');
+assert.equal(api.snapshot().jobs[0].item.id,'coffee','accepted order keeps its reserved recipe');
+
+api.reset();shop=api.snapshot().G;shop.menu=['coffee','cookie'];shop.stock.beans=[];
+c=api.diners(1,{state:'order',t:31})[0];const flourBefore=shop.stock.flour[0].n;
+assert.equal(api.accept(c),false,'last-moment sold-out order is not accepted');assert.equal(c.order.id,'cookie');
+assert.equal(api.snapshot().jobs.length,0);assert.equal(shop.stock.flour[0].n,flourBefore,'reselection consumes nothing');assert(api.accept(c));assert.equal(shop.stock.flour[0].n,flourBefore-1);
+
+api.reset();shop=api.snapshot().G;shop.stock={};c=api.diners(1,{state:'sit',t:70})[0];
+api.step();assert.equal(c.state,'menuWait');api.step(180);assert.equal(c.state,'leave','all-sold-out guest politely leaves without an order');
+assert.equal(api.snapshot().dayLog.angry,0);assert.equal(api.snapshot().dayLog.sales,0);assert.equal(shop.pop,10);
+api.reset();shop=api.snapshot().G;shop.stock={};c=api.diners(1,{state:'sit',t:70})[0];api.step();api.close();api.step(1000);
+assert.equal(api.snapshot().mode,'report','sold-out guests do not block closing');
 for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(m[1].trim())new Function(m[1]);
-console.log('PASS three-day supply UI and credit purchases, month-end and overdue payables, no double expense/payment, multi-item cooking/delivery and one bill, tableware conservation, wash and shortage, cancelled/reloaded orders, automatic helper and extra dishes');
+console.log('PASS three-day report and daily manual supply UI/handlers, sold-out recipes and aggregate sets, pending reselection/empty menu/restock/closing, credit purchases, month-end and overdue payables, no double expense/payment, multi-item cooking/delivery and one bill, tableware conservation, wash and shortage, cancelled/reloaded orders, automatic helper and extra dishes');

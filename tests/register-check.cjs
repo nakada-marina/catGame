@@ -26,7 +26,7 @@ ${constants}
 const kcv={scrollIntoView(){}},localStorage={setItem:(k,v)=>memory[k]=v,getItem:k=>memory[k]};
 const rnd=(a,b)=>(a+b)/2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),pick=a=>a[0],decor=()=>0,avgMood=()=>70,rollMarket=()=>({});
 const toast=t=>lastToast=t,chat=(c,list)=>c.say={text:Array.isArray(list)?list[0]:list,t:0},event=k=>G.flags[k]=true,addFx=(type,x,y,extra={})=>particles.push({type,x,y,t:0,life:50,vy:-.4,...extra});
-const catNear=()=>false,canMake=()=>true,chooseOrder=()=>MENU[0],serve=c=>{ordersTaken++;c.state='wait';},leaveAngry=()=>{throw Error('unexpected angry departure');},beginFirstGuide=()=>firstGuide=null;
+const catNear=()=>false,canMake=()=>true,makeCount=()=>1,chooseOrder=()=>MENU[0],serve=c=>{ordersTaken++;c.state='wait';},leaveAngry=()=>{throw Error('unexpected angry departure');},beginFirstGuide=()=>firstGuide=null;
 const updateFirstGuide=()=>{throw Error('unexpected tutorial update');},updateHud=()=>{hudCalls++;},snsFromCustomer=()=>reviewsSent++;
 const updateJobs=()=>{},updatePonta=()=>{},updateKitchenFx=()=>{},updateCat=()=>{},snsTick=()=>{},checkEvents=()=>{},spawnCustomer=()=>{},endShift=()=>{};
 const expireStock=()=>[],stars=()=>1,grioDailyPost=()=>({text:'閉店',img:''}),reviewText=()=>'声',say=()=>{};
