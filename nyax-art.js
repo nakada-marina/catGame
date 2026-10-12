@@ -46,7 +46,7 @@
   const ownerReady = new Promise(resolve => {
     ownerImage.onload = () => { ownerLoaded = true; ownerCache.clear(); resolve(true); };
     ownerImage.onerror = () => resolve(false);
-    ownerImage.src = new URL('./nyax-grio-atlas.png?v=20261012-generated', document.baseURI).href;
+    ownerImage.src = new URL('./nyax-grio-atlas.png?v=20261012-white-paws', document.baseURI).href;
   });
   function ownerPhoto(kind, sprites, faces) {
     if (!Object.hasOwn(ownerCells, kind)) return null;
