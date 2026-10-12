@@ -28,6 +28,8 @@ fs.mkdirSync(artifacts, { recursive: true });
       page.on('pageerror', e => errors.push(e.message));
       page.on('response', r => { if (r.url().startsWith(base) && r.status() >= 400) failures.push(r.url()); });
       await page.goto(base); await page.evaluate(() => titleScene.ready);
+      assert.equal(await page.locator('#titleScene').getAttribute('data-background'), width < height ? 'portrait' : 'landscape');
+      assert.equal(await page.locator('#titleScene').getAttribute('data-background-ready'), 'true');
       assert(await page.locator('#titleScreen').isVisible());
       assert(await page.locator('#modal').isHidden());
       assert(await page.locator('#wrap').isHidden());
@@ -84,6 +86,40 @@ fs.mkdirSync(artifacts, { recursive: true });
     const progress = await resumed.evaluate(() => ({ day: G.day, money: G.money, pop: G.pop, menu: G.menu }));
     assert.equal(progress.day, 7); assert.equal(progress.money, 12345); assert.equal(progress.pop, 48); assert(progress.menu.includes('tea'));
     console.log('PASS saved-day label, unchanged saved progress while title animates, and resume');
+    const layout = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    layout.on('pageerror', e => errors.push(e.message));
+    await layout.goto(base); await layout.evaluate(() => titleScene.ready);
+    await layout.evaluate(() => {
+      const saved = newSave(); saved.day = 2;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(saved));
+    });
+    await layout.reload(); await layout.evaluate(() => titleScene.ready);
+    await layout.evaluate(() => {
+      window.titleCatBoxes = [];
+      const draw = SpriteRaster.draw;
+      SpriteRaster.draw = function (g, image, x, y, width, height) {
+        if (g.canvas.id === 'titleScene') {
+          const m = g.getTransform(), ratio = g.canvas.width / g.canvas.clientWidth;
+          const a = m.transformPoint({ x, y }), b = m.transformPoint({ x: x + width, y: y + height });
+          window.titleCatBoxes.push({ left: Math.min(a.x,b.x)/ratio, top: Math.min(a.y,b.y)/ratio, right: Math.max(a.x,b.x)/ratio, bottom: Math.max(a.y,b.y)/ratio });
+          window.titleCatBoxes = window.titleCatBoxes.slice(-2);
+        }
+        return draw(g, image, x, y, width, height);
+      };
+    });
+    for (const [width,height] of [[1280,720],[1366,768],[900,775],[900,600],[768,600],[604,517],[600,500],[1440,900],[900,1000],[500,650],[640,320],[320,568],[393,852]]) {
+      await layout.setViewportSize({ width, height });
+      await layout.waitForFunction(() => $('titleScene').dataset.backgroundReady === 'true');
+      await layout.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+      const fits = await layout.evaluate(() => {
+        const menu = document.querySelector('.title-menu').getBoundingClientRect();
+        return window.titleCatBoxes.length === 2 && window.titleCatBoxes.every(c => c.left >= 0 && c.right <= innerWidth && c.top >= 0 && c.bottom <= innerHeight && !(c.left < menu.right && c.right > menu.left && c.top < menu.bottom && c.bottom > menu.top));
+      });
+      assert(fits, 'both cats remain visible without overlapping start/resume buttons at '+width+'x'+height);
+      if(width===1280 || width===604 || width===393) await layout.screenshot({ path:path.join(artifacts,'title-saved-'+width+'.png') });
+    }
+    await layout.close();
+    console.log('PASS start/resume menu clears both cats across PC sizes, browser zoom-sized viewports and phones');
     const pinned = await browser.newPage({ viewport: { width: 393, height: 852 } });
     pinned.on('pageerror', e => errors.push(e.message));
     await pinned.clock.install();

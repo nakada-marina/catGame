@@ -1,17 +1,25 @@
 /* Opening-time cafe: decorative motion never reads or changes the player's save. */
 (function () {
   'use strict';
-  const backdrop = new Image();
-  const backgroundReady = new Promise(resolve => {
-    backdrop.onload = () => resolve(true);
-    backdrop.onerror = () => resolve(false);
-    backdrop.src = new URL('./title-cafe.png?v=20261012', document.currentScript.src).href;
-  });
+  const base = document.currentScript.src, backgrounds = new Map();
+  function loadBackground(portrait) {
+    const file = portrait ? 'title-cafe-mobile.png' : 'title-cafe.png';
+    if (backgrounds.has(file)) return backgrounds.get(file);
+    const image = new Image();
+    const ready = new Promise(resolve => {
+      image.onload = () => resolve(true);
+      image.onerror = () => resolve(false);
+      image.src = new URL('./' + file + '?v=20261012', base).href;
+    });
+    const background = { image, ready }; backgrounds.set(file, background); return background;
+  }
   function mount(canvas, greeting, motionButton) {
     const g = canvas.getContext('2d');
     const preference = matchMedia('(prefers-reduced-motion: reduce)');
-    let sprites, stopped = false, running = !preference.matches, frameId = 0;
+    let sprites, background, stopped = false, running = !preference.matches, frameId = 0;
     let width = 1, height = 1, scale = 1, offsetX = 0, offsetY = 0;
+    let grioX = 680, pontaX = 890, lift = 0, landscape = false;
+    const menu = canvas.closest('.title-screen').querySelector('.title-menu');
     let last = 0, time = 0, reactionUntil = 0, down = null, hitAreas = [];
     const t0 = performance.now();
     const greetings = ['いらっしゃいませ、だにゃ。', 'コーヒー、もうすぐできるにゃ。', 'ぽんた、開店前から寝てるにゃ…', '今日は、どんなお店にしよう？'];
@@ -30,10 +38,16 @@
       hitAreas = [];
       g.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
       g.fillStyle = '#e7cba6'; g.fillRect(0, 0, width, height);
+      const backdrop = background?.image;
+      const loaded = backdrop?.complete && backdrop.naturalWidth;
+      if (loaded) {
+        const fit = Math.max(width / backdrop.naturalWidth, height / backdrop.naturalHeight);
+        g.imageSmoothingEnabled = false;
+        g.drawImage(backdrop, (width - backdrop.naturalWidth * fit) / 2, (height - backdrop.naturalHeight * fit) / 2, backdrop.naturalWidth * fit, backdrop.naturalHeight * fit);
+      }
       g.save(); g.translate(offsetX, offsetY); g.scale(scale, scale);
       g.imageSmoothingEnabled = false;
-      if (backdrop.complete && backdrop.naturalWidth) g.drawImage(backdrop, 0, 0, 1536, 1024);
-      else {
+      if (!loaded) {
         g.fillStyle = '#efe0c3'; g.fillRect(0, 0, 1536, 430);
         g.fillStyle = '#c49360'; g.fillRect(0, 430, 1536, 594);
         g.fillStyle = '#b08051'; for (let y = 460; y < 1024; y += 44) g.fillRect(0, y, 1536, 3);
@@ -44,9 +58,7 @@
         g.fillStyle = `rgba(255,243,186,${Math.sin(phase * Math.PI) * .6})`;
         g.fillRect(440 + i * 44 + Math.sin(t * .5 + i) * 12, 340 + phase * 360, 4, 4);
       }
-      const landscape = width >= 600 && height <= 500;
-      const x = landscape ? 750 : 680;
-      const lift = height < 650 && width < 600 ? 85 : 0;
+      const x = grioX;
       const grioY = 728 - lift;
       sprite('grio', reactionUntil > t ? 'joy' : 'coffee', x, grioY, 178);
       if (reactionUntil <= t) {
@@ -58,11 +70,11 @@
         }
       }
       const rest = t % 16, pontaPose = reactionUntil > t ? 'joy' : rest < 9 ? 'sleepbag' : rest < 13 ? 'groom' : 'sit';
-      sprite('ponta', pontaPose, 890, 808 - lift, 172, -1);
+      sprite('ponta', pontaPose, pontaX, 808 - lift, 172, -1);
       if (rest < 9 && reactionUntil <= t) {
         const p = (t * .35) % 1;
         g.globalAlpha = 1 - p; g.fillStyle = '#fff6db'; g.font = 'bold 24px monospace';
-        g.fillText('z', 939 + p * 9, 685 - lift - p * 28); g.globalAlpha = 1;
+        g.fillText('z', pontaX + 49 + p * 9, 685 - lift - p * 28); g.globalAlpha = 1;
       }
       if (reactionUntil > t) {
         g.fillStyle = '#e49b94'; g.font = '32px serif'; g.fillText('♥', x + 58, 560 - lift - Math.sin(t * 5) * 6);
@@ -81,9 +93,31 @@
     function resize() {
       const box = canvas.getBoundingClientRect();
       width = Math.max(1, box.width); height = Math.max(1, box.height);
+      const selected = loadBackground(width < height);
+      if (background !== selected) {
+        background = selected;
+        canvas.dataset.background = width < height ? 'portrait' : 'landscape';
+        canvas.dataset.backgroundReady = selected.image.complete ? (selected.image.naturalWidth ? 'true' : 'fallback') : 'loading';
+        selected.ready.then(loaded => {
+          if (!stopped && background === selected) { canvas.dataset.backgroundReady = loaded ? 'true' : 'fallback'; draw(time); }
+        });
+      }
       window.SpriteRaster.resize(canvas, width, height, Math.min(devicePixelRatio || 1, 2));
       scale = Math.max(width / 1536, height / 1024);
       offsetX = (width - 1536 * scale) / 2; offsetY = (height - 1024 * scale) / 2;
+      landscape = width >= 600 && height <= 500;
+      grioX = landscape ? 750 : 680; pontaX = 890;
+      lift = height < 650 && width < 600 ? 85 : 0;
+      // Reserve the actual menu, including both buttons when a save exists.
+      // Recompute only for layout changes so animation never moves the cats.
+      const bounds = menu.getBoundingClientRect(), canvasBounds = canvas.getBoundingClientRect();
+      if (width >= 600 && width > height) {
+        const right = offsetX + (pontaX + 172 / 2) * scale;
+        const shift = Math.max(0, (right - (bounds.left - canvasBounds.left - 16)) / scale);
+        grioX -= shift; pontaX -= shift;
+      } else {
+        lift = Math.max(lift, (offsetY + 808 * scale - (bounds.top - canvasBounds.top - 16)) / scale);
+      }
       draw(time);
     }
     function frame(now) {
@@ -114,12 +148,13 @@
     canvas.addEventListener('pointerdown', pointerDown); canvas.addEventListener('pointerup', pointerUp);
     canvas.addEventListener('pointercancel', pointerCancel);
     motionButton.addEventListener('click', toggle); preference.addEventListener('change', changePreference);
-    const observer = new ResizeObserver(resize); observer.observe(canvas);
-    const ready = Promise.all([backgroundReady, window.CatMotions.load]).then(([, loaded]) => {
+    const observer = new ResizeObserver(resize); observer.observe(canvas); observer.observe(menu);
+    resize();
+    const ready = Promise.all([background.ready, window.CatMotions.load]).then(([, loaded]) => {
       if (stopped) return;
       sprites = loaded; canvas.dataset.ready = 'true'; draw(time);
     }).catch(() => { if (!stopped) { canvas.dataset.ready = 'fallback'; draw(time); } });
-    resize(); setMotion(running); frameId = requestAnimationFrame(frame);
+    setMotion(running); frameId = requestAnimationFrame(frame);
     return { ready, stop() {
       stopped = true; cancelAnimationFrame(frameId); observer.disconnect();
       canvas.removeEventListener('pointerdown', pointerDown); canvas.removeEventListener('pointerup', pointerUp);
