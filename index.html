@@ -144,6 +144,9 @@ body {
 .nx-who span { color: #8a949e; font-size: 11px; }
 .nx-body p { margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-line; }
 .nx-body img { width: 100%; max-width: 240px; border-radius: 8px; image-rendering: pixelated; border: 1px solid #2a3238; }
+.nx-photo { margin: 2px 0; width: 100%; max-width: 240px; }
+.nx-photo canvas { display: block; width: 100%; height: auto; border-radius: 8px; image-rendering: pixelated; border: 1px solid #2a3238; box-sizing: border-box; }
+.nx-photo figcaption { margin-top: 4px; font-size: 11px; color: #9aa4ae; }
 .nx-acts { display: flex; gap: 14px; font-size: 12px; color: #8a949e; flex-wrap: wrap; }
 .nx-acts .lk { color: #f2789a; }
 .nx-acts .bz { color: #101418; background: #f2c14e; border-radius: 4px; padding: 0 6px; }
@@ -340,6 +343,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./cafe-service.js?v=20261012-service"></script>
 <script src="./cat-shifts.js?v=20261012-cat-shifts"></script>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
+<script src="./nyax-art.js?v=20261012-food-photos"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
 <script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./stray-art.js?v=20261012-single-pass"></script><script src="./rear-walk.js?v=20261012-single-pass"></script>
 <script src="./cafe-art.js?v=20261012-walk"></script>
@@ -3540,8 +3544,13 @@ function snsFromCustomer(c, sat, item) {
   const sns = snsState();
   if (sat >= 75 && Math.random() < 0.3) {
     const i = Math.floor(Math.random() * SNS_NAMES.length);
-    const text = pick([`@guriocafe ${item}おいしかった！ ねこが席まで運んでくれた`, `@guriocafe ねこと目があった…しあわせ`, `ぐりおのねこカフェ、また行きたい。${item}が さいこう`, `@guriocafe 店長ねこが かわいすぎる件`]);
-    sns.posts.unshift({ id: ++sns.seq, mine: false, name: SNS_NAMES[i], handle: SNS_HANDLES[i], text, day: G.day, t: G.time, likes: Math.round(rnd(1, 20)), rts: Math.round(rnd(0, 4)), replies: [] });
+    const food = MENU.find(m => (c.order?.items || [c.order]).some(served => served?.id === m.id));
+    const text = food
+      ? pick([`@guriocafe ${item}おいしかった！ ねこが席まで運んでくれたので 記念に一枚📷`, `ぐりおのねこカフェの ${item}。かわいくて 食べる前に撮っちゃった！`, `@guriocafe ${item}と ひとやすみ。おいしかった〜 #ねこカフェ`])
+      : pick([`@guriocafe ${item}おいしかった！ ねこが席まで運んでくれた`, `@guriocafe ねこと目があった…しあわせ`, `ぐりおのねこカフェ、また行きたい。${item}が さいこう`, `@guriocafe 店長ねこが かわいすぎる件`]);
+    const post = { id: ++sns.seq, mine: false, name: SNS_NAMES[i], handle: SNS_HANDLES[i], text, day: G.day, t: G.time, likes: Math.round(rnd(1, 20)), rts: Math.round(rnd(0, 4)), replies: [] };
+    if (food) post.photo = { food: food.id, variant: (post.id + G.day) % 2 };
+    sns.posts.unshift(post);
     sns.followers += 1; sns.unread++;
   } else if (sat <= 15 && Math.random() < 0.5) {
     const i = Math.floor(Math.random() * SNS_NAMES.length);
@@ -3585,25 +3594,33 @@ function grioDailyPost(day, log) {
 function openNyax() {
   const sns = snsState(); sns.unread = 0; updateNyaxBadge();
   const esc = t => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const tl = sns.posts.map(p => `
+  const tl = sns.posts.map(p => {
+    const food = p.photo && MENU.find(m => m.id === p.photo.food);
+    const photo = food ? `<figure class="nx-photo"><canvas width="192" height="144" data-food-photo="${food.id}" data-variant="${p.photo.variant === 1 ? 1 : 0}" role="img" aria-label="${esc(food.name)}のドット絵写真"></canvas><figcaption>${esc(food.name)} ・ お客さんの一枚</figcaption></figure>` : p.img ? `<img src="${p.img}" alt="お店の写真">` : '';
+    return `
     <div class="nx-post${p.bad ? ' bad' : ''}">
       <div class="nx-av" style="background:${p.mine ? '#e9dcc0' : `hsl(${(p.handle.length * 47) % 360} 45% 55%)`}">${p.mine ? '<canvas width="64" height="64" data-face="1"></canvas>' : esc(p.name[0])}</div>
       <div class="nx-body">
         <div class="nx-who"><b>${esc(p.name)}</b> <span>@${p.handle} ・ ${p.day}日目 ${fmtTime(p.t)}</span></div>
         <p>${esc(p.text)}</p>
-        ${p.img ? `<img src="${p.img}" alt="お店の写真">` : ''}
+        ${photo}
         <div class="nx-acts"><span>返信 ${p.replies.length}</span><span>リポスト ${p.rts}</span><span class="lk">いいね ${p.likes}</span>${p.buzzed ? '<span class="bz">バズり中</span>' : ''}</div>
         ${p.replies.map(r => `<div class="nx-rep"><b>${esc(r.name)}</b> ${esc(r.text)}</div>`).join('')}
       </div>
-    </div>`).join('') || '<p class="sub" style="padding:12px">まだ ポストがありません。閉店後に ぐりおが つぶやくよ。</p>';
+    </div>`;
+  }).join('') || '<p class="sub" style="padding:12px">まだ ポストがありません。お客さんの感想や、閉店後のぐりおのつぶやきが届くよ。</p>';
   openModal(`
     <div class="nx">
       <div class="nx-head"><b>ニャックス</b><span>@guriocafe ・ フォロワー ${Math.floor(sns.followers).toLocaleString()}</span></div>
-      <p class="sub">店長ぐりおが 毎日 閉店後に お店のことを つぶやいています。つぎの日に いいねが 伸びて、バズると お客さんが どっと来ます。</p>
+      <p class="sub">お客さんが 料理の写真や感想を 投稿します。店長ぐりおも 毎日 閉店後に つぶやくよ。ぐりおの投稿は つぎの日に いいねが伸びて、バズると お客さんが どっと来ます。</p>
       <div class="nx-tl">${tl}</div>
       <div class="actions-row"><button type="button" id="mClose">とじる</button></div>
     </div>`);
   $('panel').querySelectorAll('[data-face]').forEach(c => c.getContext('2d').drawImage(FACES.grio.happy, 0, 0));
+  $('panel').querySelectorAll('[data-food-photo]').forEach(c => {
+    const draw = () => NyaxArt.draw(c, c.dataset.foodPhoto, Number(c.dataset.variant));
+    draw(); NyaxArt.ready.then(() => { if (c.isConnected) draw(); });
+  });
   $('mClose').onclick = closeModal;
   event('nyax');
 }
