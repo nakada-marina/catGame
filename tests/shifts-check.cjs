@@ -50,7 +50,7 @@ const catWork=()=>false,catThink=k=>k.t=200,assignClean=()=>false,chat=()=>{},up
 const deliver=j=>{jobs=jobs.filter(x=>x!==j);},serve=()=>true;
 const sfx={buy(){},meow(){},bell(){},clean(){}},setTimeout=()=>{},clearTimeout=()=>{};
 const expireStock=()=>[],stars=()=>1,decor=()=>0,grioDailyPost=()=>({text:'閉店',img:''}),reviewText=()=>'声',drawCatThumb=()=>{};
-const openFinance=()=>{},openStock=()=>{},closeModal=()=>$('modal').hidden=true;
+const openFinance=()=>{},openStock=()=>{},drawStaffPreview=()=>{},closeModal=()=>$('modal').hidden=true;
 function openModal(markup) {
   $('panel').innerHTML=markup;$('modal').hidden=false;
   for(const m of markup.matchAll(/<select[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/select>/g)) {

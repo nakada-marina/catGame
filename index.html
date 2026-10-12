@@ -225,6 +225,10 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .row .name { font-size: 16px; }
 .row .desc { font-size: 12px; color: var(--chalk-dim); grid-column: 1; min-width: 0; }
 .row button { grid-row: 1 / span 2; grid-column: 2; min-width: 84px; }
+.row.staffrow { grid-template-columns: 48px minmax(0,1fr) auto; gap: 4px 8px; }
+.staff-preview { grid-row: 1 / span 2; width: 48px; height: 54px; image-rendering: auto; }
+.row.staffrow .name,.row.staffrow .desc { grid-column: 2; }
+.row.staffrow button { grid-column: 3; }
 .catrow { grid-template-columns: 44px 1fr; }
 .catrow canvas { grid-row: 1 / span 5; width: 44px; height: 40px; image-rendering: pixelated; }
 .row.catrow > :not(canvas) { grid-column: 2; }
@@ -341,6 +345,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./nyax-art.js?v=20261012-white-paws"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
 <script src="./counter-art.js?v=20261012-seated"></script>
+<script src="./staff-art.js?v=20261012-cafe-worker"></script>
 <script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./stray-art.js?v=20261012-single-pass"></script><script src="./rear-walk.js?v=20261012-single-pass"></script>
 <script src="./cafe-art.js?v=20261012-counter"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
@@ -2006,13 +2011,21 @@ function drawAppliances() {
 function drawCounter() {
   P('#3a2616', 304, 112, 144, 80);
   drawAppliances();
-  if (G.staff) drawAt(STAFF_SPR, 356 - STAFF_SPR.width / 2, 116 - STAFF_SPR.height + ((tick >> 5) & 1) * 2);
+  if (G.staff) drawStaff();
   P('#b07a4a', 306, 112, 142, 14); P('#c8925a', 306, 112, 142, 2); P('#9a6838', 306, 124, 142, 2);
   for (let k = 0; k < 5; k++) P('#bc8650', 312 + k * 27, 115 + (k % 3) * 3, 20, 1);
   P('#8a5a34', 306, 126, 142, 58);
   for (let x = 310; x < FW - 4; x += 36) { P('#7a4e2c', x, 132, 30, 46); P('#9a6a40', x, 132, 30, 1); P('#9a6a40', x, 132, 1, 46); P('#6a4226', x + 29, 132, 1, 46); P('#6a4226', x, 177, 30, 1); }
   P('#5a3a20', 306, 184, 142, 8);
   P('#6e4628', 304, 112, 3, 80);
+}
+function drawStaff() {
+  const pose = StaffArt.pose({ busy: staffBusy, washing: !!G.tableware?.wash, cooking: jobs.some(j => j.state === 'cook') });
+  const image = StaffArt.frame(pose);
+  // The counter front covers the lower body, leaving the face and working
+  // hands visible instead of placing the worker's shoes on the countertop.
+  if (image) SpriteRaster.draw(ctx, image, 356 - 48, 156 - 108, 96, 108);
+  else drawAt(STAFF_SPR, 356 - STAFF_SPR.width / 2, 116 - STAFF_SPR.height);
 }
 function drawLamps() {
   const evening = G.time > OPEN + 330;
@@ -2212,7 +2225,7 @@ function drawLighting() {
 // ぐりお と ぽんた は キャラクター設定画の 絵を つかう（chars.webp）
 
 const CHAR_SPR = {}, CHAR_PENDING = mk(81, 64);
-const artworkReady = Promise.all([CatArtwork.load(), GuestArt.load, RearWalk.load, StrayArt.load, CounterArt.load]).then(([originals, , , strays]) => {
+const artworkReady = Promise.all([CatArtwork.load(), GuestArt.load, RearWalk.load, StrayArt.load, CounterArt.load, StaffArt.load]).then(([originals, , , strays]) => {
   const bodies = { ...originals, ...strays };
   for (const who of Object.keys(bodies)) {
     CHAR_SPR[who] = {};
@@ -2858,8 +2871,17 @@ function openModal(html) { $('panel').innerHTML = html; $('modal').hidden = fals
 function closeModal() { $('modal').hidden = true; }
 function isPaused() { return !$('modal').hidden || !!talking; }
 
-function row(name, desc, label, disabled, id) {
-  return `<div class="row"><span class="name">${name}</span><span class="desc">${desc}</span><button type="button" data-buy="${id}" ${disabled ? 'disabled' : ''}>${label}</button></div>`;
+function row(name, desc, label, disabled, id, preview = '') {
+  return `<div class="row${preview ? ' staffrow' : ''}">${preview}<span class="name">${name}</span><span class="desc">${desc}</span><button type="button" data-buy="${id}" ${disabled ? 'disabled' : ''}>${label}</button></div>`;
+}
+function drawStaffPreview(canvas) {
+  const draw = () => {
+    const g = SpriteRaster.prepare(canvas, 128, 144), image = StaffArt.frame('greet') || STAFF_SPR;
+    g.clearRect(0, 0, 128, 144);
+    const height = 136, width = height * image.width / image.height;
+    SpriteRaster.draw(g, image, (128 - width) / 2, 144 - height, width, height);
+  };
+  draw(); StaffArt.load.then(() => { if (canvas.isConnected) draw(); });
 }
 function openShop(tab = 'furniture', fromReport = false) {
   const tabs = [['furniture', '家具'], ['kitchen', 'キッチン'], ['menu', 'メニュー'], ['family', 'ねこ・人'], ['tableware','食器']];
@@ -2890,7 +2912,7 @@ function openShop(tab = 'furniture', fromReport = false) {
     const locked = stars() < STAFF.star;
     rows += '<div class="row"><span class="name">ぽんた（ぐりおの弟）のおてつだい</span><span class="desc">2日目から無料。希望は2・4・6日目…の隔日。できた料理をはこんでくれる。シフトはオーナーが調整できます</span><button type="button" id="mPontaShift">シフトを見る</button></div>';
     rows += row('アルバイトをやとう', locked ? `ひょうばん ★${STAFF.star} でやとえる` : `注文出しと片づけを手伝ってくれる。日給 ¥${STAFF.wage.toLocaleString()}`,
-      G.staff ? 'やとった' : `¥${STAFF.price.toLocaleString()}`, G.staff || locked || G.money < STAFF.price, 'buy-s-x');
+      G.staff ? 'やとった' : `¥${STAFF.price.toLocaleString()}`, G.staff || locked || G.money < STAFF.price, 'buy-s-x', '<canvas class="staff-preview" width="128" height="144" data-staff-preview="1" role="img" aria-label="カフェエプロン姿のアルバイト"></canvas>');
   }
   openModal(`
     <h2>ショップ</h2>
@@ -2901,6 +2923,7 @@ function openShop(tab = 'furniture', fromReport = false) {
   `);
   $('panel').querySelectorAll('[data-tab]').forEach(b => { b.onclick = () => openShop(b.dataset.tab, fromReport); });
   $('panel').querySelectorAll('[data-buy]').forEach(b => { b.onclick = () => { buy(b.dataset.buy); openShop(tab, fromReport); }; });
+  $('panel').querySelectorAll('[data-staff-preview]').forEach(drawStaffPreview);
   if($('mPontaShift'))$('mPontaShift').onclick=()=>openShifts(fromReport);
   $('mClose').onclick = () => { closeModal(); if (fromReport) startDay(); };
 }
