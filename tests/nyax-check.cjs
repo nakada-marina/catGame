@@ -111,6 +111,56 @@ fs.mkdirSync(artifacts, { recursive: true });
     assert.equal(retained.count, 40); assert.equal(retained.photos, 40);
     assert(retained.size < 30000, 'save stores compact metadata instead of image payloads');
     console.log('PASS all 40 retained customer photos survive save without embedding large image data');
+    const ownerPosts = await page.evaluate(() => {
+      closeModal(); talking = null; talkQ.length = 0; $('talk').hidden = true;
+      const food = MENU.find(m => m.id === 'cake');
+      const job = { item: food, c: { seat: seats[0] }, state: 'cook', t: food.time * (ZONE[0] + ZONE[1]) / 2, dur: food.time };
+      dayLog.perfectFoods = [];
+      cookTap(job); cookTap({ ...job, state: 'cook' });
+      const recorded = [...dayLog.perfectFoods];
+      const log = { served: 3, reviews: [], perfect: 1, perfectFoods: recorded, pontaNaps: 2 };
+      const random = Math.random;
+      try {
+        const noEvents = [];
+        for (const n of [0, .26, .51, .99]) { Math.random = () => n; noEvents.push(grioPostPhoto({ reviews: [] }, { posts: [] }).photo); }
+        const selected = [];
+        for (const n of [0, .18, .35, .51, .68, .99]) {
+          Math.random = () => n;
+          const shot = grioPostPhoto(log, { posts: [] });
+          selected.push(shot);
+        }
+        const key = p => p.photo?.food || p.photo?.kind || 'cafe';
+        const sequence = [];
+        for (let i = 0; i < 12; i++) { Math.random = () => 0; sequence.push(key(grioDailyPost(1, log))); }
+        // Display one actual daily post for each new subject.
+        G.sns.posts = [];
+        for (const n of [0, .18, .35, .51, .68, .99]) {
+          Math.random = () => n;
+          const post = grioDailyPost(1, log);
+          // Clearing only between selections keeps the full six-choice pool.
+          G.sns.posts = []; selected.push({ post });
+        }
+        G.sns.posts = selected.filter(s => s.post).map(s => s.post);
+        save(); openNyax();
+        return { recorded, noEvents, selected: selected.filter(s => s.photo || s.text), sequence, saved: loadSave().sns.posts };
+      } finally { Math.random = random; }
+    });
+    assert.deepEqual(ownerPosts.recorded, ['cake'], 'perfect cooking records the actual dish once');
+    assert(ownerPosts.noEvents.every(p => !p || (!p.food && p.kind !== 'nap')), 'no invented perfect dish or nap on quiet days');
+    assert.deepEqual(new Set(ownerPosts.selected.map(s => s.photo?.food || s.photo?.kind || 'cafe')), new Set(['paw', 'selfie', 'break', 'cafe', 'nap', 'cake']));
+    assert(ownerPosts.sequence.every((key, i, all) => !i || key !== all[i - 1]), 'owner avoids consecutive identical subjects');
+    assert(ownerPosts.saved.some(p => p.photo?.kind === 'nap' && p.text.includes('ぽんた')));
+    assert(ownerPosts.saved.some(p => p.photo?.food === 'cake' && p.text.includes('パーフェクト')));
+    const ownerImages = await page.locator('[data-owner-photo]').evaluateAll(canvases => canvases.map(c => ({ kind: c.dataset.ownerPhoto, image: c.toDataURL(), label: c.getAttribute('aria-label') })));
+    assert.equal(ownerImages.length, 4);
+    assert.equal(new Set(ownerImages.map(c => c.image)).size, 4, 'four distinct cat photographs render');
+    assert(ownerImages.every(c => c.label.includes('ドット絵写真')));
+    assert((await page.locator('[data-food-photo]').locator('..').textContent()).includes('ぐりおの一枚'));
+    await page.screenshot({ path: path.join(artifacts, 'grio-photos.png'), fullPage: true });
+    await page.reload(); await page.evaluate(() => artworkReady); await page.locator('#mCont').click();
+    await page.evaluate(() => { talking = null; talkQ.length = 0; $('talk').hidden = true; openNyax(); });
+    assert.equal(await page.locator('[data-owner-photo]').count(), 4, 'owner photographs survive save and reload');
+    console.log('PASS actual perfect dish capture, event-matched owner photos/text, six subjects, repeat avoidance, rendering and save/reload');
     assert.deepEqual(errors, []);
     // A missing asset still leaves usable food pictures and a working timeline.
     const fallback = await browser.newPage();

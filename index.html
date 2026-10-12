@@ -339,7 +339,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./cat-shifts.js?v=20261012-cat-shifts"></script>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./kitchen-wash.js?v=20261012-kitchen-sink"></script>
-<script src="./nyax-art.js?v=20261012-food-photos"></script>
+<script src="./nyax-art.js?v=20261012-grio-photos"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
 <script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./stray-art.js?v=20261012-single-pass"></script><script src="./rear-walk.js?v=20261012-single-pass"></script>
 <script src="./cafe-art.js?v=20261012-walk"></script>
@@ -1342,6 +1342,7 @@ function cookTap(job, u) {
   if (firstGuide && f < ZONE[0]) { toast('みどりの線までたまるのを待ってね'); return; }
   if (f >= ZONE[0] && f <= ZONE[1]) {
     job.q = 'perfect'; job.state = 'ready'; job.readyT = 0;
+    if (dayLog) { dayLog.perfectFoods ||= []; if (!dayLog.perfectFoods.includes(job.item.id)) dayLog.perfectFoods.push(job.item.id); }
     if (u) kfx.push({ x: u.x + u.w / 2, y: u.y, text: 'パーフェクト！', color: '#3aa85a', t: 0 });
     addFx('text', job.c.seat.x, job.c.seat.y - 42, { text: 'パーフェクト！', color: '#8affa0', life: 60 });
     [1047, 1319, 1568].forEach((f2, i) => tone(f2, 0.12, 'square', 0.25, null, i * 0.06));
@@ -3459,6 +3460,20 @@ function updateNyaxBadge() {
   b.textContent = G.sns.unread > 9 ? '9+' : G.sns.unread; b.hidden = !G.sns.unread;
 }
 // ぐりおが 閉店後に その日のできごとを つぶやく
+function grioPostPhoto(log, sns) {
+  const choices = [
+    { photo: { kind: 'paw' }, text: 'きょうの ぼくの肉球。ぷにぷにだにゃ。' },
+    { photo: { kind: 'selfie' }, text: '店長の ぐりおですにゃ。きょうも がんばった顔、撮ってみたにゃ。' },
+    { photo: { kind: 'break' }, text: '閉店後の コーヒーで ひとやすみだにゃ。' },
+    { text: 'きょうの お店を 一枚。あしたも 待ってるにゃ。' }
+  ];
+  if (log.pontaNaps) choices.push({ photo: { kind: 'nap' }, text: 'ぽんたの おひるねを こっそり撮ったにゃ。気持ちよさそうだにゃ…' });
+  const foods = MENU.filter(m => (log.perfectFoods || []).includes(m.id) || (log.reviews || []).some(r => r.q === 'perfect' && r.item?.includes(m.name)));
+  for (const food of foods) choices.push({ photo: { food: food.id, variant: 0 }, text: `きょうの ${food.name}、パーフェクトに できたにゃ！ 記念に一枚だにゃ。` });
+  const key = p => p?.photo?.food || p?.photo?.kind || 'cafe';
+  const last = sns.posts.find(p => p.mine);
+  return pick(choices.filter(c => !last || key(c) !== key(last)));
+}
 function grioDailyPost(day, log) {
   const sns = snsState();
   const names = cats.filter(k => !k.temp && k.pal !== 'grio').map(k => k.name);
@@ -3474,6 +3489,8 @@ function grioDailyPost(day, log) {
   if (best) extra.push(`「${best.item}が おいしかった」って 言ってもらえたにゃ`);
   if (names.length) extra.push(`${pick(names)}も がんばったにゃ`);
   parts.push(...extra.sort(() => Math.random() - 0.5).slice(0, 2));
+  const shot = grioPostPhoto(log, sns);
+  parts.push(shot.text);
   const text = parts.join('\n') + '\n#ねこカフェ #ぐりおのねこカフェ';
   render();
   let target = 4 + sns.followers * 0.12 + G.pop * 0.25 + log.served * 0.8 + (log.perfect || 0) * 1.5;
@@ -3481,7 +3498,8 @@ function grioDailyPost(day, log) {
   if (log.newCat) target *= 1.5;
   let luck = rnd(0.6, 1.6); if (Math.random() < 0.07) luck *= 6;
   target = Math.max(1, Math.round(target * luck));
-  const post = { id: ++sns.seq, mine: true, name: 'ぐりおのねこカフェ', handle: 'guriocafe', text, img: snapCafe(), day, t: CLOSE, growDay: day + 1, likes: Math.round(target * 0.05), rts: 0, replies: [], target, buzzed: false };
+  const post = { id: ++sns.seq, mine: true, name: 'ぐりおのねこカフェ', handle: 'guriocafe', text, day, t: CLOSE, growDay: day + 1, likes: Math.round(target * 0.05), rts: 0, replies: [], target, buzzed: false };
+  if (shot.photo) post.photo = shot.photo; else post.img = snapCafe();
   sns.posts.unshift(post); sns.posts = sns.posts.slice(0, 40); sns.unread++;
   return post;
 }
@@ -3490,7 +3508,8 @@ function openNyax() {
   const esc = t => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const tl = sns.posts.map(p => {
     const food = p.photo && MENU.find(m => m.id === p.photo.food);
-    const photo = food ? `<figure class="nx-photo"><canvas width="192" height="144" data-food-photo="${food.id}" data-variant="${p.photo.variant === 1 ? 1 : 0}" role="img" aria-label="${esc(food.name)}のドット絵写真"></canvas><figcaption>${esc(food.name)} ・ お客さんの一枚</figcaption></figure>` : p.img ? `<img src="${p.img}" alt="お店の写真">` : '';
+    const owner = p.mine && p.photo && Object.hasOwn(NyaxArt.ownerLabels, p.photo.kind) ? p.photo.kind : null;
+    const photo = food ? `<figure class="nx-photo"><canvas width="192" height="144" data-food-photo="${food.id}" data-variant="${p.photo.variant === 1 ? 1 : 0}" role="img" aria-label="${esc(food.name)}のドット絵写真"></canvas><figcaption>${esc(food.name)} ・ ${p.mine ? 'ぐりおの一枚' : 'お客さんの一枚'}</figcaption></figure>` : owner ? `<figure class="nx-photo"><canvas width="192" height="144" data-owner-photo="${owner}" role="img" aria-label="${NyaxArt.ownerLabels[owner]}のドット絵写真"></canvas><figcaption>${NyaxArt.ownerLabels[owner]} ・ ぐりおの一枚</figcaption></figure>` : p.img ? `<img src="${p.img}" alt="お店の写真">` : '';
     return `
     <div class="nx-post${p.bad ? ' bad' : ''}">
       <div class="nx-av" style="background:${p.mine ? '#e9dcc0' : `hsl(${(p.handle.length * 47) % 360} 45% 55%)`}">${p.mine ? '<canvas width="64" height="64" data-face="1"></canvas>' : esc(p.name[0])}</div>
@@ -3515,6 +3534,7 @@ function openNyax() {
     const draw = () => NyaxArt.draw(c, c.dataset.foodPhoto, Number(c.dataset.variant));
     draw(); NyaxArt.ready.then(() => { if (c.isConnected) draw(); });
   });
+  $('panel').querySelectorAll('[data-owner-photo]').forEach(c => NyaxArt.drawOwner(c, c.dataset.ownerPhoto, CHAR_SPR, FACES));
   $('mClose').onclick = closeModal;
   event('nyax');
 }
