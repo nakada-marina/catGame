@@ -44,14 +44,13 @@
         g.fillStyle = `rgba(255,243,186,${Math.sin(phase * Math.PI) * .6})`;
         g.fillRect(440 + i * 44 + Math.sin(t * .5 + i) * 12, 340 + phase * 360, 4, 4);
       }
-      const cycle = t % 20, walking = cycle < 6 || cycle >= 12 && cycle < 18;
-      const x = cycle < 6 ? 625 + cycle * 39 : cycle < 12 ? 859 : cycle < 18 ? 859 - (cycle - 12) * 39 : 625;
-      const pose = walking ? 'walk' + (Math.floor(t * 7) % 4) : 'coffee';
+      const landscape = width >= 600 && height <= 500;
+      const x = landscape ? 750 : 680;
       const lift = height < 650 && width < 600 ? 85 : 0;
-      sprite('grio', reactionUntil > t ? 'joy' : pose, x, 728 - lift, 178, cycle >= 12 && cycle < 18 ? -1 : 1);
-      if (walking && reactionUntil <= t) {
-        const cupX = x + (cycle < 6 ? 51 : -51), cupY = 728 - lift - 80;
-        g.drawImage(window.KitchenArt.food('coffee'), cupX - 17, cupY, 34, 34);
+      const grioY = 728 - lift;
+      sprite('grio', reactionUntil > t ? 'joy' : 'coffee', x, grioY, 178);
+      if (reactionUntil <= t) {
+        const cupX = x + 42, cupY = grioY - 100;
         for (let i = 0; i < 3; i++) {
           const p = (t * .5 + i / 3) % 1;
           g.fillStyle = `rgba(255,252,235,${(1 - p) * .65})`;
@@ -59,7 +58,7 @@
         }
       }
       const rest = t % 16, pontaPose = reactionUntil > t ? 'joy' : rest < 9 ? 'sleepbag' : rest < 13 ? 'groom' : 'sit';
-      sprite('ponta', pontaPose, 890, 808 - lift + (rest < 9 ? Math.sin(t * 1.7) * 2 : 0), 172, -1);
+      sprite('ponta', pontaPose, 890, 808 - lift, 172, -1);
       if (rest < 9 && reactionUntil <= t) {
         const p = (t * .35) % 1;
         g.globalAlpha = 1 - p; g.fillStyle = '#fff6db'; g.font = 'bold 24px monospace';
@@ -70,6 +69,13 @@
       }
       g.restore();
       greeting.textContent = reactionUntil > t ? 'なでてくれて、ありがとにゃ！' : greetings[Math.floor(t / 6) % greetings.length];
+      // Keep the bubble and its tail attached to Grio at every screen size.
+      const anchor = offsetX + x * scale, bubbleWidth = Math.min(286, width - 24);
+      const center = Math.max(12 + bubbleWidth / 2, Math.min(width - 12 - bubbleWidth / 2, anchor));
+      greeting.classList.toggle('below', landscape);
+      greeting.style.left = center + 'px';
+      greeting.style.top = (offsetY + (landscape ? grioY + 44 : grioY - 178 * 144 / 128 - 18) * scale) + 'px';
+      greeting.style.setProperty('--tail-x', (anchor - center + bubbleWidth / 2) + 'px');
       canvas.dataset.frame = String(Math.round(t * 30));
     }
     function resize() {

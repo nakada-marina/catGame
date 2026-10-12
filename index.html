@@ -295,7 +295,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .shift-controls button { font-size:13px; min-height:44px; }
 </style>
 <link rel="stylesheet" href="./visual-renewal.css?v=20261012-fit-screen">
-<link rel="stylesheet" href="./title-screen.css?v=20261012-cafe-title">
+<link rel="stylesheet" href="./title-screen.css?v=20261012-fixed-cats">
 </head>
 <body>
 <div id="wrap">
@@ -345,7 +345,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
 <script src="./character-art.js?v=20261011-nyaimee"></script>
-<script src="./title-scene.js?v=20261012-cafe-title"></script>
+<script src="./title-scene.js?v=20261012-fixed-cats"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -3089,7 +3089,7 @@ function openTitle() {
   document.body.classList.add('at-title');
   const screen = $('titleScreen'); screen.hidden = false;
   screen.innerHTML = `
-    <canvas id="titleScene" class="title-scene" role="img" aria-label="朝のねこカフェ。ぐりおがコーヒーを運び、ぽんたがひと休みしています。"></canvas>
+    <canvas id="titleScene" class="title-scene" role="img" aria-label="朝のねこカフェ。ぐりおがコーヒーを用意し、ぽんたがひと休みしています。"></canvas>
     <div class="title-shade" aria-hidden="true"></div>
     <div class="title-topline"><span class="title-open">10:00 ・ OPEN</span><button type="button" id="titleMotion" class="title-motion" aria-pressed="true">動き ON</button></div>
     <header class="title-brand"><div class="title-sign"><h1 id="titleName" class="title-name"><span>ぐりおの</span><strong>ねこカフェ</strong></h1></div><p class="title-copy">ねこと育てる、小さなカフェ。</p></header>

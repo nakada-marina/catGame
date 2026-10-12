@@ -84,6 +84,38 @@ fs.mkdirSync(artifacts, { recursive: true });
     const progress = await resumed.evaluate(() => ({ day: G.day, money: G.money, pop: G.pop, menu: G.menu }));
     assert.equal(progress.day, 7); assert.equal(progress.money, 12345); assert.equal(progress.pop, 48); assert(progress.menu.includes('tea'));
     console.log('PASS saved-day label, unchanged saved progress while title animates, and resume');
+    const pinned = await browser.newPage({ viewport: { width: 393, height: 852 } });
+    pinned.on('pageerror', e => errors.push(e.message));
+    await pinned.clock.install();
+    await pinned.goto(base); await pinned.evaluate(() => titleScene.ready);
+    await pinned.evaluate(() => {
+      window.titleAnchors = [];
+      const draw = SpriteRaster.draw;
+      SpriteRaster.draw = function (g, ...args) {
+        if (g.canvas.id === 'titleScene') {
+          const m = g.getTransform(), ratio = g.canvas.width / g.canvas.clientWidth;
+          window.titleAnchors.push({ x: m.e / ratio, y: m.f / ratio });
+          window.titleAnchors = window.titleAnchors.slice(-2);
+        }
+        return draw(g, ...args);
+      };
+    });
+    await pinned.clock.runFor(100);
+    const position = () => pinned.evaluate(() => ({
+      cats: window.titleAnchors,
+      bubble: { x: $('titleGreeting').offsetLeft, y: $('titleGreeting').offsetTop, width: $('titleGreeting').offsetWidth, height: $('titleGreeting').offsetHeight },
+      tail: $('titleGreeting').getBoundingClientRect().left + parseFloat($('titleGreeting').style.getPropertyValue('--tail-x'))
+    }));
+    const anchor = await position();
+    assert.equal(anchor.cats.length, 2);
+    assert(Math.abs(anchor.tail - anchor.cats[0].x) < 3, 'bubble tail points to Grio');
+    for (let i = 0; i < 4; i++) {
+      await pinned.clock.runFor(6100);
+      assert.deepEqual(await position(), anchor, 'both cats and bubble stay fixed through pose and greeting changes');
+    }
+    await pinned.screenshot({ path: path.join(artifacts, 'title-fixed-cats.png') });
+    console.log('PASS both cat positions and speech bubble stay fixed for a complete animation cycle');
+    await pinned.close();
     const reduced = await browser.newPage({ reducedMotion: 'reduce' });
     reduced.on('pageerror', e => errors.push(e.message));
     await reduced.goto(base); await reduced.evaluate(() => titleScene.ready);
