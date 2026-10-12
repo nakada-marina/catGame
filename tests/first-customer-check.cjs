@@ -11,7 +11,7 @@ function source(name) {
   assert(start>=0&&end>start,'function exists: '+name);return html.slice(start,end);
 }
 const guide=html.slice(html.indexOf('// ================= 最初のお客さんの操作案内 ================='),html.indexOf('// ================= 最初のお客さんの操作案内ここまで ================='));
-const functions=['clearTable','refreshDishes','washDishes','syncCatRoster','makeCat','spawnCats','beginPontaExit','updateShiftAttendance','makePonta','newSave','spawnCustomer','moveTo','serve','cookTap','deliver','updateCustomer','updateJobs','startCook','startDay','update','updateCheckout','checkoutLine','checkoutWaiting','admitCheckout','checkoutPosition','beginCheckout','makeBill','save','loadSave'];
+const functions=['clearTable','refreshDishes','washDishes','syncCatRoster','makeCat','spawnCats','beginPontaExit','updateShiftAttendance','makePonta','newSave','spawnCustomer','moveTo','chooseOrder','serve','cookTap','deliver','updateCustomer','updateJobs','startCook','startDay','update','updateCheckout','checkoutLine','checkoutWaiting','admitCheckout','checkoutPosition','beginCheckout','makeBill','save','loadSave'];
 const elements={};
 const $=id=>elements[id]||(elements[id]={hidden:true,textContent:'',disabled:false,scrollIntoView(){}});
 const api=new Function('$','assert','CafeFinance','CafeShifts','CafeService',`
@@ -26,6 +26,7 @@ const sfx={doorbell(){},serve(){}};
 const rollMarket=()=>({}),rnd=(a,b)=>(a+b)/2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),pick=a=>a[0],randomLook=()=>({}),makePerson=()=>({});
 const freeSeats=()=>seats.filter(s=>!s.cust),tone=()=>{},addFx=()=>{},chat=()=>{},catNear=()=>false,decor=()=>0;
 const toast=()=>{},updateHud=()=>{},updateStockInfo=()=>{},event=()=>{},say=lines=>dialogues.push(lines);
+const makeCount=item=>Math.min(...Object.entries(item.need).map(([id,n])=>Math.floor((G.stock[id]||[]).reduce((sum,lot)=>sum+lot.n,0)/n)));
 const canMake=item=>Object.entries(item.need).every(([id,n])=>(G.stock[id]||[]).reduce((sum,lot)=>sum+lot.n,0)>=n);
 const consume=item=>{for(const [id,n]of Object.entries(item.need))G.stock[id][0].n-=n;};
 const queued=st=>jobs.filter(j=>j.state==='queue'&&j.st===st);
@@ -52,7 +53,7 @@ return {
 };
 `)($,assert,CafeFinance,CafeShifts,CafeService);
 api.reset();assert.equal(api.state().speed,1);
-assert(!elements.firstGuide.hidden);assert(elements.btnSpeed.disabled);
+assert(!elements.firstGuide.hidden);assert(elements.btnSpeed.disabled);assert(!elements.btnStock.disabled,'day1 manual supplies available during introduction');
 api.step(800);
 let s=api.state();assert.equal(s.customers.length,1);assert.equal(s.customers[0].order.id,'coffee');assert.equal(s.firstGuide.step,'order');
 const patience=s.customers[0].pat,clock=s.G.time;
@@ -87,5 +88,9 @@ for(const stage of ['arrival','order','queue','cook','ready']){
  api.skip();assert.equal(api.state().firstGuide,null);assert.equal(api.state().jobs.length,before,'skip preserves work: '+stage);
  api.step(30);assert(api.state().G.time>600);api.resume();assert.equal(api.state().firstGuide,null);
 }
+api.reset();api.state().G.stock.beans=[];api.step(800);
+assert.equal(api.state().firstGuide.step,'stock','guide requests bean refill when saved coffee is sold out');
+assert.equal(api.state().customers[0].state,'menuWait');assert(!elements.btnStock.disabled);
+api.state().G.stock.beans=[{n:5,day:1}];api.step();assert.equal(api.state().firstGuide.step,'order');assert.equal(api.state().customers[0].order.id,'coffee');
 for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(match[1].trim())new Function(match[1]);
 console.log('PASS first customer workflow, frozen clock/patience, retries, manual work, save compatibility, skip at every phase, normal resume and syntax');

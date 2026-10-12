@@ -295,7 +295,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .shift-controls button { font-size:13px; min-height:44px; }
 </style>
 <link rel="stylesheet" href="./visual-renewal.css?v=20261012-fit-screen">
-<link rel="stylesheet" href="./title-screen.css?v=20261012-fixed-cats">
+<link rel="stylesheet" href="./title-screen.css?v=20261012-menu-clearance">
 </head>
 <body>
 <div id="wrap">
@@ -345,7 +345,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./cafe-art.js?v=20261012-walk"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
 <script src="./character-art.js?v=20261011-nyaimee"></script>
-<script src="./title-scene.js?v=20261012-fixed-cats"></script>
+<script src="./title-scene.js?v=20261012-menu-clearance"></script>
 <script>
 'use strict';
 // ================= 画面 =================
@@ -866,11 +866,13 @@ function beginFirstGuide() {
 function refreshFirstGuide() {
   const panel = $('firstGuide');
   panel.hidden = !firstGuide;
-  for (const id of ['btnFood','btnStock','btnShop','btnNyaimee','btnNyax','btnSpeed','btnFinance','btnShift','btnWash']) $(id).disabled = !!firstGuide;
+  for (const id of ['btnFood','btnShop','btnNyaimee','btnNyax','btnSpeed','btnFinance','btnShift','btnWash']) $(id).disabled = !!firstGuide;
+  $('btnStock').disabled=false;
   if (!firstGuide || firstGuide.shown === firstGuide.step) return;
   firstGuide.shown = firstGuide.step;
   const hints = {
     arrival: ['はじめての接客', '最初のお客さんが来るよ。まずは席につくのを待とう。'],
+    stock: ['コーヒー豆を仕入れる', 'コーヒーが品切れだね。下の「仕入れ」からコーヒー豆を補充してね。'],
     order: ['1 / 3 注文をうける', 'お客さんのコーヒーのふきだしをタップしてね。'],
     start: ['2 / 3 コーヒーをつくる', '下のキッチンで、光っているコーヒーマシンをタップしてね。'],
     brew: ['2 / 3 コーヒーをつくる', 'みどりの線までたまるのを待とう。まだタップしなくて大丈夫。'],
@@ -894,7 +896,8 @@ function finishFirstGuide(skipped = false) {
 function updateFirstGuide() {
   if (!firstGuide.customer && --spawnTimer <= 0) spawnCustomer();
   customers.forEach(updateCustomer);
-  if (firstGuide.customer?.state === 'order') firstGuide.step = 'order';
+  if (firstGuide.customer?.state === 'menuWait') firstGuide.step='stock';
+  else if (firstGuide.customer?.state === 'order') firstGuide.step = 'order';
   const job = firstGuide.job;
   if (job?.state === 'cook') {
     job.t = Math.min(job.t + 1, Math.ceil(job.dur * .75));
@@ -1050,7 +1053,7 @@ function financeResultHtml(result) {
       [m.closed?'確定した税金':'税金の見込み（利益の10%）',-tax],
       ['今月の保険料・年金',-(m.expenses.health||0)-(m.expenses.pension||0)-(m.expenses.staffInsurance||0)]
     ])}</div><p class="sub">保険料・年金は上の経費に含まれます。${m.closed?'月末締め済み':'税金は月末に確定'}。${financeDate(m.month*CafeFinance.rules.daysPerMonth+CafeFinance.rules.monthlyPaymentDelay)}に税金・保険料を支払います。</p>
-    <details><summary>ゲームの経理ルール</summary><p class="sub">10日で1か月。カード利用40%、手数料3%（会計ごとに円単位へ四捨五入）。月末締め・翌月2日入金。税金は月の黒字の10%、店長の健康保険400円・年金600円／月、スタッフ社会保険は給与の10%をお店が負担。税金・保険料は翌月3日払い。仕入れは3日ごと。購入日に経費と買掛へ、10日ごとの月末に支払い。設備投資は資金の増減へ反映します。実際の税制・保険制度を再現した計算ではありません。</p></details>
+    <details><summary>ゲームの経理ルール</summary><p class="sub">10日で1か月。カード利用40%、手数料3%（会計ごとに円単位へ四捨五入）。月末締め・翌月2日入金。税金は月の黒字の10%、店長の健康保険400円・年金600円／月、スタッフ社会保険は給与の10%をお店が負担。税金・保険料は翌月3日払い。リザルトの仕入れは初日から3日ごと。下の「仕入れ」では毎日追加購入できます。購入日に経費と買掛へ、10日ごとの月末に支払い。設備投資は資金の増減へ反映します。実際の税制・保険制度を再現した計算ではありません。</p></details>
     </section>`;
 }
 function showDayResult() {
@@ -1113,8 +1116,8 @@ function consume(item) {
     while (left > 0 && lots.length) { const take = Math.min(left, lots[0].n); lots[0].n -= take; left -= take; if (!lots[0].n) lots.shift(); }
   }
 }
-function addStock(id, n) {
-  if(!CafeService.supplyDay(G.day))return 0;
+function addStock(id, n, daily = false) {
+  if(!daily&&!CafeService.supplyDay(G.day))return 0;
   const it = ingr(id), room = capOf(it.life > 0) - usedOf(it.life > 0);
   n = Math.min(n, room); if (n <= 0) return 0;
   const cost = unitPrice(id) * n;
@@ -1293,12 +1296,18 @@ function spawnCustomer() {
   sfx.doorbell(); addFx('text', ENTRANCE.x, ENTRANCE.y - 34, { text: 'カランコロン♪', color: '#fff2a0', life: 60 });
 }
 function chooseOrder() {
-  const items = MENU.filter(m => G.menu.includes(m.id));
+  if(firstGuide){
+    const coffee=MENU.find(m=>m.id==='coffee');
+    return makeCount(coffee)>0?coffee:null;
+  }
+  const items=MENU.filter(m=>G.menu.includes(m.id)&&makeCount(m)>0);
+  if(!items.length)return null;
   const drinks=items.filter(m=>['coffee','tea'].includes(m.id)),sweets=items.filter(m=>['cookie','cake','pancake','parfait'].includes(m.id));
-  if(drinks.length&&sweets.length&&Math.random()<.3)return CafeService.bundle(pick(drinks),pick(sweets));
-  const weights = items.map((m, i) => 1 + i * 0.6);
-  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < items.length; i++) { r -= weights[i]; if (r <= 0) return items[i]; }
+  const sets=drinks.flatMap(drink=>sweets.map(sweet=>CafeService.bundle(drink,sweet))).filter(set=>makeCount(set)>0);
+  if(sets.length&&Math.random()<.3)return pick(sets);
+  const weights=items.map((m,i)=>1+i*.6);
+  let r=Math.random()*weights.reduce((a,b)=>a+b,0);
+  for(let i=0;i<items.length;i++){r-=weights[i];if(r<=0)return items[i];}
   return items[0];
 }
 function moveTo(e, tx, ty, sp) {
@@ -1317,10 +1326,15 @@ const catNear = seat => cats.some(k => k.visit === seat && k.state === 'visit');
 function serve(c, byStaff) {
   if(firstGuide&&byStaff)return false;
   if(c.state!=='order')return false;
+  if(!c.order||makeCount(c.order)<1){
+    c.order=chooseOrder();c.state=c.order?'order':'menuWait';c.t=0;c.pat=c.maxPat;c.saidWait=false;
+    if(!byStaff)toast(c.order?'品切れのため、別の料理を選んでもらいました':'すべて品切れです。「仕入れ」で補充できます');
+    return false;
+  }
   if(!canMake(c.order)){
     if(!byStaff){
       const miss=Object.entries(c.order.need).filter(([id,n])=>stockOf(id)<n).map(([id])=>ingr(id).name).join('・');
-      toast(miss?miss+'が足りない！仕入れ日を確認しよう':'洗った食器が足りません。「洗い物」で洗うか、ショップで増やそう');
+      toast(miss?miss+'が足りない！「仕入れ」で補充しよう':'洗った食器が足りません。「洗い物」で洗うか、ショップで増やそう');
       sfx.angry();if(miss)event('stockout');
     }return false;
   }
@@ -1440,10 +1454,22 @@ function updateCustomer(c) {
     if (moveTo(c, s.x, s.y + 2, 0.7)) { c.state = 'sit'; c.t = 0; chat(c, ['ねこカフェ、きてみたかった！', 'ねこ、どこかな〜', 'いいにおい…', 'おちつくお店だね', 'なに たのもうかな'], 0.45); }
   } else if (c.state === 'sit') {
     if (c.t > 70) {
-      c.state = 'order'; c.t = 0; c.order = firstGuide ? MENU.find(m => m.id === 'coffee') : chooseOrder();
+      c.order=chooseOrder();c.state=c.order?'order':'menuWait';c.t=0;
+      if(!c.order)chat(c,'品切れみたい。また今度来ようかな');
       c.maxPat = 760 + decor() * 40; c.pat = c.maxPat;
     }
+  } else if(c.state==='menuWait'){
+    c.order=chooseOrder();
+    if(c.order){c.state='order';c.t=0;c.pat=c.maxPat;c.saidWait=false;}
+    else if(!firstGuide&&(mode==='closing'||c.t>=180)){
+      c.state='leave';c.t=0;s.cust=null;chat(c,'また今度来るね');
+    }
   } else if (c.state === 'order') {
+    if(!c.order||makeCount(c.order)<1){
+      c.order=chooseOrder();c.state=c.order?'order':'menuWait';c.t=0;c.pat=c.maxPat;c.saidWait=false;
+      if(!c.order)chat(c,'品切れみたい。また今度来ようかな');
+      return;
+    }
     if (!firstGuide) c.pat -= catNear(s) ? 0.5 : 1;
     if (!c.saidWait && c.pat < c.maxPat * 0.35) { c.saidWait = true; chat(c, ['まだかな…', 'すみませーん！', 'ちゅうもん…', 'おなかすいた…']); }
     if (G.staff && !staffBusy && !c.orderTaker && c.t > 200 && canMake(c.order)) { staffBusy = 40; serve(c, true); }
@@ -2901,7 +2927,7 @@ function buy(id) {
   sfx.buy(); save(); updateHud();
 }
 function openStock(fromReport = false) {
-  const scheduled=CafeService.supplyDay(G.day),balance=CafeFinance.view(G);
+  const scheduled=CafeService.supplyDay(G.day),allowed=!fromReport||scheduled,balance=CafeFinance.view(G);
   const items = MENU.filter(m => G.menu.includes(m.id));
   const needed = new Set(items.flatMap(m => Object.keys(m.need)));
   const list = INGR.filter(it => needed.has(it.id) || stockOf(it.id) > 0).map(it => {
@@ -2911,13 +2937,13 @@ function openStock(fromReport = false) {
     const room = capOf(it.life > 0) - usedOf(it.life > 0);
     return `<div class="ingr"><img src="${INGR_IMG[it.id]}" alt=""><span class="name">${it.name}${tag}</span>
       <span class="desc">1こ ¥${price}・${life}</span><span class="qty">${stockOf(it.id)}こ</span>
-      <span class="btns"><button type="button" data-add="${it.id}:5" ${room < 1 || !scheduled ? 'disabled' : ''}>+5</button><button type="button" data-add="${it.id}:10" ${room < 1 || !scheduled ? 'disabled' : ''}>+10</button></span></div>`;
+      <span class="btns"><button type="button" data-add="${it.id}:5" ${room < 1 || !allowed ? 'disabled' : ''}>+5</button><button type="button" data-add="${it.id}:10" ${room < 1 || !allowed ? 'disabled' : ''}>+10</button></span></div>`;
   }).join('');
   const make = items.map(m => { const n = makeCount(m); return `<span>${m.name} <b class="${n ? '' : 'zero'}">${n}</b></span>`; }).join('');
   openModal(`
     <h2>仕入れ</h2>
     <p class="sub">もちきん ¥${G.money.toLocaleString()}　冷蔵庫 ${usedOf(true)}/${capOf(true)}　たな ${usedOf(false)}/${capOf(false)}</p>
-    <p class="sub">${scheduled?'きょうは仕入れ日です。材料はすぐ届きます。':'つぎの仕入れは通算'+CafeService.nextSupply(G.day)+'日目です。'} 1・4・7・10日目…の3日おき。買掛で購入し、月末（10日ごと）の閉店時にまとめて支払います。営業中も同じ価格です。</p>
+    <p class="sub">${fromReport?(scheduled?'あすは仕入れ日です。材料はすぐ届きます。':'リザルトからの仕入れは通算'+CafeService.nextSupply(G.day)+'日目にできます。')+' 定期の仕入れ日は1・4・7・10日目…の3日おき。':'下の「仕入れ」からは初日も含めて毎日追加購入できます。材料はすぐ届きます。'} 買掛で購入し、月末（10日ごと）の閉店時にまとめて支払います。価格は共通です。</p>
     <p class="sub">仕入れ買掛：${financeYen(balance.payable)} ／ 今月の支払い：${financeDate(CafeFinance.date(G.day).end)}</p>
     <p class="sub">いまの材料で つくれる数</p>
     <div class="make">${make}</div>
@@ -2927,9 +2953,9 @@ function openStock(fromReport = false) {
   $('panel').querySelectorAll('[data-add]').forEach(b => {
     b.onclick = () => {
       const [id, n] = b.dataset.add.split(':');
-      const got = addStock(id, +n);
+      const got = addStock(id, +n, !fromReport);
       if (got) { sfx.buy(); if (got < +n) toast('おき場所がいっぱいです'); }
-      else toast(!scheduled?'きょうは仕入れ日ではありません':'おき場所がいっぱいです');
+      else toast(!allowed?'リザルトからは3日ごとの仕入れ日に購入できます':'おき場所がいっぱいです');
       save(); updateHud(); const st = $('panel').scrollTop; openStock(fromReport); $('panel').scrollTop = st;
     };
   });
