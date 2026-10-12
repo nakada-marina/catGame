@@ -74,6 +74,11 @@ body {
   cursor: pointer;
 }
 #stage { position: relative; }
+#registerBar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; padding:7px 9px; background:#293e32; border:1px solid #b89b5a; border-radius:6px; }
+#registerBar[hidden] { display:none; }
+#registerInfo { font-size:11px; line-height:1.4; color:#eee3c9; }
+#btnRegister { min-height:44px; padding:7px 10px; font-size:13px; background:#f2c14e; color:#3a2a10; border-bottom-color:#a07a10; white-space:nowrap; }
+#btnRegister:disabled { opacity:.6; }
 #talk {
   position: absolute;
   left: 8px; right: 8px; bottom: 8px;
@@ -294,6 +299,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
   </div>
   <canvas id="kitchenCv" aria-label="キッチン：設備をタップして調理"></canvas>
   <div id="dock">
+  <div id="registerBar" hidden aria-label="レジのお会計"><span id="registerInfo" role="status" aria-live="polite"></span><button type="button" id="btnRegister" disabled>お会計</button></div>
   <div id="actions">
     <button type="button" id="btnFood">ごはん<small id="foodLeft">のこり0</small></button>
     <button type="button" id="btnStock">仕入れ<small id="stockInfo">ざいこ</small></button>
@@ -303,7 +309,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
   </div>
   <div id="sub">
     <button type="button" id="btnNyax" class="nyax-btn">ニャックス<span id="nyaxBadge" class="badge" hidden>0</span></button>
-    <span>ふきだし＝注文・設備＝調理・ねこ＝なでる</span>
+    <span>ふきだし＝注文・設備＝調理・レジ＝会計</span>
     <span class="tools"><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
   </div>
   </div>
@@ -901,6 +907,87 @@ function drawFirstGuideKitchenTarget() {
 $('firstGuideSkip').onclick = () => finishFirstGuide(true);
 // ================= 最初のお客さんの操作案内ここまで =================
 
+// ================= レジでのお会計 =================
+const REGISTER = { x: 158, y: 128, queueX: 146, queueY: 154, spacing: 42, capacity: 3, autoAfter: 240, staffAfter: 90, paymentTime: 36 };
+let checkoutSeq = 0, registerFlash = 0;
+const customerOnFloor = c => ['enter','toRegister','checkout','paying','leave'].includes(c.state);
+function checkoutLine() {
+  return customers.filter(c => ['toRegister','checkout','paying'].includes(c.state) && !c.gone).sort((a,b) => a.checkoutSeq - b.checkoutSeq);
+}
+function checkoutWaiting() {
+  return customers.filter(c => c.state === 'checkoutSeat').sort((a,b) => a.checkoutSeq - b.checkoutSeq);
+}
+function checkoutPosition(c) {
+  const index = checkoutLine().indexOf(c);
+  return { x: REGISTER.queueX, y: REGISTER.queueY + Math.max(0,index) * REGISTER.spacing };
+}
+function makeBill(c) {
+  const item = c.order, wait = 1 - c.patAtServe / c.maxPat;
+  let sat = 52 + decor() * 2.5 + Math.min(3,c.visits) * 9 + (avgMood()-50) * .25 - wait * 30 - furs.length * 2.5;
+  sat += c.quality === 'perfect' ? 14 : c.quality === 'cold' ? -14 : 0;
+  sat = clamp(Math.round(sat + rnd(-6,6)),0,100);
+  let tip = sat > 62 ? Math.round(item.price * (sat-62) / 100 / 10) * 10 : 0;
+  if (c.quality === 'perfect') tip = Math.round((tip + item.price * .15) / 10) * 10;
+  const vipBonus = !!c.vip && wait < .5;
+  if (vipBonus) tip = tip * 3 + 500;
+  return { sat, tip, total: item.price + tip, vipBonus };
+}
+function beginCheckout(c) {
+  if (c.state !== 'eat' || c.bill) return false;
+  c.bill = makeBill(c); c.checkoutSeq = ++checkoutSeq;
+  c.state = 'checkoutSeat'; c.t = 0;
+  chat(c,'お会計、お願いします');
+  event('register');
+  return true;
+}
+function admitCheckout(c) {
+  const s = c.seat;
+  if (!s || s.cust !== c) return false;
+  c.x = s.x; c.y = s.y + 2;
+  s.cust = null; s.dirty = true; s.dirtyT = 0;
+  c.seat = null; c.state = 'toRegister'; c.t = 0;
+  return true;
+}
+function updateCheckout() {
+  if (registerFlash > 0) registerFlash--;
+  let room = REGISTER.capacity - checkoutLine().length;
+  for (const c of checkoutWaiting()) {
+    if (room <= 0) break;
+    if (admitCheckout(c)) room--;
+  }
+  const head = checkoutLine()[0];
+  if (head?.state === 'checkout') {
+    const staffReady = G.staff && !staffBusy && head.t >= REGISTER.staffAfter;
+    if (staffReady || head.t >= REGISTER.autoAfter) {
+      if (pay(head) && staffReady) staffBusy = REGISTER.paymentTime;
+    }
+  }
+  refreshRegister();
+}
+function refreshRegister() {
+  const bar = $('registerBar'), line = checkoutLine(), waiting = checkoutWaiting(), count = line.length + waiting.length;
+  bar.hidden = !count || !!firstGuide || (mode !== 'open' && mode !== 'closing');
+  const head = line[0], ready = head?.state === 'checkout' && !head.paid;
+  const info = head?.state === 'paying' ? 'お支払いありがとうございます' : ready ? 'レジ待ち ' + count + '人・少し待つと自動会計' : 'お会計へ移動中・待ち ' + count + '人';
+  if ($('registerInfo').textContent !== info) $('registerInfo').textContent = info;
+  const button = $('btnRegister'), label = ready ? 'お会計 ¥' + head.bill.total.toLocaleString() : head?.state === 'paying' ? 'お支払い中' : 'レジへ移動中';
+  button.disabled = !ready || !!firstGuide;
+  if (button.textContent !== label) button.textContent = label;
+}
+function tapRegister() {
+  if (!G || firstGuide || isPaused() || !['open','closing'].includes(mode)) return false;
+  const head = checkoutLine()[0];
+  if (!head || head.state !== 'checkout') {
+    toast(head ? 'お客さんがレジに着くのを待とう' : 'お会計を待っているお客さんはいません');
+    return false;
+  }
+  return pay(head);
+}
+function registerHit(x,y) {
+  return x >= REGISTER.x - 17 && x <= REGISTER.x + 17 && y >= REGISTER.y / 2 - 27 && y <= REGISTER.y / 2 + 8;
+}
+// ================= レジでのお会計ここまで =================
+
 function newSave() {
   return {
     day: 1, money: 8000, pop: 10, bowl: 6, staff: false, served: 0, legend: false,
@@ -1208,7 +1295,16 @@ function updateCustomer(c) {
     if (c.pat <= 0) leaveAngry(c);
   } else if (c.state === 'eat') {
     if (c.t === 170) chat(c, c.quality === 'cold' ? ['ちょっと さめてる…'] : ['おいしい！', 'しあわせ〜', 'ねこ見ながら たべるの さいこう', 'これ すき！'], 0.5);
-    if (c.t > 420) pay(c);
+    if (c.t > 420) beginCheckout(c);
+  } else if (c.state === 'toRegister' || c.state === 'checkout') {
+    const target = checkoutPosition(c);
+    if (Math.hypot(c.x - target.x,c.y - target.y) > .01) {
+      if (c.state === 'checkout') { c.state = 'toRegister'; c.t = 0; }
+      c.anim++;
+      if (moveTo(c,target.x,target.y,.85)) { c.state = 'checkout'; c.t = 0; c.walkFacing = 'back'; }
+    } else if (c.state === 'toRegister') { c.state = 'checkout'; c.t = 0; c.walkFacing = 'back'; }
+  } else if (c.state === 'paying') {
+    if (c.t >= REGISTER.paymentTime) { c.state = 'leave'; c.t = 0; }
   } else if (c.state === 'leave') {
     c.anim++;
     if (moveTo(c, ENTRANCE.x, ENTRANCE.y + 10, 0.8)) c.gone = true;
@@ -1224,25 +1320,24 @@ function leaveAngry(c) {
   dayLog.reviews.push({ sat: 10, item: c.order.name, cat: false });
 }
 function pay(c) {
-  const s = c.seat, item = c.order;
-  const wait = 1 - c.patAtServe / c.maxPat;
-  let sat = 52 + decor() * 2.5 + Math.min(3, c.visits) * 9 + (avgMood() - 50) * 0.25 - wait * 30 - furs.length * 2.5;
-  sat += c.quality === 'perfect' ? 14 : c.quality === 'cold' ? -14 : 0;
-  sat = clamp(Math.round(sat + rnd(-6, 6)), 0, 100);
-  let tip = sat > 62 ? Math.round(item.price * (sat - 62) / 100 / 10) * 10 : 0;
-  if (c.quality === 'perfect') tip = Math.round((tip + item.price * 0.15) / 10) * 10;
-  if (c.vip && wait < 0.5) { tip = tip * 3 + 500; G.pop = clamp(G.pop + 3, 0, 100); }
-  earn(item.price + tip, s.x, s.y - 26);
+  if (!c || c.paid || c.state !== 'checkout' || checkoutLine()[0] !== c || !c.bill) return false;
+  // Lock this bill before any callbacks: taps and automatic payment share this path.
+  c.paid = true; c.state = 'paying'; c.t = 0;
+  const item = c.order, { sat, tip, total, vipBonus } = c.bill;
+  if (vipBonus) G.pop = clamp(G.pop + 3,0,100);
+  earn(total,REGISTER.x,REGISTER.y - 35);
   dayLog.tips += tip;
-  G.pop = clamp(G.pop + (sat - 58) / 22, 0, 100);
+  G.pop = clamp(G.pop + (sat-58) / 22,0,100);
   G.served++; dayLog.served++;
   dayLog.reviews.push({ sat, item: item.name, cat: c.visits > 0, q: c.quality });
-  snsFromCustomer(c, sat, item.name);
+  snsFromCustomer(c,sat,item.name);
   if (c.quality === 'perfect') dayLog.perfect = (dayLog.perfect || 0) + 1;
-  sfx.coin();
-  if (sat >= 75) addFx('heart', s.x, s.y - 24);
-  chat(c, sat >= 75 ? ['また来るね！', 'ごちそうさま〜', 'ねこたち ばいばい'] : sat < 45 ? ['うーん…', 'まあまあ かな'] : ['ごちそうさま'], 0.8);
-  c.state = 'leave'; s.cust = null; s.dirty = true; s.dirtyT = 0;
+  registerFlash = REGISTER.paymentTime;
+  sfx.coin(); addFx('spark',REGISTER.x,REGISTER.y - 20,{life:36});
+  if (sat >= 75) addFx('heart',c.x,c.y - 24);
+  chat(c,sat >= 75 ? ['また来るね！','ごちそうさま〜','ねこたち ばいばい'] : sat < 45 ? ['うーん…','まあまあ かな'] : ['ごちそうさま'],.8);
+  save(); updateHud();
+  return true;
 }
 
 // ================= ねこ =================
@@ -1428,7 +1523,7 @@ function petCat(k) {
 // ================= 1日の流れ =================
 function startDay() {
   mode = 'open'; tick = 0; G.time = OPEN; spawnTimer = 120; staffBusy = 0;
-  customers = []; particles = []; furs = []; jobs = [];
+  customers = []; particles = []; furs = []; jobs = []; checkoutSeq = 0; registerFlash = 0;
   cats.forEach(k => { if (k.clean || k.carry || k.dish) { k.clean = null; k.carry = false; k.dish = null; k.carryDish = false; k.state = 'idle'; k.t = 30; } });
   seats.forEach(s => { s.cleaner = null; });
   ponta = G.ponta ? makePonta() : null;
@@ -1516,6 +1611,7 @@ function update() {
   if (staffBusy > 0) staffBusy--;
   updateJobs(); updatePonta(); updateKitchenFx();
   customers.forEach(updateCustomer);
+  updateCheckout();
   customers = customers.filter(c => !c.gone);
   for (const s of seats) if (s.dirty) { s.dirtyT++; if (G.staff && s.dirtyT > 160 && !staffBusy) { s.dirty = false; staffBusy = 30; } }
   cats.forEach(updateCat);
@@ -2095,8 +2191,8 @@ function customerPose(c) {
   return f;
 }
 function drawCustomer(c) {
-  if (c.state === 'enter' || c.state === 'leave') {
-    const f = (c.anim >> 3) & 3, img = (c.look && c.walkFacing === 'back' ? RearWalk.guest(c.look, f) : c.look && c.walkFacing === 'front' ? GuestArt.person(c.look, ['a', 'b', 'a', 'c'][f]) : null) || (c.look ? GuestArt.walk(c.look, f, c.face || 1) : c.spr[['a', 'b', 'a', 'c'][f]]);
+  if (customerOnFloor(c)) {
+    const f = c.state === 'checkout' || c.state === 'paying' ? 0 : (c.anim >> 3) & 3, img = (c.look && c.walkFacing === 'back' ? RearWalk.guest(c.look, f) : c.look && c.walkFacing === 'front' ? GuestArt.person(c.look, ['a', 'b', 'a', 'c'][f]) : null) || (c.look ? GuestArt.walk(c.look, f, c.face || 1) : c.spr[['a', 'b', 'a', 'c'][f]]);
     const Y = Math.round(c.y * 2 - (img.logicalHeight || img.height));
     floorShadow(c.x * 2, c.y * 2 - 1, 11, 3, 0.2);
     drawAt(img, c.x * 2 - (img.logicalWidth || img.width) / 2, Y);
@@ -2108,6 +2204,41 @@ function drawCustomer(c) {
     if (c.vip && c.state !== 'order') drawCrown(c.seat.x * 2, top - 8);
   }
 }
+function drawRegister() {
+  const X = REGISTER.x * 2, Y = REGISTER.y * 2, head = checkoutLine()[0];
+  const ready = head?.state === 'checkout', paying = head?.state === 'paying';
+  // A walnut checkout counter and a sage cash register, at the same scale as the cafe.
+  ellipse(X,Y+2,35,5,'rgba(60,35,20,.18)');
+  P('#493526',X-33,Y-41,68,44); P('#976a43',X-31,Y-39,64,40);
+  P('#c39360',X-30,Y-38,62,2); P('#775236',X-29,Y-34,60,35);
+  for (const dx of [-26,-5,16]) { P('#6b492f',X+dx,Y-31,17,28); P('#af7b4f',X+dx,Y-31,16,1); }
+  P('#e5d7b8',X-35,Y-43,72,7); P('#fff0cf',X-33,Y-43,68,2);
+  P('#5c795f',X-24,Y-67,48,27); P('#8da187',X-22,Y-66,44,22);
+  P('#bdd0aa',X-21,Y-66,42,2); P('#364a3c',X-18,Y-62,36,12);
+  ctx.font='9px "DotGothic16", monospace'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillStyle='#dff0b3'; ctx.fillText(head ? '¥'+head.bill.total : '¥0',X,Y-61);
+  for (let row=0;row<2;row++) for (let col=0;col<4;col++) P('#f4eedb',X-15+col*8,Y-47+row*3,5,2);
+  P('#3f5141',X-23,Y-39,46,8); P('#b7b597',X-21,Y-38,42,5);
+  P('#56705a',X-15,Y-36,30,1);
+  if (registerFlash > 0) {
+    P('#493526',X-22,Y-26,46,9); P('#cfac7b',X-20,Y-25,42,6);
+    for (const dx of [-12,-2,8]) ellipse(X+dx,Y-22,3,2,'#f2c14e');
+  }
+  P('#30533e',X-18,Y+7,36,14); P('#416f50',X-17,Y+8,34,12);
+  ctx.font='11px "DotGothic16", monospace'; ctx.fillStyle='#fff0cf'; ctx.fillText('レジ',X,Y+8);
+  if (ready) {
+    const blink=(tick>>4)&1;
+    for (let i=0;i<5;i++) P(blink?'#ffe680':'#dbaa35',X-5+i,Y-82+i,11-i*2,1);
+  }
+  if (paying) {
+    const p=Math.min(1,head.t/REGISTER.paymentTime),sx=head.x*2+14,sy=head.y*2-52;
+    const cx=Math.round(sx+(X-sx)*p),cy=Math.round(sy+(Y-35-sy)*p);
+    ellipse(cx,cy,5,5,'#a87916'); ellipse(cx,cy-1,4,4,'#f2c14e'); P('#fff3b2',cx-2,cy-3,2,2);
+    const receipt=Math.round(p*12); P('#fffaf0',X+13,Y-67-receipt,8,receipt+4);
+    for (let k=2;k<receipt;k+=3) P('#c3bba6',X+15,Y-67-k,4,1);
+  }
+}
+
 function drawCrown(X, Y) {
   X = Math.round(X); Y = Math.round(Y);
   P('#6a4a08', X - 8, Y, 17, 8); P('#f2c14e', X - 7, Y + 1, 15, 6); P('#ffe08a', X - 7, Y + 1, 15, 1);
@@ -2117,7 +2248,7 @@ function drawCrown(X, Y) {
 function drawTableItems(s) {
   const IX = s.itemX * 2 - 8, IY = s.itemY * 2 - 16;
   if (s.cust && s.cust.state === 'eat') drawAt(ICON2[s.cust.order.id], IX - 4, s.counter ? IY - 8 : s.ty * 2 - 32, 24);
-  if (s.dirty) { drawAt(PLATE2, IX - 1, s.counter ? IY + 6 : s.ty * 2 - 13); if ((tick >> 4) & 1) { P('#ffffff', IX + 15, IY + 1, 1, 3); P('#ffffff', IX + 14, IY + 2, 3, 1); } }
+  if (s.dirty || s.cust?.state === 'checkoutSeat') { drawAt(PLATE2, IX - 1, s.counter ? IY + 6 : s.ty * 2 - 13); if ((tick >> 4) & 1) { P('#ffffff', IX + 15, IY + 1, 1, 3); P('#ffffff', IX + 14, IY + 2, 3, 1); } }
 }
 function bubbleBox(X, Y, bg) {
   P('#3a3030', X + 2, Y, 32, 32); P('#3a3030', X, Y + 2, 36, 28);
@@ -2159,10 +2290,10 @@ function drawCookBubble(c, j, X, Y) {
 }
 const sayBoxes = [];
 function drawSay(c) {
-  const walking = c.state === 'enter' || c.state === 'leave';
+  const walking = customerOnFloor(c);
   const s = c.seat, X = Math.round((walking ? c.x : s.x) * 2);
   let Y;
-  if (walking) Y = Math.round(c.y * 2 - c.spr.a.height) - 6;
+  if (walking) Y = Math.round(c.y * 2 - (c.spr.a.logicalHeight || c.spr.a.height)) - 6;
   else if (c.state === 'order' || c.state === 'wait') Y = s.y * 2 - (s.counter ? 102 : 110) - 4;
   else Y = s.y * 2 - (s.counter ? 18 : 10) - c.spr.sit.height - 6;
   ctx.font = '13px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -2233,14 +2364,14 @@ function render() {
   for (let i = 0; i < G.furniture.cushion; i++) { const [x, y] = CUSHION_POS[i]; list.push({ y: y - 2, d: () => drawCushion(x, y) }); }
   for (let i = 0; i < G.furniture.plant; i++) { const [x, y] = PLANT_POS[i]; list.push({ y, d: () => drawPlant(x, y) }); }
   if (G.furniture.tower) list.push({ y: TOWER.base, d: drawTower });
-  list.push({ y: BOWL.y, d: drawBowl });
+  list.push({ y: BOWL.y, d: drawBowl }, { y: REGISTER.y, d: drawRegister });
   for (let i = 0; i < G.furniture.table; i++) {
     const [x, y] = TABLE_POS[i];
     list.push({ y: y - 8.5, anchor: y, d: () => { drawChair(x - 10, y); drawChair(x + 10, y); } });
     list.push({ y, d: () => { drawTable(x, y); seats.filter(s => s.ti === i).forEach(drawTableItems); } });
   }
   for (let i = 0; i < (G.furniture.stool || 0); i++) { const [x, y] = STOOL_POS[i]; list.push({ y: y - 0.5, d: () => drawStool(x, y) }); }
-  for (const c of customers) list.push({ y: c.state === 'enter' || c.state === 'leave' ? c.y : c.seat.y - 0.2, anchor: c.state === 'enter' || c.state === 'leave' ? c.y : c.seat.y, d: () => drawCustomer(c) });
+  for (const c of customers) list.push({ y: customerOnFloor(c) ? c.y : c.seat.y - 0.2, anchor: customerOnFloor(c) ? c.y : c.seat.y, d: () => drawCustomer(c) });
   if (ponta) list.push({ y: ponta.y, d: drawPonta });
   for (const k of cats) list.push({ y: k.spot === TOWER && k.state === 'nap' ? TOWER.base + 1 : k.y, d: () => drawCat(k) });
   list.sort((a, b) => a.y - b.y).forEach(o => compactAt(o.anchor === undefined ? o.y : o.anchor, o.d));
@@ -2249,7 +2380,7 @@ function render() {
   ctx.save(); ctx.scale(1,.5); drawLighting(); ctx.restore();
   for (const c of customers) if (c.state === 'order' || c.state === 'wait') compactAt(c.seat.y, () => drawBubble(c));
   sayBoxes.length = 0;
-  for (const c of customers.slice().sort((a, b) => (a.say ? a.say.t : 0) - (b.say ? b.say.t : 0)).reverse()) if (c.say) compactAt(c.state === 'enter' || c.state === 'leave' ? c.y : c.seat.y, () => drawSay(c));
+  for (const c of customers.slice().sort((a, b) => (a.say ? a.say.t : 0) - (b.say ? b.say.t : 0)).reverse()) if (c.say) compactAt(customerOnFloor(c) ? c.y : c.seat.y, () => drawSay(c));
   drawParticles();
   drawFirstGuideTarget();
 }
@@ -2471,7 +2602,7 @@ function updateHud() {
   $('hudMoney').textContent = '¥' + G.money.toLocaleString();
   const st = stars();
   $('hudStars').innerHTML = '★'.repeat(st) + `<span class="off">${'★'.repeat(5 - st)}</span>`;
-  updateFoodLabel();
+  updateFoodLabel(); refreshRegister();
 }
 function updateFoodLabel() { if (G) $('foodLeft').textContent = `のこり${G.bowl}`; updateStockInfo(); }
 let toastTimer = 0;
@@ -2794,6 +2925,7 @@ onCafeTap(e => {
     const s = c.seat;
     if (x > s.x - 14 && x < s.x + 14 && y > s.y / 2 - (s.counter ? 52 : 56) && y < s.y / 2 - 2) { if (c.state === 'order') serve(c, false); else if (c.job && c.job.state === 'ready') deliver(c.job, false); else if (c.job) toast('下のキッチンで 設備をタップして 調理してね'); return; }
   }
+  if (!firstGuide && registerHit(x,y)) { tapRegister(); return; }
   for (const s of seats) {
     if (s.dirty && Math.abs(x - s.itemX) < 12 && y > s.itemY / 2 - 13 && y < s.itemY / 2 + 9) { s.dirty = false; sfx.clean(); addFx('spark', s.itemX, s.itemY - 5); return; }
   }
@@ -2809,6 +2941,7 @@ onCafeTap(e => {
   const fi = furs.findIndex(f => Math.hypot(x - f.x, y - f.y / 2) < 10);
   if (fi >= 0) { furs.splice(fi, 1); sfx.clean(); addFx('spark', x, y); }
 });
+$('btnRegister').onclick = () => { initAudio(); tapRegister(); };
 $('btnFood').onclick = () => {
   initAudio(); if (!G) return;
   if (G.money < FOOD_PRICE) { toast('おかねがたりません'); return; }
@@ -3004,6 +3137,7 @@ const TALKS = {
     ['normal', 'スキマ時間に はたらきたい 野良ねこさんと お店を つなぐ アプリだにゃ。'],
     ['happy', '数時間だけ 来てもらえるよ。いそがしい お昼や 夕方に たのむと べんりだにゃ。'],
   ],
+  register: [['normal', '食べ終わったお客さんは レジでお会計するにゃ。'], ['happy', 'レジか「お会計」をタップするとすぐお支払い。少し待つと自動で進むよ！']],
   catServe: [['happy', 'おまたせしましたにゃ〜。ねこが 料理を はこんだよ！']],
   catOrder: [['happy', 'ねこも 注文を ききに行けるにゃ！'], ['normal', 'しばらく だれも 行かないと、手の空いた ねこが ききに行くよ。いそぐときは ふきだしを タップしてね']],
   catClean: [

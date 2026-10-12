@@ -173,6 +173,41 @@ fs.mkdirSync(artifacts, {recursive:true});
     await straysPage.screenshot({path:path.join(artifacts,'nyaimee-gallery.png'),fullPage:true});
     await straysPage.close();
     console.log('PASS six Nyaimee cards, real hiring, payment/save, all96 visible sprites and preview motions');
+
+    const cashPage=await browser.newPage({viewport:{width:393,height:852}});
+    cashPage.on('pageerror',e=>errors.push(e.message));
+    await cashPage.goto(base);await cashPage.evaluate(()=>artworkReady);await cashPage.locator('#mNew').click();
+    const prepareCash=async()=>cashPage.evaluate(()=>{
+      finishFirstGuide(true);talking=null;talkQ.length=0;$('talk').hidden=true;closeModal();
+      G=newSave();G.flags={intro:true,firstCustomerDone:true,register:true};buildSeats();spawnCats();startDay();
+      spawnTimer=100000;cats=[];ponta=null;
+      const seat=seats[0],look=randomLook(),c={seat,x:seat.x,y:seat.y,state:'eat',t:420,anim:0,order:MENU[0],patAtServe:700,maxPat:760,pat:700,visits:2,quality:'perfect',look,spr:makePerson(look)};
+      seat.cust=c;customers=[c];updateCustomer(c);updateCheckout();
+      // Freeze only the travel setup, then exercise actual UI payment and animation.
+      c.x=REGISTER.queueX;c.y=REGISTER.queueY;c.state='checkout';c.t=0;c.walkFacing='back';
+      refreshRegister();render();return{money:G.money,total:c.bill.total};
+    });
+    let cash=await prepareCash();
+    assert(await cashPage.locator('#btnRegister').isEnabled());
+    assert((await cashPage.locator('#btnRegister').textContent()).includes('¥'+cash.total));
+    await cashPage.locator('#cafe').scrollIntoViewIfNeeded();
+    const registerPoint=await cashPage.evaluate(()=>{
+      const r=cv.getBoundingClientRect();return{x:r.left+3+REGISTER.x/VW*(r.width-6),y:r.top+3+(REGISTER.y/2)/(VH/2)*(r.height-6)};
+    });
+    await cashPage.mouse.click(registerPoint.x,registerPoint.y);
+    let payment=await cashPage.evaluate(()=>({money:G.money,sales:dayLog.sales,served:G.served,saved:loadSave().money}));
+    assert.equal(payment.money,cash.money+cash.total);assert.equal(payment.sales,cash.total);assert.equal(payment.served,1);assert.equal(payment.saved,payment.money);
+    await cashPage.mouse.click(registerPoint.x,registerPoint.y);assert.equal(await cashPage.evaluate(()=>G.money),payment.money,'repeat canvas tap pays once');
+    await cashPage.screenshot({path:path.join(artifacts,'cash-register-paid.png')});
+    cash=await prepareCash();await cashPage.setViewportSize({width:320,height:568});
+    const registerBounds=await cashPage.locator('#btnRegister').boundingBox();
+    assert(registerBounds.x>=0&&registerBounds.x+registerBounds.width<=321&&registerBounds.height>=44,'mobile checkout control fits');
+    await cashPage.locator('#btnRegister').click();
+    assert.equal(await cashPage.evaluate(()=>G.money),cash.money+cash.total,'button uses same payment');
+    await cashPage.reload();await cashPage.evaluate(()=>artworkReady);await cashPage.locator('#mCont').click();
+    assert.equal(await cashPage.evaluate(()=>G.money),cash.money+cash.total,'collected money persists');
+    await cashPage.close();
+    console.log('PASS cash register canvas tap and checkout button, repeat tap, mobile control and saved income');
     const p=await browser.newPage({viewport:{width:393,height:852}});p.on('pageerror',e=>errors.push(e.message));
     await p.goto(base);await p.evaluate(()=>artworkReady);
     const spriteChecks=await p.evaluate(async()=>{

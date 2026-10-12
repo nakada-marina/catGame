@@ -7,12 +7,13 @@ function source(name) {
   assert(start>=0&&end>start,'function exists: '+name);return html.slice(start,end);
 }
 const guide=html.slice(html.indexOf('// ================= 最初のお客さんの操作案内 ================='),html.indexOf('// ================= 最初のお客さんの操作案内ここまで ================='));
-const functions=['newSave','spawnCustomer','moveTo','serve','cookTap','deliver','updateCustomer','updateJobs','startCook','startDay','update','save','loadSave'];
+const functions=['newSave','spawnCustomer','moveTo','serve','cookTap','deliver','updateCustomer','updateJobs','startCook','startDay','update','updateCheckout','checkoutLine','checkoutWaiting','admitCheckout','checkoutPosition','refreshRegister','beginCheckout','makeBill','save','loadSave'];
 const elements={};
 const $=id=>elements[id]||(elements[id]={hidden:true,textContent:'',disabled:false,scrollIntoView(){}});
 const api=new Function('$','assert',`
 let G,customers=[],jobs=[],cats=[],particles=[],furs=[],seats=[],ponta=null,mode='title',tick=0,speed=3,spawnTimer=0,staffBusy=0,dayLog,weather,dayFlags,rushUntil,vipNext,bgmOn;
-let jobSeq=0,normalCatTicks=0,dialogues=[],memory={};
+let jobSeq=0,normalCatTicks=0,dialogues=[],memory={},checkoutSeq=0,registerFlash=0;
+const REGISTER={x:158,y:128,queueX:146,queueY:154,spacing:42,capacity:3,autoAfter:240,staffAfter:90,paymentTime:36};
 const OPEN=600,CLOSE=1140,ZONE=[.68,.86],COLD_AFTER=420,SAVE_KEY='grio-cafe-v1',STRAYS=[],ENTRANCE={x:112,y:312};
 const MENU=[{id:'coffee',st:'drink',need:{beans:1},time:150},{id:'cookie',st:'oven',need:{flour:1},time:260}];
 const kcv={scrollIntoView(){}},kfx=[];
