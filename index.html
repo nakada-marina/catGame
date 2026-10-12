@@ -61,6 +61,10 @@ body {
 #hud .money { text-align: center; font-size: 18px; color: var(--butter); white-space: nowrap; }
 #hud .stars { white-space: nowrap; color: var(--butter); letter-spacing: 1px; }
 #hud .stars .off { color: #4a5c53; }
+#hud .money small { display:block; font-size:10px; color:var(--chalk-dim); }
+.finance-result h3 { margin:18px 0 8px; font-size:16px; }
+.finance-result details { margin:10px 0; }
+.finance-result summary { cursor:pointer; font-size:13px; padding:8px 0; }
 #cafe {
   display: block;
   width: 100%;
@@ -286,7 +290,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <div id="wrap">
   <div id="hud">
     <div class="day" id="hudDay">1日目 10:00</div>
-    <div class="money" id="hudMoney">¥0</div>
+    <div class="money"><span id="hudMoney">¥0</span><small id="hudReceivable">使えるお金</small></div>
     <div class="stars" id="hudStars" aria-label="ひょうばん"></div>
   </div>
   <aside id="firstGuide" hidden aria-label="はじめての接客の案内"><strong id="firstGuideStep"></strong><p id="firstGuideText" role="status" aria-live="polite"></p><button type="button" id="firstGuideSkip">スキップ</button></aside>
@@ -310,12 +314,13 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
   <div id="sub">
     <button type="button" id="btnNyax" class="nyax-btn">ニャックス<span id="nyaxBadge" class="badge" hidden>0</span></button>
     <span>ふきだし＝注文・設備＝調理・レジ＝会計</span>
-    <span class="tools"><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
+    <span class="tools"><button type="button" id="btnFinance">帳簿</button><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
   </div>
   </div>
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
+<script src="./finance.js?v=20261012-ten-day-month"></script>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
 <script src="./cat-motions.js?v=20261011-ponta-brown"></script><script src="./stray-art.js?v=20261011-nyaimee"></script><script src="./rear-walk.js?v=20261011-nyaimee"></script>
@@ -843,7 +848,7 @@ function beginFirstGuide() {
 function refreshFirstGuide() {
   const panel = $('firstGuide');
   panel.hidden = !firstGuide;
-  for (const id of ['btnFood','btnStock','btnShop','btnNyaimee','btnNyax','btnSpeed']) $(id).disabled = !!firstGuide;
+  for (const id of ['btnFood','btnStock','btnShop','btnNyaimee','btnNyax','btnSpeed','btnFinance']) $(id).disabled = !!firstGuide;
   if (!firstGuide || firstGuide.shown === firstGuide.step) return;
   firstGuide.shown = firstGuide.step;
   const hints = {
@@ -934,7 +939,7 @@ function makeBill(c) {
 }
 function beginCheckout(c) {
   if (c.state !== 'eat' || c.bill) return false;
-  c.bill = makeBill(c); c.checkoutSeq = ++checkoutSeq;
+  c.bill = makeBill(c); c.paymentMethod = c.paymentMethod || 'cash'; c.checkoutSeq = ++checkoutSeq;
   c.state = 'checkoutSeat'; c.t = 0;
   chat(c,'お会計、お願いします');
   event('register');
@@ -970,7 +975,7 @@ function refreshRegister() {
   const head = line[0], ready = head?.state === 'checkout' && !head.paid;
   const info = head?.state === 'paying' ? 'お支払いありがとうございます' : ready ? 'レジ待ち ' + count + '人・少し待つと自動会計' : 'お会計へ移動中・待ち ' + count + '人';
   if ($('registerInfo').textContent !== info) $('registerInfo').textContent = info;
-  const button = $('btnRegister'), label = ready ? 'お会計 ¥' + head.bill.total.toLocaleString() : head?.state === 'paying' ? 'お支払い中' : 'レジへ移動中';
+  const button = $('btnRegister'), label = ready ? (head.paymentMethod==='card'?'カード会計 ¥':'現金会計 ¥') + head.bill.total.toLocaleString() : head?.state === 'paying' ? 'お支払い中' : 'レジへ移動中';
   button.disabled = !ready || !!firstGuide;
   if (button.textContent !== label) button.textContent = label;
 }
@@ -987,6 +992,88 @@ function registerHit(x,y) {
   return x >= REGISTER.x - 17 && x <= REGISTER.x + 17 && y >= REGISTER.y / 2 - 27 && y <= REGISTER.y / 2 + 8;
 }
 // ================= レジでのお会計ここまで =================
+
+// ================= 帳簿とリザルト =================
+let lastResultHtml = '';
+function financeEscape(value) {
+  return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function financeYen(value) {
+  return (value<0?'−':'')+'¥'+Math.abs(Math.round(value)).toLocaleString();
+}
+function financeDate(day) {
+  const d=CafeFinance.date(day);return d.month+'月'+d.day+'日';
+}
+function financeRows(rows) {
+  return rows.map(([label,value,total=false])=>'<span class="'+(total?'total':'')+'">'+financeEscape(label)+'</span><span class="'+(total?'total ':'')+(value<0?'minus':'plus')+'">'+financeYen(value)+'</span>').join('');
+}
+function financeResultHtml(result) {
+  const d=result.day,m=result.month,v=CafeFinance.view(G),expenses=CafeFinance.sum(d.expenses);
+  const tax=m.closed?m.tax:Math.round(Math.max(0,m.profit)*CafeFinance.rules.taxRate);
+  const next=v.cards.slice().sort((a,b)=>a.dueDay-b.dueDay)[0];
+  const details=d.details.filter(x=>x.key==='materials');
+  const otherDetails=d.details.filter(x=>!['materials','investment'].includes(x.key));
+  const investmentDetails=d.details.filter(x=>x.key==='investment');
+  const expenseRows=Object.entries(CafeFinance.labels).filter(([key])=>d.expenses[key]||['materials','catFood','rent'].includes(key)).map(([key,label])=>[label,-(d.expenses[key]||0)]);
+  return `
+    <section class="finance-result">
+    <h3>売上と利益</h3><div class="stat">${financeRows([
+      ['料理代',d.sales-d.tips],['チップ',d.tips],['売上合計',d.sales,true],
+      ['経費合計',-expenses],['営業利益',d.profit,true],
+      ...(d.taxAccrued?[['月末の税金引当',-d.taxAccrued],['税引後利益',d.profit-d.taxAccrued,true]]:[])
+    ])}</div>
+    <h3>引かれる経費の内訳</h3><div class="stat">${financeRows(expenseRows)}</div>
+    ${details.length?'<details><summary>仕入れの内訳</summary><div class="stat">'+financeRows(details.map(x=>[x.label,-x.amount]))+'</div></details>':''}
+    ${otherDetails.length?'<details><summary>ごはん・採用・開発などの内訳</summary><div class="stat">'+financeRows(otherDetails.map(x=>[(CafeFinance.labels[x.key]||x.key)+'・'+x.label,-x.amount]))+'</div></details>':''}
+    <p class="sub">カード手数料は入金時に相殺。保険料・年金と税金は月次で支払います。</p>
+    <h3>実際のお金の増減</h3><div class="stat">${financeRows([
+      ['一日の開始残高',d.cashStart],['現金売上',d.cashSales],['カード入金（手数料控除後）',d.cardDeposits],
+      ['現金で払った経費',-d.cashExpenses],['設備・家具への投資',-d.investments],['税金・保険料の月次支払い',-d.liabilityPayments],
+      ['きょうのお金の増減',d.cashEnd-d.cashStart,true],['使えるお金（閉店時）',d.cashEnd,true],
+      ['カード売掛（未入金の売上）',v.cardGross],['手数料を引いた入金予定額',v.cardNet]
+    ])}</div>
+    <p class="sub">きょうのカード売上 ${financeYen(d.cardSales)} は入金まで仕入れに使えません。${next?'次の入金：'+financeDate(next.dueDay)+' '+financeYen(next.gross-next.fee):''}</p>
+    ${d.cardDeposits||d.liabilityPayments?'<details><summary>入金・月次支払いの内訳</summary><div class="stat">'+financeRows([
+      ...(d.cardDeposits?[['カード売上の入金元額',d.cardDepositGross],['相殺された手数料',-d.cardDepositFees],['実際のカード入金',d.cardDeposits,true]]:[]),
+      ...Object.entries(d.payments).map(([key,n])=>[key==='tax'?'税金':CafeFinance.labels[key],-n])
+    ])+'</div></details>':''}
+    ${investmentDetails.length?'<details><summary>設備投資の内訳</summary><div class="stat">'+financeRows(investmentDetails.map(x=>[x.label,-x.amount]))+'</div></details>':''}
+    <h3>${m.month}月の集計（${m.days}営業日）</h3><div class="stat">${financeRows([
+      ['今月の売上',m.sales],['今月の経費',-CafeFinance.sum(m.expenses)],['今月の営業利益',m.profit,true],
+      [m.closed?'確定した税金':'税金の見込み（利益の10%）',-tax],
+      ['今月の保険料・年金',-(m.expenses.health||0)-(m.expenses.pension||0)-(m.expenses.staffInsurance||0)]
+    ])}</div><p class="sub">保険料・年金は上の経費に含まれます。${m.closed?'月末締め済み':'税金は月末に確定'}。${financeDate(m.month*CafeFinance.rules.daysPerMonth+CafeFinance.rules.monthlyPaymentDelay)}に税金・保険料を支払います。</p>
+    <details><summary>ゲームの経理ルール</summary><p class="sub">10日で1か月。カード利用40%、手数料3%（会計ごとに円単位へ四捨五入）。月末締め・翌月2日入金。税金は月の黒字の10%、店長の健康保険400円・年金600円／月、スタッフ社会保険は給与の10%をお店が負担。税金・保険料は翌月3日払い。仕入れは買った日に経費へ、設備投資は資金の増減へ反映します。実際の税制・保険制度を再現した計算ではありません。</p></details>
+    </section>`;
+}
+function showDayResult() {
+  if(!lastResultHtml){closeModal();return;}
+  openModal(lastResultHtml);
+  $('panel').querySelectorAll('[data-face]').forEach(c=>c.getContext('2d').drawImage(FACES.grio.happy,0,0));
+  $('mNext').onclick=()=>{closeModal();startDay();};
+  $('mShop').onclick=()=>openShop('furniture',true);
+  $('mStock').onclick=()=>openStock(true);
+  $('mFinance').onclick=()=>openFinance(true);
+}
+function openFinance(fromReport=false) {
+  const v=CafeFinance.view(G),f=CafeFinance.init(G),active=f.active;
+  const runningProfit=active?.day===G.day&&!active.closed?active.sales-CafeFinance.sum(active.expenses):0;
+  const taxPreview=Math.round(Math.max(0,(v.month?.profit||0)+runningProfit)*CafeFinance.rules.taxRate);
+  const unpaidInsurance=v.month&&!v.month.closed?(v.month.expenses.health||0)+(v.month.expenses.pension||0)+(v.month.expenses.staffInsurance||0):0;
+  const cards=v.cards.slice().sort((a,b)=>a.dueDay-b.dueDay).map(b=>'<div class="review">'+b.month+'月のカード売上 '+financeYen(b.gross)+'<br>手数料 '+financeYen(b.fee)+' ／ 入金 '+financeYen(b.gross-b.fee)+'<br>'+financeDate(b.dueDay)+' 入金予定</div>').join('');
+  const bills=v.bills.slice().sort((a,b)=>a.dueDay-b.dueDay).map(b=>'<div class="review">'+b.month+'月 '+(b.key==='tax'?'税金':CafeFinance.labels[b.key])+' '+financeYen(b.amount)+'<br>'+financeDate(b.dueDay)+' 支払い予定</div>').join('');
+  const months=f.months.slice(-6).reverse().map(m=>'<div class="review">'+m.month+'月（'+m.days+'営業日） 売上 '+financeYen(m.sales)+' ／ 営業利益 '+financeYen(m.profit)+'<br>'+(m.closed?'税金 '+financeYen(m.tax)+'・締め済み':'月末まで集計中')+'</div>').join('');
+  openModal(`<h2>お店の帳簿</h2><p class="sub">${financeDate(G.day)}（通算${G.day}日）・10日で1か月</p>
+    <div class="stat">${financeRows([['使えるお金',v.cash,true],['カード売掛',v.cardGross],['手数料控除後の入金予定',v.cardNet],['未払の税金・保険料',v.unpaid],['今月の税金見込み（確定前）',taxPreview]])}</div>
+    <h3>カード会社からの入金予定</h3>${cards||'<p class="sub">未入金のカード売上はありません。</p>'}
+    <h3>税金・保険料の支払い予定</h3>${bills||'<p class="sub">月末に金額が確定し、翌月3日に支払います。</p>'}
+    ${unpaidInsurance?'<p class="sub">今月の保険料・年金の積立 '+financeYen(unpaidInsurance)+'</p>':''}
+    <h3>月ごとの集計</h3>${months||'<p class="sub">閉店すると最初の集計が出ます。</p>'}
+    ${active&&!active.closed?'<p class="sub">営業中の売上 '+financeYen(active.sales)+'（現金 '+financeYen(active.cashSales)+'・カード '+financeYen(active.cardSales)+'）</p>':''}
+    <div class="actions-row"><button type="button" id="mClose">${fromReport?'リザルトへ戻る':'とじる'}</button></div>`);
+  $('mClose').onclick=()=>{if(fromReport)showDayResult();else closeModal();};
+}
+// ================= 帳簿とリザルトここまで =================
 
 function newSave() {
   return {
@@ -1019,7 +1106,7 @@ function addStock(id, n) {
   const it = ingr(id), room = capOf(it.life > 0) - usedOf(it.life > 0);
   n = Math.min(n, room); if (n <= 0) return 0;
   const cost = unitPrice(id) * n; if (G.money < cost) return 0;
-  G.money -= cost; G.pendingCost = (G.pendingCost || 0) + cost;
+  CafeFinance.spend(G,'materials',cost,ingr(id).name+' ×'+n);
   const lots = G.stock[id] || (G.stock[id] = []);
   const last = lots[lots.length - 1];
   if (last && last.day === G.day) last.n += n; else lots.push({ n, day: G.day });
@@ -1126,9 +1213,14 @@ setInterval(() => {
 
 // ================= パーティクル =================
 function addFx(type, x, y, extra = {}) { particles.push({ type, x, y, t: 0, life: 50, vy: -0.4, ...extra }); }
-function earn(n, x, y) {
-  G.money += n; dayLog.sales += n;
-  addFx('text', x, y, { text: '+¥' + n, color: '#ffe680', life: 60 });
+function earn(n,x,y,method='cash',tip=0) {
+  const payment=CafeFinance.sale(G,n,method,tip);
+  if(!payment)return;
+  dayLog.sales+=n;
+  dayLog.cashSales=(dayLog.cashSales||0)+(method==='card'?0:n);
+  dayLog.cardSales=(dayLog.cardSales||0)+(method==='card'?n:0);
+  if(method==='card')toast('カード売上 '+financeYen(n)+'・'+financeDate(payment.dueDay)+'に入金予定');
+  addFx('text',x,y,{text:(method==='card'?'カード売上 ¥':'+¥')+n,color:'#ffe680',life:60});
 }
 
 // ================= お客さん =================
@@ -1141,7 +1233,7 @@ function freeSeats() { return seats.filter(s => !s.cust && !s.dirty); }
 function spawnCustomer() {
   const free = freeSeats(); if (!free.length) return;
   const seat = pick(free), look = randomLook();
-  const c = { x: ENTRANCE.x + rnd(-8, 8), y: ENTRANCE.y, seat, state: 'enter', t: 0, spr: makePerson(look), look, anim: 0, order: null, pat: 0, maxPat: 0, visits: 0, vip: vipNext };
+  const c = { x: ENTRANCE.x + rnd(-8, 8), y: ENTRANCE.y, seat, state: 'enter', t: 0, spr: makePerson(look), look, anim: 0, order: null, pat: 0, maxPat: 0, visits: 0, vip: vipNext, paymentMethod: firstGuide ? 'cash' : Math.random()<CafeFinance.rules.cardShare ? 'card' : 'cash' };
   vipNext = false;
   seat.cust = c; customers.push(c);
   if (firstGuide) firstGuide.customer = c;
@@ -1325,7 +1417,7 @@ function pay(c) {
   c.paid = true; c.state = 'paying'; c.t = 0;
   const item = c.order, { sat, tip, total, vipBonus } = c.bill;
   if (vipBonus) G.pop = clamp(G.pop + 3,0,100);
-  earn(total,REGISTER.x,REGISTER.y - 35);
+  earn(total,REGISTER.x,REGISTER.y - 35,c.paymentMethod,tip);
   dayLog.tips += tip;
   G.pop = clamp(G.pop + (sat-58) / 22,0,100);
   G.served++; dayLog.served++;
@@ -1333,7 +1425,8 @@ function pay(c) {
   snsFromCustomer(c,sat,item.name);
   if (c.quality === 'perfect') dayLog.perfect = (dayLog.perfect || 0) + 1;
   registerFlash = REGISTER.paymentTime;
-  sfx.coin(); addFx('spark',REGISTER.x,REGISTER.y - 20,{life:36});
+  if(c.paymentMethod==='card')tone(1480,.12,'sine',.3);else sfx.coin();
+  addFx('spark',REGISTER.x,REGISTER.y - 20,{life:36});
   if (sat >= 75) addFx('heart',c.x,c.y - 24);
   chat(c,sat >= 75 ? ['また来るね！','ごちそうさま〜','ねこたち ばいばい'] : sat < 45 ? ['うーん…','まあまあ かな'] : ['ごちそうさま'],.8);
   save(); updateHud();
@@ -1523,13 +1616,14 @@ function petCat(k) {
 // ================= 1日の流れ =================
 function startDay() {
   mode = 'open'; tick = 0; G.time = OPEN; spawnTimer = 120; staffBusy = 0;
+  const accounting=CafeFinance.beginDay(G); lastResultHtml='';
   customers = []; particles = []; furs = []; jobs = []; checkoutSeq = 0; registerFlash = 0;
   cats.forEach(k => { if (k.clean || k.carry || k.dish) { k.clean = null; k.carry = false; k.dish = null; k.carryDish = false; k.state = 'idle'; k.t = 30; } });
   seats.forEach(s => { s.cleaner = null; });
   ponta = G.ponta ? makePonta() : null;
   seats.forEach(s => { s.cust = null; s.dirty = false; });
   weather = Math.random() < 0.25 ? 'rain' : 'sun';
-  dayLog = { served: 0, angry: 0, sales: 0, tips: 0, reviews: [], popStart: G.pop, cost: G.pendingCost || 0, nyaimee: 0 };
+  dayLog = { served: accounting.customers, angry: 0, sales: accounting.sales, tips: accounting.tips, cashSales: accounting.cashSales, cardSales: accounting.cardSales, reviews: [], popStart: G.pop, cost: 0, nyaimee: accounting.expenses.tempStaff || 0 };
   cats = cats.filter(k => !k.temp);
   G.nyaimee = STRAYS.slice().sort(() => Math.random() - 0.5).slice(0, 3).map(st => ({ id: st.id, hours: 2 + Math.floor(Math.random() * 3), hired: false }));
   G.pendingCost = 0;
@@ -1539,17 +1633,12 @@ function startDay() {
   bgmOn = true;
   beginFirstGuide();
   toast(weather === 'rain' ? `${G.day}日目 雨の日。お客さんは少なめかも` : `${G.day}日目 カフェ、オープン！`);
-  updateHud();
+  updateHud(); save();
 }
 function endDay() {
   mode = 'report'; bgmOn = false; sfx.bell();
   const wage = G.staff ? STAFF.wage : 0;
-  G.money -= RENT + wage;
-  dayLog.cost += G.pendingCost || 0; G.pendingCost = 0;
-  const lines = [['うりあげ', dayLog.sales, 'plus'], ['（そのうちチップ）', dayLog.tips, 'plus'], ['材料費', -dayLog.cost, 'minus'], ['家賃', -RENT, 'minus']];
-  if (wage) lines.push(['アルバイト代', -wage, 'minus']);
-  if (dayLog.nyaimee) lines.push(['ニャイミー', -dayLog.nyaimee, 'minus']);
-  const net = dayLog.sales - dayLog.cost - RENT - wage - dayLog.nyaimee;
+  const accounting=CafeFinance.closeDay(G,{rent:RENT,wage});
   const waste = expireStock(G.day);
   if (waste.length) event('waste');
   const popDiff = Math.round(G.pop - dayLog.popStart);
@@ -1565,24 +1654,18 @@ function endDay() {
   if (!G.legend && stars() >= 5 && G.money >= 100000) { G.legend = true; say(TALKS.legend); legend = '<p style="color:var(--butter)">★5 と ¥100,000 を達成！ぐりおのカフェは「でんせつの ねこカフェ」になりました！</p>'; }
   save();
   const yen = v => `${v > 0 ? '+' : v < 0 ? '−' : ''}¥${Math.abs(v).toLocaleString()}`;
-  openModal(`
-    <h2>${finished}日目のけっか</h2>
+  lastResultHtml=`
+    <h2>${financeDate(finished)}（${finished}日目）のけっか</h2>
     <p class="sub">お客さん ${dayLog.served}人 ／ パーフェクト ${dayLog.perfect || 0}回 ／ おこって帰った人 ${dayLog.angry}人 ／ ひょうばん ${popDiff >= 0 ? '+' : ''}${popDiff}</p>
-    <div class="stat">
-      ${lines.map(([n, v, c]) => `<span>${n}</span><span class="${c}">${yen(v)}</span>`).join('')}
-      <span class="total">きょうの利益</span><span class="total ${net >= 0 ? 'plus' : 'minus'}">${yen(net)}</span>
-    </div>
+    ${financeResultHtml(accounting)}
     ${waste.length ? `<p class="sub" style="color:var(--bad)">日もちが切れて すてた材料：${waste.map(([n, k]) => `${n}×${k}`).join('、')}</p>` : ''}
     ${legend}
     <p class="sub">ぐりおが ニャックスに ポストしました</p>
     <div class="nx-tl"><div class="nx-post"><div class="nx-av" style="background:#e9dcc0"><canvas width="64" height="64" data-face="1"></canvas></div><div class="nx-body"><div class="nx-who"><b>ぐりおのねこカフェ</b> <span>@guriocafe</span></div><p>${gpost.text.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</p><img src="${gpost.img}" alt="閉店後のお店" style="max-width:160px"></div></div></div>
     ${revs.length ? '<p class="sub">お客さんの声</p>' + revs.join('') : '<p class="sub">きょうはお客さんが来ませんでした。</p>'}
-    <div class="actions-row"><button type="button" id="mStock">あすの仕入れ</button><button type="button" id="mShop">ショップ</button><button type="button" id="mNext">つぎの日へ</button></div>
-  `);
-  $('panel').querySelectorAll('[data-face]').forEach(c => c.getContext('2d').drawImage(FACES.grio.happy, 0, 0));
-  $('mNext').onclick = () => { closeModal(); startDay(); };
-  $('mShop').onclick = () => openShop('furniture', true);
-  $('mStock').onclick = () => openStock(true);
+    <div class="actions-row"><button type="button" id="mStock">あすの仕入れ</button><button type="button" id="mShop">ショップ</button><button type="button" id="mFinance">帳簿</button><button type="button" id="mNext">つぎの日へ</button></div>
+  `;
+  showDayResult();
   updateHud();
 }
 function reviewText(r) {
@@ -2233,7 +2316,9 @@ function drawRegister() {
   if (paying) {
     const p=Math.min(1,head.t/REGISTER.paymentTime),sx=head.x*2+14,sy=head.y*2-52;
     const cx=Math.round(sx+(X-sx)*p),cy=Math.round(sy+(Y-35-sy)*p);
-    ellipse(cx,cy,5,5,'#a87916'); ellipse(cx,cy-1,4,4,'#f2c14e'); P('#fff3b2',cx-2,cy-3,2,2);
+    if(head.paymentMethod==='card'){
+      P('#284866',cx-9,cy-5,18,11);P('#6b9fc0',cx-8,cy-4,16,9);P('#e9cf86',cx-5,cy-2,4,4);P('#dce7ed',cx+1,cy+2,5,1);
+    }else{ellipse(cx,cy,5,5,'#a87916');ellipse(cx,cy-1,4,4,'#f2c14e');P('#fff3b2',cx-2,cy-3,2,2);}
     const receipt=Math.round(p*12); P('#fffaf0',X+13,Y-67-receipt,8,receipt+4);
     for (let k=2;k<receipt;k+=3) P('#c3bba6',X+15,Y-67-k,4,1);
   }
@@ -2598,8 +2683,12 @@ const fmtTime = t => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 function updateHud() {
   updateNyaxBadge();
   if (!G) return;
-  $('hudDay').textContent = `${G.day}日目 ${mode === 'report' ? '閉店' : fmtTime(G.time || OPEN)}${weather === 'rain' && mode !== 'report' ? ' 雨' : ''}`;
+  const displayDay=mode==='report'?(CafeFinance.init(G).history.slice(-1)[0]?.day||G.day):G.day;
+  $('hudDay').textContent = `${financeDate(displayDay)} ${mode === 'report' ? '閉店' : fmtTime(G.time || OPEN)}${weather === 'rain' && mode !== 'report' ? ' 雨' : ''}`;
+  $('hudDay').title='通算'+displayDay+'日';
   $('hudMoney').textContent = '¥' + G.money.toLocaleString();
+  const balance=CafeFinance.view(G);
+  $('hudReceivable').textContent=balance.cardGross?'売掛 '+financeYen(balance.cardGross):'使えるお金';
   const st = stars();
   $('hudStars').innerHTML = '★'.repeat(st) + `<span class="off">${'★'.repeat(5 - st)}</span>`;
   updateFoodLabel(); refreshRegister();
@@ -2662,29 +2751,29 @@ function buy(id) {
   const [, kind, key] = id.split('-');
   if (kind === 'k') {
     const st = STATIONS[key]; if (G.money < st.price || G.kitchen[key] >= 2) return;
-    G.money -= st.price; G.kitchen[key]++; toast(`${st.name}をもう1台おきました`);
+    CafeFinance.spend(G,'investment',st.price,st.name); G.kitchen[key]++; toast(`${st.name}をもう1台おきました`);
   } else if (kind === 'f') {
     const f = FURNITURE.find(x => x.id === key); if (G.money < f.price || G.furniture[key] >= f.max) return;
-    G.money -= f.price; G.furniture[key]++; if (key === 'table' || key === 'stool') buildSeats();
+    CafeFinance.spend(G,'investment',f.price,f.name); G.furniture[key]++; if (key === 'table' || key === 'stool') buildSeats();
     toast(`${f.name}をおきました`);
   } else if (kind === 'm') {
     const m = MENU.find(x => x.id === key); if (G.money < m.unlock || G.menu.includes(key)) return;
-    G.money -= m.unlock; G.menu.push(key);
+    CafeFinance.spend(G,'menuDevelopment',m.unlock,m.name); G.menu.push(key);
     const recipe = Object.entries(m.need).map(([id, n]) => ingr(id).name + (n > 1 ? `×${n}` : '')).join('・');
     say([['happy', `${m.name}が メニューに くわわったにゃ！`], ['normal', `材料は ${recipe}。「仕入れ」で 買っておいてね。`]]);
   } else if (kind === 'c') {
     const a = ADOPT.find(x => x.pal === key); if (G.money < a.price || cats.some(c => c.pal === key)) return;
-    G.money -= a.price;
+    CafeFinance.spend(G,'catWelcome',a.price,a.name);
     const k = { name: a.name, pal: a.pal, mood: 60, hunger: 30 };
     G.cats.push(k); cats.push(makeCat(k, ENTRANCE.x, 282)); if (dayLog) dayLog.newCat = a.name;
     toast(`${a.name}がカフェのなかまになりました`); setTimeout(sfx.meow, 300);
     say([['happy', `${a.name}、ようこそ！ なかよく しようにゃ。`]]);
   } else if (kind === 'p') {
     if (G.money < 6000 || G.ponta) return;
-    G.money -= 6000; G.ponta = true; ponta = makePonta(); G.flags.pontaJoin = true;
+    CafeFinance.spend(G,'catWelcome',6000,'ぽんた'); G.ponta = true; ponta = makePonta(); G.flags.pontaJoin = true;
     toast('ぽんたが 従業員に なりました'); say(TALKS.pontaJoin);
   } else if (kind === 's') {
-    if (G.money < STAFF.price || G.staff) return; G.money -= STAFF.price; G.staff = true; toast('アルバイトさんが来てくれました');
+    if (G.money < STAFF.price || G.staff) return; CafeFinance.spend(G,'recruitment',STAFF.price,'アルバイト採用'); G.staff = true; toast('アルバイトさんが来てくれました');
   }
   sfx.buy(); G.cats = cats.filter(k => !k.temp).map(k => ({ name: k.name, pal: k.pal, mood: Math.round(k.mood), hunger: Math.round(k.hunger) })); save(); updateHud();
 }
@@ -2760,7 +2849,7 @@ function openNyaimee() {
 function hireStray(id) {
   const o = G.nyaimee.find(x => x.id === id), st = STRAYS.find(x => x.id === id), fee = st.rate * o.hours;
   if (!o || o.hired || mode !== 'open' || G.money < fee) return;
-  G.money -= fee; dayLog.nyaimee += fee; o.hired = true;
+  CafeFinance.spend(G,'tempStaff',fee,st.name+' '+o.hours+'時間'); dayLog.nyaimee += fee; o.hired = true;
   const k = makeCat({ name: st.name, pal: 'stray_' + st.id, mood: 80, hunger: 0 }, ENTRANCE.x, ENTRANCE.y);
   Object.assign(k, { temp: true, skill: st.skill, until: Math.min(CLOSE, G.time + o.hours * 60), state: 'walk', tx: rnd(60, 170), ty: rnd(140, 240) });
   cats.push(k);
@@ -2942,10 +3031,11 @@ onCafeTap(e => {
   if (fi >= 0) { furs.splice(fi, 1); sfx.clean(); addFx('spark', x, y); }
 });
 $('btnRegister').onclick = () => { initAudio(); tapRegister(); };
+$('btnFinance').onclick = () => { initAudio(); if(G)openFinance(mode==='report'); };
 $('btnFood').onclick = () => {
   initAudio(); if (!G) return;
   if (G.money < FOOD_PRICE) { toast('おかねがたりません'); return; }
-  G.money -= FOOD_PRICE; G.bowl += FOOD_AMOUNT; sfx.buy(); toast(`ねこのごはんを ${FOOD_AMOUNT}回ぶん 補充しました（¥${FOOD_PRICE}）`); save(); updateHud();
+  CafeFinance.spend(G,'catFood',FOOD_PRICE,'ごはん '+FOOD_AMOUNT+'回ぶん'); G.bowl += FOOD_AMOUNT; sfx.buy(); toast(`ねこのごはんを ${FOOD_AMOUNT}回ぶん 補充しました（¥${FOOD_PRICE}）`); save(); updateHud();
 };
 $('btnStock').onclick = () => { initAudio(); if (G && mode !== 'report') openStock(); };
 $('btnShop').onclick = () => { initAudio(); if (G && mode !== 'report') openShop(); };

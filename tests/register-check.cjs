@@ -1,6 +1,8 @@
 /* Run: node tests/register-check.cjs. No external dependencies required. */
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+const financeWindow={};new Function('window',fs.readFileSync(path.join(__dirname,'..','finance.js'),'utf8'))(financeWindow);const CafeFinance=financeWindow.CafeFinance;
+
 function source(name){
   const start=html.indexOf('function '+name+'('),lineEnd=html.indexOf('\n',start);
   const end=html.slice(start,lineEnd).trim().endsWith('}')?lineEnd:html.indexOf('\n}',start)+2;
@@ -8,12 +10,13 @@ function source(name){
 }
 const controller=html.slice(html.indexOf('// ================= レジでのお会計 ================='),html.indexOf('// ================= レジでのお会計ここまで ================='));
 const constants=['TABLE_POS','STOOL_POS'].map(name=>html.match(new RegExp('const '+name+' = [^\\n]+'))[0]).join('\n');
-const functions=['newSave','buildSeats','startDay','moveTo','updateCustomer','pay','earn','update','endDay','save','loadSave','drawCustomer','drawSay','drawRegister','render','canvasPoint'];
+const functions=['newSave','buildSeats','startDay','moveTo','updateCustomer','pay','earn','update','endDay','save','loadSave','drawCustomer','drawSay','drawRegister','render','canvasPoint','financeResultHtml','financeRows','financeDate','financeYen','financeEscape','showDayResult'];
 const tapHandler=html.slice(html.indexOf('onCafeTap(e => {'),html.indexOf('\n});',html.indexOf('onCafeTap(e => {'))+4);
 const elements={},$=id=>elements[id]||(elements[id]={hidden:true,textContent:'',disabled:false,style:{},querySelectorAll:()=>[]});
-const api=new Function('$',`
-let G,customers=[],jobs=[],cats=[],particles=[],furs=[],seats=[],ponta=null,mode='title',tick=0,speed=1,spawnTimer=100000,staffBusy=0,dayLog,weather,dayFlags,rushUntil,vipNext,bgmOn,firstGuide=null,toastTimer=0;
+const api=new Function('$','CafeFinance',`
+let G,customers=[],jobs=[],cats=[],particles=[],furs=[],seats=[],ponta=null,mode='title',tick=0,speed=1,spawnTimer=100000,staffBusy=0,dayLog,weather,dayFlags,rushUntil,vipNext,bgmOn,firstGuide=null,toastTimer=0,lastResultHtml='';
 let moneySounds=0,reviewsSent=0,reports=0,hudCalls=0,ordersTaken=0,lastToast='',memory={},paint=[],cafeAction;
+const tone=()=>{},openFinance=()=>{};
 const onCafeTap=fn=>cafeAction=fn,initAudio=()=>{},wakePonta=()=>{},petCat=()=>{};
 const OPEN=600,CLOSE=1140,RENT=1000,STAFF={wage:2000},SAVE_KEY='grio-cafe-v1',ENTRANCE={x:112,y:312},STRAYS=[],TALKS={},FW=448,FH=600,VW=224,VH=300;
 const MENU=[{id:'coffee',name:'コーヒー',price:400,time:150,need:{beans:1},st:'drink'},{id:'cookie',name:'ねこクッキー',price:300,time:260,need:{flour:1},st:'oven'}];
@@ -58,7 +61,7 @@ return {
  staffBusy(n){staffBusy=n;},pause(v){$('modal').hidden=!v;},guide(v){firstGuide=v?{}:null;},
  position(c){return checkoutPosition(c);},bill(c){return makeBill(c);}
 };
-`)($);
+`)($,CafeFinance);
 api.reset();
 const [one]=api.diners(),seat=one.seat;
 assert.equal(api.receive(one),false,'cannot collect while seated');
@@ -123,12 +126,18 @@ api.reset({tables:5});api.diners();api.step();api.front();const edge=api.edgeOrd
 api.canvasTap(174,60);assert.equal(edge.state,'wait','overlapping order keeps tap priority');assert.equal(api.snapshot().ordersTaken,1);assert.equal(api.snapshot().G.money,8000);
 api.canvasTap(158,64);assert.equal(api.snapshot().G.money,8400,'visible register tap pays');
 
+api.reset();const [card]=api.diners(1,{paymentMethod:'card'});api.step();api.front();
+assert(elements.btnRegister.textContent.includes('カード会計'));assert(api.receive(card));
+assert.equal(api.snapshot().G.money,8000,'card payment stays receivable');
+assert.equal(api.snapshot().dayLog.sales,400);assert.equal(api.saved().finance.cards[0].gross,400);
+assert.equal(api.saved().finance.cards[0].fee,12);assert.equal(api.receive(card),false,'card cannot post twice');api.render();
+
 api.reset({tables:6,stools:3});api.diners(15);api.step();
 assert.equal(api.line().length,3);assert.equal(api.waiting().length,12);
 for(const c of api.line()){const p=api.position(c);assert(p.y<=238&&p.x>=0&&p.x<=224);}
 api.render();api.close();api.step(8000);s=api.snapshot();
 assert.equal(s.G.served,15);assert.equal(s.dayLog.served,15);assert.equal(s.dayLog.sales,6000);
-assert.equal(s.G.money,13000,'all payments collected before rent');assert.equal(s.reports,1,'day closes only after queue and exit');
+assert.equal(s.G.money,12850,'all cash payments collected before rent and utilities');assert.equal(s.reports,1,'day closes only after queue and exit');
 assert.equal(s.mode,'report');assert.equal(s.customers.length,0);
 api.step(100);assert.equal(api.snapshot().reports,1);assert.equal(api.snapshot().dayLog.sales,6000);
 for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(m[1].trim())new Function(m[1]);

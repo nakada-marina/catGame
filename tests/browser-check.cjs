@@ -177,16 +177,16 @@ fs.mkdirSync(artifacts, {recursive:true});
     const cashPage=await browser.newPage({viewport:{width:393,height:852}});
     cashPage.on('pageerror',e=>errors.push(e.message));
     await cashPage.goto(base);await cashPage.evaluate(()=>artworkReady);await cashPage.locator('#mNew').click();
-    const prepareCash=async()=>cashPage.evaluate(()=>{
+    const prepareCash=async(method='cash')=>cashPage.evaluate(method=>{
       finishFirstGuide(true);talking=null;talkQ.length=0;$('talk').hidden=true;closeModal();
       G=newSave();G.flags={intro:true,firstCustomerDone:true,register:true};buildSeats();spawnCats();startDay();
       spawnTimer=100000;cats=[];ponta=null;
-      const seat=seats[0],look=randomLook(),c={seat,x:seat.x,y:seat.y,state:'eat',t:420,anim:0,order:MENU[0],patAtServe:700,maxPat:760,pat:700,visits:2,quality:'perfect',look,spr:makePerson(look)};
+      const seat=seats[0],look=randomLook(),c={seat,x:seat.x,y:seat.y,state:'eat',t:420,anim:0,order:MENU[0],patAtServe:700,maxPat:760,pat:700,visits:2,quality:'perfect',paymentMethod:method,look,spr:makePerson(look)};
       seat.cust=c;customers=[c];updateCustomer(c);updateCheckout();
       // Freeze only the travel setup, then exercise actual UI payment and animation.
       c.x=REGISTER.queueX;c.y=REGISTER.queueY;c.state='checkout';c.t=0;c.walkFacing='back';
       refreshRegister();render();return{money:G.money,total:c.bill.total};
-    });
+    },method);
     let cash=await prepareCash();
     assert(await cashPage.locator('#btnRegister').isEnabled());
     assert((await cashPage.locator('#btnRegister').textContent()).includes('¥'+cash.total));
@@ -206,8 +206,49 @@ fs.mkdirSync(artifacts, {recursive:true});
     assert.equal(await cashPage.evaluate(()=>G.money),cash.money+cash.total,'button uses same payment');
     await cashPage.reload();await cashPage.evaluate(()=>artworkReady);await cashPage.locator('#mCont').click();
     assert.equal(await cashPage.evaluate(()=>G.money),cash.money+cash.total,'collected money persists');
+    const cardPayment=await prepareCash('card');
+    assert((await cashPage.locator('#btnRegister').textContent()).includes('カード会計'));
+    await cashPage.locator('#btnRegister').click();
+    const cardState=await cashPage.evaluate(()=>({money:G.money,gross:CafeFinance.view(G).cardGross,net:CafeFinance.view(G).cardNet,saved:loadSave().finance.cards[0]}));
+    assert.equal(cardState.money,cardPayment.money);assert.equal(cardState.gross,cardPayment.total);
+    assert.equal(cardState.net,cardPayment.total-Math.round(cardPayment.total*.03));assert.equal(cardState.saved.gross,cardPayment.total);
+    await cashPage.locator('#btnFinance').click();
+    assert((await cashPage.locator('#panel').textContent()).includes('2月2日'));
+    await cashPage.locator('#mClose').click();
     await cashPage.close();
     console.log('PASS cash register canvas tap and checkout button, repeat tap, mobile control and saved income');
+
+    const financePage=await browser.newPage({viewport:{width:393,height:852}});
+    financePage.on('pageerror',e=>errors.push(e.message));
+    await financePage.goto(base);await financePage.evaluate(()=>artworkReady);await financePage.locator('#mNew').click();
+    const ledger=await financePage.evaluate(()=>{
+      finishFirstGuide(true);talking=null;talkQ.length=0;$('talk').hidden=true;closeModal();
+      G=newSave();G.flags={intro:true,firstCustomerDone:true,register:true};buildSeats();spawnCats();
+      for(let day=1;day<10;day++){G.day=day;CafeFinance.beginDay(G);CafeFinance.sale(G,2000,'cash');CafeFinance.sale(G,400,'card');CafeFinance.closeDay(G);}
+      G.day=10;startDay();spawnTimer=100000;
+      CafeFinance.sale(G,2000,'cash');CafeFinance.sale(G,400,'card');dayLog.sales=2400;dayLog.served=2;
+      customers=[];endDay();
+      return{money:G.money,month:G.finance.months[0],gross:CafeFinance.view(G).cardGross,net:CafeFinance.view(G).cardNet,bills:G.finance.bills.reduce((n,b)=>n+b.amount,0)};
+    });
+    assert.equal(ledger.gross,4000);assert.equal(ledger.net,3880);assert.equal(ledger.month.days,10);assert(ledger.month.closed);
+    const reportText=await financePage.locator('#panel').textContent();
+    for(const label of ['1月10日','引かれる経費の内訳','営業利益','使えるお金（閉店時）','カード売掛','2月2日','2月3日'])assert(reportText.includes(label),label);
+    await financePage.screenshot({path:path.join(artifacts,'finance-month-result.png'),fullPage:true});
+    await financePage.locator('#mFinance').click();assert((await financePage.locator('#panel').textContent()).includes('お店の帳簿'));
+    await financePage.locator('#mClose').click();assert((await financePage.locator('#panel').textContent()).includes('1月10日'));
+    assert.equal(await financePage.evaluate(()=>G.day),11,'ledger return does not advance the day');
+    await financePage.evaluate(()=>{closeModal();G.day=12;startDay();spawnTimer=100000;});
+    assert.equal(await financePage.evaluate(()=>G.money),ledger.money+ledger.net);
+    assert(await financePage.evaluate(()=>loadSave().finance.cards[0].settled));
+    await financePage.reload();await financePage.evaluate(()=>artworkReady);await financePage.locator('#mCont').click();
+    assert.equal(await financePage.evaluate(()=>G.money),ledger.money+ledger.net,'card payout survives reload once');
+    await financePage.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;customers=[];endDay();});
+    const beforeTax=await financePage.evaluate(()=>G.money);
+    await financePage.locator('#mNext').click();
+    assert.equal(await financePage.evaluate(()=>G.money),beforeTax-ledger.bills,'next month day3 pays old tax and insurance');
+    assert(await financePage.evaluate(()=>G.finance.bills.filter(b=>b.month===1).every(b=>b.paid)));
+    await financePage.close();
+    console.log('PASS card customer, ledger/result navigation, ten-day month, card payout, monthly bills and reload');
     const p=await browser.newPage({viewport:{width:393,height:852}});p.on('pageerror',e=>errors.push(e.message));
     await p.goto(base);await p.evaluate(()=>artworkReady);
     const spriteChecks=await p.evaluate(async()=>{

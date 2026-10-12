@@ -1,6 +1,8 @@
 /* Run: node tests/first-customer-check.cjs. No dependencies. */
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+const financeWindow={};new Function('window',fs.readFileSync(path.join(__dirname,'..','finance.js'),'utf8'))(financeWindow);const CafeFinance=financeWindow.CafeFinance;
+
 function source(name) {
   const start=html.indexOf('function '+name+'('),lineEnd=html.indexOf('\n',start);
   const end=html.slice(start,lineEnd).trim().endsWith('}')?lineEnd:html.indexOf('\n}',start)+2;
@@ -10,9 +12,9 @@ const guide=html.slice(html.indexOf('// ================= 最初のお客さん�
 const functions=['newSave','spawnCustomer','moveTo','serve','cookTap','deliver','updateCustomer','updateJobs','startCook','startDay','update','updateCheckout','checkoutLine','checkoutWaiting','admitCheckout','checkoutPosition','refreshRegister','beginCheckout','makeBill','save','loadSave'];
 const elements={};
 const $=id=>elements[id]||(elements[id]={hidden:true,textContent:'',disabled:false,scrollIntoView(){}});
-const api=new Function('$','assert',`
+const api=new Function('$','assert','CafeFinance',`
 let G,customers=[],jobs=[],cats=[],particles=[],furs=[],seats=[],ponta=null,mode='title',tick=0,speed=3,spawnTimer=0,staffBusy=0,dayLog,weather,dayFlags,rushUntil,vipNext,bgmOn;
-let jobSeq=0,normalCatTicks=0,dialogues=[],memory={},checkoutSeq=0,registerFlash=0;
+let lastResultHtml='',jobSeq=0,normalCatTicks=0,dialogues=[],memory={},checkoutSeq=0,registerFlash=0;
 const REGISTER={x:158,y:128,queueX:146,queueY:154,spacing:42,capacity:3,autoAfter:240,staffAfter:90,paymentTime:36};
 const OPEN=600,CLOSE=1140,ZONE=[.68,.86],COLD_AFTER=420,SAVE_KEY='grio-cafe-v1',STRAYS=[],ENTRANCE={x:112,y:312};
 const MENU=[{id:'coffee',st:'drink',need:{beans:1},time:150},{id:'cookie',st:'oven',need:{flour:1},time:260}];
@@ -46,7 +48,7 @@ return {
  resume(){G=loadSave();startDay();},
  state(){return {G,customers,jobs,firstGuide,speed,normalCatTicks,dialogues};}
 };
-`)($,assert);
+`)($,assert,CafeFinance);
 api.reset();assert.equal(api.state().speed,1);
 assert(!elements.firstGuide.hidden);assert(elements.btnSpeed.disabled);
 api.step(800);
