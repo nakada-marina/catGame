@@ -86,6 +86,15 @@ fs.mkdirSync(artifacts, {recursive:true});
         assert.deepEqual(gestures,{tap:true,drag:false,pinch:false});
         console.log('PASS rapid touch buttons execute once; zoom default cancelled; scrolling/pinch preserved');
       }
+
+      await page.locator('#btnShift').click();
+      assert.equal(await page.locator('[data-shift-card]').count(),1,'day1 planner shows upcoming Ponta');
+      assert(await page.locator('[data-shift-save="ponta"]').isDisabled());
+      const shiftLayout=await page.evaluate(()=>({width:document.documentElement.scrollWidth,scroll:$('panel').querySelector('.shift-scroll').clientWidth,table:$('panel').querySelector('.shift-table').scrollWidth}));
+      assert(shiftLayout.width<=width+1,'planner stays inside viewport');
+      assert(shiftLayout.table>shiftLayout.scroll,'ten-day table scrolls within panel');
+      await page.locator('#mClose').click();
+
       console.log(`PASS viewport ${width}x${height} DPR ${dpr}`);
       await page.close();
     }
@@ -128,6 +137,70 @@ fs.mkdirSync(artifacts, {recursive:true});
     assert.equal(await guided.evaluate(()=>firstGuide),null,'completed guide does not repeat');
     await guided.close();
     console.log('PASS guided first customer with real cafe/kitchen taps, held perfect timing, normal resume and save reload');
+
+
+    const shiftsPage=await browser.newPage({viewport:{width:320,height:568}});
+    shiftsPage.on('pageerror',e=>errors.push(e.message));
+    await shiftsPage.goto(base);await shiftsPage.evaluate(()=>artworkReady);
+    await shiftsPage.locator('#mNew').click();
+    assert.equal(await shiftsPage.evaluate(()=>ponta),null);
+    await shiftsPage.evaluate(()=>{
+      finishFirstGuide(true);talking=null;talkQ.length=0;$('talk').hidden=true;
+      G.day=2;G.money=0;G.pop=0;startDay();talking=null;talkQ.length=0;$('talk').hidden=true;spawnTimer=100000;
+      G.cats.push({pal:'mike',name:'ミケ',mood:61,hunger:32},{pal:'kuro',name:'クロ',mood:65,hunger:20});
+      CafeShifts.ensure(G);CafeShifts.edit(G,'mike',2,780,1080);CafeShifts.edit(G,'kuro',2,null,null);updateShiftAttendance();save();
+    });
+    assert(await shiftsPage.evaluate(()=>!!ponta),'Ponta joins day2 without money or stars');
+    assert.equal(await shiftsPage.evaluate(()=>G.money),0,'no Ponta fee');
+    await shiftsPage.locator('#btnShift').click();
+    assert.equal(await shiftsPage.locator('[data-shift-card]').count(),3);
+    await shiftsPage.locator('#shift-mike-work').selectOption('on');
+    await shiftsPage.locator('#shift-mike-start').selectOption('600');
+    await shiftsPage.locator('#shift-mike-end').selectOption('660');
+    await shiftsPage.locator('[data-shift-save="mike"]').click();
+    assert.equal(await shiftsPage.evaluate(()=>cats.filter(k=>k.pal==='mike'&&k.state!=='leaving').length),1);
+    await shiftsPage.locator('#shiftDay').selectOption('3');
+    await shiftsPage.locator('#shift-ponta-work').selectOption('on');
+    await shiftsPage.locator('#shift-ponta-start').selectOption('660');
+    await shiftsPage.locator('#shift-ponta-end').selectOption('780');
+    await shiftsPage.locator('[data-shift-save="ponta"]').click();
+    assert.equal(await shiftsPage.evaluate(()=>CafeShifts.entry(G,'ponta',3).start),660);
+    await shiftsPage.locator('[data-shift-reset="ponta"]').click();
+    assert.equal(await shiftsPage.evaluate(()=>CafeShifts.entry(G,'ponta',3).start),null,'restore day3 rest wish');
+    await shiftsPage.locator('#shift-ponta-work').selectOption('on');
+    await shiftsPage.locator('#shift-ponta-start').selectOption('660');
+    await shiftsPage.locator('#shift-ponta-end').selectOption('780');
+    await shiftsPage.locator('[data-shift-save="ponta"]').click();
+    await shiftsPage.screenshot({path:path.join(artifacts,'cat-shifts.png'),fullPage:true});
+    await shiftsPage.locator('#mClose').click();
+    const departed=await shiftsPage.evaluate(()=>{
+      G.time=660;spawnTimer=100000;updateShiftAttendance();
+      for(let i=0;i<500;i++)update();
+      save();return {active:cats.filter(k=>k.pal==='mike'&&k.state!=='leaving').length,owned:G.cats.map(k=>k.pal),saved:loadSave().shifts.days[3]};
+    });
+    assert.equal(departed.active,0);assert.deepEqual(departed.owned,['grio','mike','kuro']);
+    await shiftsPage.locator('#btnCats').click();
+    assert((await shiftsPage.locator('#panel').innerText()).includes('クロ'),'off-shift cat remains in roster');
+    await shiftsPage.locator('#mClose').click();
+    await shiftsPage.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;endDay();});
+    await shiftsPage.locator('#mShift').click();
+    assert.equal(await shiftsPage.locator('#shiftDay').inputValue(),'3');
+    await shiftsPage.locator('#mClose').click();
+    assert(await shiftsPage.locator('#mNext').isVisible());assert.equal(await shiftsPage.evaluate(()=>G.day),3,'report round trip does not advance day');
+    await shiftsPage.locator('#mNext').click();
+    assert.equal(await shiftsPage.evaluate(()=>ponta),null,'owner changed day3 begins at11, not10');
+    await shiftsPage.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;save();});
+    await shiftsPage.reload();await shiftsPage.evaluate(()=>artworkReady);await shiftsPage.locator('#mCont').click();
+    const shiftRestored=await shiftsPage.evaluate(()=>({ponta:!!ponta,roster:G.cats.map(k=>k.pal),plan:G.shifts.days[3]}));
+    assert.equal(shiftRestored.ponta,false);assert.deepEqual(shiftRestored.roster,departed.owned);assert.deepEqual(shiftRestored.plan,departed.saved);
+    const arrival=await shiftsPage.evaluate(()=>{
+      talking=null;talkQ.length=0;$('talk').hidden=true;G.time=660;updateShiftAttendance();
+      for(let i=0;i<300;i++)updatePonta();
+      const joined=ponta?.state==='idle';G.time=780;updateShiftAttendance();return {joined,leaving:ponta?.state==='leaving'};
+    });
+    assert(arrival.joined&&arrival.leaving,'custom Ponta start and end apply');
+    await shiftsPage.close();
+    console.log('PASS real shift controls, free day2 Ponta, owner override/reset, timed attendance, off-shift roster, save reload and report return');
 
     const straysPage=await browser.newPage({viewport:{width:393,height:852}});
     straysPage.on('pageerror',e=>errors.push(e.message));

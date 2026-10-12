@@ -2,6 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 const financeWindow={};new Function('window',fs.readFileSync(path.join(__dirname,'..','finance.js'),'utf8'))(financeWindow);const CafeFinance=financeWindow.CafeFinance;
+new Function('window',fs.readFileSync(path.join(__dirname,'..','cat-shifts.js'),'utf8'))(financeWindow);const CafeShifts=financeWindow.CafeShifts;
 
 function source(name) {
   const start=html.indexOf('function '+name+'('),lineEnd=html.indexOf('\n',start);
@@ -9,26 +10,26 @@ function source(name) {
   assert(start>=0&&end>start,'function exists: '+name);return html.slice(start,end);
 }
 const guide=html.slice(html.indexOf('// ================= 最初のお客さんの操作案内 ================='),html.indexOf('// ================= 最初のお客さんの操作案内ここまで ================='));
-const functions=['newSave','spawnCustomer','moveTo','serve','cookTap','deliver','updateCustomer','updateJobs','startCook','startDay','update','updateCheckout','checkoutLine','checkoutWaiting','admitCheckout','checkoutPosition','refreshRegister','beginCheckout','makeBill','save','loadSave'];
+const functions=['syncCatRoster','makeCat','spawnCats','beginPontaExit','updateShiftAttendance','makePonta','newSave','spawnCustomer','moveTo','serve','cookTap','deliver','updateCustomer','updateJobs','startCook','startDay','update','updateCheckout','checkoutLine','checkoutWaiting','admitCheckout','checkoutPosition','refreshRegister','beginCheckout','makeBill','save','loadSave'];
 const elements={};
 const $=id=>elements[id]||(elements[id]={hidden:true,textContent:'',disabled:false,scrollIntoView(){}});
-const api=new Function('$','assert','CafeFinance',`
+const api=new Function('$','assert','CafeFinance','CafeShifts',`
 let G,customers=[],jobs=[],cats=[],particles=[],furs=[],seats=[],ponta=null,mode='title',tick=0,speed=3,spawnTimer=0,staffBusy=0,dayLog,weather,dayFlags,rushUntil,vipNext,bgmOn;
 let lastResultHtml='',jobSeq=0,normalCatTicks=0,dialogues=[],memory={},checkoutSeq=0,registerFlash=0;
 const REGISTER={x:158,y:128,queueX:146,queueY:154,spacing:42,capacity:3,autoAfter:240,staffAfter:90,paymentTime:36};
-const OPEN=600,CLOSE=1140,ZONE=[.68,.86],COLD_AFTER=420,SAVE_KEY='grio-cafe-v1',STRAYS=[],ENTRANCE={x:112,y:312};
+const PONTA_HOME={x:92,y:108},OPEN=600,CLOSE=1140,ZONE=[.68,.86],COLD_AFTER=420,SAVE_KEY='grio-cafe-v1',STRAYS=[],ENTRANCE={x:112,y:312};
 const MENU=[{id:'coffee',st:'drink',need:{beans:1},time:150},{id:'cookie',st:'oven',need:{flour:1},time:260}];
 const kcv={scrollIntoView(){}},kfx=[];
 const localStorage={setItem:(key,value)=>memory[key]=value,getItem:key=>memory[key]};
 const sfx={doorbell(){},serve(){}};
-const rollMarket=()=>({}),rnd=(a,b)=>(a+b)/2,pick=a=>a[0],randomLook=()=>({}),makePerson=()=>({});
+const rollMarket=()=>({}),rnd=(a,b)=>(a+b)/2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),pick=a=>a[0],randomLook=()=>({}),makePerson=()=>({});
 const freeSeats=()=>seats.filter(s=>!s.cust),tone=()=>{},addFx=()=>{},chat=()=>{},catNear=()=>false,decor=()=>0;
 const toast=()=>{},updateHud=()=>{},updateStockInfo=()=>{},event=()=>{},say=lines=>dialogues.push(lines);
 const canMake=item=>Object.entries(item.need).every(([id,n])=>(G.stock[id]||[]).reduce((sum,lot)=>sum+lot.n,0)>=n);
 const consume=item=>{for(const [id,n]of Object.entries(item.need))G.stock[id][0].n-=n;};
 const queued=st=>jobs.filter(j=>j.state==='queue'&&j.st===st);
 const kitchenUnits=()=>[{st:'drink',i:0,x:34,y:40,w:60,h:72}],unitJob=u=>jobs.find(j=>j.state==='cook'&&j.st===u.st&&j.unit===u.i);
-const snsTick=()=>{},updatePonta=()=>{},makePonta=()=>null,updateKitchenFx=()=>{},checkEvents=()=>{},updateCat=()=>normalCatTicks++;
+const snsTick=()=>{},updatePonta=()=>{},endShift=()=>{},updateKitchenFx=()=>{},checkEvents=()=>{},updateCat=()=>normalCatTicks++;
 const endDay=()=>{},leaveAngry=()=>{throw Error('tutorial customer lost patience');},pay=c=>{c.state='leave';};
 ${guide}
 ${functions.map(source).join('\n')}
@@ -48,7 +49,7 @@ return {
  resume(){G=loadSave();startDay();},
  state(){return {G,customers,jobs,firstGuide,speed,normalCatTicks,dialogues};}
 };
-`)($,assert,CafeFinance);
+`)($,assert,CafeFinance,CafeShifts);
 api.reset();assert.equal(api.state().speed,1);
 assert(!elements.firstGuide.hidden);assert(elements.btnSpeed.disabled);
 api.step(800);

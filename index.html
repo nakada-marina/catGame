@@ -283,6 +283,21 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 #firstGuideStep { color:var(--butter); }
 #firstGuideText { grid-column:1; margin:0; }
 #firstGuideSkip { grid-column:2; grid-row:1 / span 2; align-self:center; font-size:12px; min-height:44px; padding:8px; }
+
+.shift-scroll { max-width:100%; overflow-x:auto; margin:12px 0; border:1px solid #b6a28c; border-radius:8px; }
+.shift-table { width:max-content; min-width:100%; border-collapse:collapse; font-size:12px; }
+.shift-table caption { text-align:left; padding:8px; color:#624c38; }
+.shift-table th,.shift-table td { padding:6px; border:1px solid #d2c2aa; text-align:center; vertical-align:middle; }
+.shift-table th { background:#f0e5d1; }
+.shift-table small { display:block; font-size:10px; }
+.shift-table button { min-width:90px; min-height:44px; font-size:12px; padding:5px; white-space:nowrap; }
+.shift-table button[aria-current] { outline:2px solid #527963; outline-offset:-2px; }
+.shift-card { margin:12px 0; padding:12px; border:1px solid #cdbca4; border-radius:10px; background:#faf6ec; }
+.shift-card .sub { margin:6px 0; }
+.shift-controls { display:flex; flex-wrap:wrap; align-items:end; gap:8px; }
+.shift-controls label,.shift-day-label { display:flex; flex-wrap:wrap; align-items:center; gap:5px; font-size:13px; }
+.shift-controls select,.shift-day-label select { min-height:44px; max-width:100%; padding:6px; border:1px solid #b6a28c; border-radius:6px; font:inherit; background:#fffdf6; color:#3b2c21; }
+.shift-controls button { font-size:13px; min-height:44px; }
 </style>
 <link rel="stylesheet" href="./visual-renewal.css?v=20261012-walk">
 </head>
@@ -314,13 +329,14 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
   <div id="sub">
     <button type="button" id="btnNyax" class="nyax-btn">ニャックス<span id="nyaxBadge" class="badge" hidden>0</span></button>
     <span>ふきだし＝注文・設備＝調理・レジ＝会計</span>
-    <span class="tools"><button type="button" id="btnFinance">帳簿</button><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
+    <span class="tools"><button type="button" id="btnShift">シフト</button><button type="button" id="btnFinance">帳簿</button><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
   </div>
   </div>
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
 <script src="./finance.js?v=20261012-ten-day-month"></script>
+<script src="./cat-shifts.js?v=20261012-cat-shifts"></script>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
 <script src="./cat-motions.js?v=20261011-ponta-brown"></script><script src="./stray-art.js?v=20261011-nyaimee"></script><script src="./rear-walk.js?v=20261011-nyaimee"></script>
@@ -848,7 +864,7 @@ function beginFirstGuide() {
 function refreshFirstGuide() {
   const panel = $('firstGuide');
   panel.hidden = !firstGuide;
-  for (const id of ['btnFood','btnStock','btnShop','btnNyaimee','btnNyax','btnSpeed','btnFinance']) $(id).disabled = !!firstGuide;
+  for (const id of ['btnFood','btnStock','btnShop','btnNyaimee','btnNyax','btnSpeed','btnFinance','btnShift']) $(id).disabled = !!firstGuide;
   if (!firstGuide || firstGuide.shown === firstGuide.step) return;
   firstGuide.shown = firstGuide.step;
   const hints = {
@@ -1054,6 +1070,7 @@ function showDayResult() {
   $('mShop').onclick=()=>openShop('furniture',true);
   $('mStock').onclick=()=>openStock(true);
   $('mFinance').onclick=()=>openFinance(true);
+  $('mShift').onclick=()=>openShifts(true);
 }
 function openFinance(fromReport=false) {
   const v=CafeFinance.view(G),f=CafeFinance.init(G),active=f.active;
@@ -1128,6 +1145,7 @@ function daysLeft(id) {
   return it.life - (G.day - lots[0].day);
 }
 function save() {
+  syncCatRoster();
   if (G && G.sns) G.sns.posts.forEach((p, i) => { if (i >= 5) delete p.img; });
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (_) {}
 }
@@ -1157,7 +1175,47 @@ function buildSeats() {
 function makeCat(c, x, y) {
   return { ...c, x, y, state: 'idle', t: Math.floor(rnd(30, 200)), face: 1, tx: 0, ty: 0, petCool: 0, anim: 0, visit: null, spot: null, jump: 0 };
 }
-function spawnCats() { cats = G.cats.map((c, i) => makeCat(c, 90 + i * 20, 250)); }
+function syncCatRoster() {
+  if (!G) return;
+  for (const k of cats) {
+    if (k.temp) continue;
+    const stored = G.cats.find(c => c.pal === k.pal);
+    if (stored) Object.assign(stored, { mood: Math.round(k.mood), hunger: Math.round(k.hunger) });
+  }
+}
+function spawnCats() {
+  CafeShifts.ensure(G);
+  cats = G.cats.filter(c => CafeShifts.working(G,c.pal)).map((c,i) => {
+    const k=makeCat(c,90+i*20,250);
+    if(c.pal!=='grio'){k.scheduled=true;k.until=CafeShifts.entry(G,c.pal).end;}
+    return k;
+  });
+}
+function beginPontaExit() {
+  if(!ponta || ponta.state==='leaving')return;
+  for(const j of jobs)if(j.taker===ponta)j.taker=null;
+  ponta.job=ponta.carry=null;ponta.state='leaving';
+  toast('ぽんたの おてつだいが おわりました');
+}
+function updateShiftAttendance() {
+  if(!G || (mode!=='open'&&mode!=='closing'))return;
+  for(const stored of G.cats) {
+    if(stored.pal==='grio')continue;
+    const on=CafeShifts.working(G,stored.pal),k=cats.find(k=>!k.temp&&k.pal===stored.pal&&!k.gone);
+    if(on) {
+      const row=CafeShifts.entry(G,stored.pal);
+      if(k){k.until=row.end;if(k.state==='leaving'){k.state='idle';k.t=30;}}
+      else {
+        const arrived=makeCat(stored,ENTRANCE.x,ENTRANCE.y);arrived.scheduled=true;arrived.until=row.end;
+        cats.push(arrived);toast(`${stored.name}が 出勤しました`);
+      }
+    } else if(k&&k.state!=='leaving')endShift(k);
+  }
+  if(CafeShifts.working(G,'ponta')) {
+    if(!ponta){ponta=makePonta(true);event('pontaJoin');}
+    else if(ponta.state==='leaving'){ponta.state='arrive';ponta.gone=false;}
+  } else beginPontaExit();
+}
 
 // ================= 音 =================
 let actx = null, master = null, muted = false;
@@ -1307,12 +1365,18 @@ function deliver(job, byStaff) {
   if (!byStaff) sfx.serve();
   if (firstGuide && job === firstGuide.job) finishFirstGuide();
 }
-function makePonta() { return { x: PONTA_HOME.x, y: PONTA_HOME.y, state: 'idle', t: 0, face: -1, anim: 0, job: null, carry: null, napCool: 900 }; }
+function makePonta(arriving = false) { return { x: arriving ? ENTRANCE.x : PONTA_HOME.x, y: arriving ? ENTRANCE.y : PONTA_HOME.y, state: arriving ? 'arrive' : 'idle', t: 0, face: -1, anim: 0, job: null, carry: null, napCool: 900 }; }
 function updatePonta() {
   const p = ponta; if (!p) return;
   if (p.state !== 'nap' && p.state !== 'slack' && p.napCool > 0) p.napCool--;
   const sp = 0.8;
   switch (p.state) {
+    case 'arrive':
+      p.anim++; if(moveTo(p,PONTA_HOME.x,PONTA_HOME.y,sp))p.state='idle';
+      break;
+    case 'leaving':
+      p.anim++; if(moveTo(p,ENTRANCE.x,ENTRANCE.y+6,sp))ponta=null;
+      break;
     case 'idle': {
       const j = jobs.find(j => j.state === 'ready' && !j.taker);
       if (j) { j.taker = p; p.job = j; p.state = 'toCounter'; break; }
@@ -1487,7 +1551,7 @@ function endShift(k) {
   toast(`${k.name}の 勤務が おわりました`);
 }
 function updateCat(k) {
-  if (k.temp) {
+  if (k.temp || k.scheduled) {
     if (k.state !== 'leaving' && G.time >= k.until) endShift(k);
     if (k.state === 'leaving') { k.anim++; if (moveTo(k, k.tx, k.ty, 0.6)) k.gone = true; return; }
   }
@@ -1615,12 +1679,14 @@ function petCat(k) {
 
 // ================= 1日の流れ =================
 function startDay() {
+  syncCatRoster();
   mode = 'open'; tick = 0; G.time = OPEN; spawnTimer = 120; staffBusy = 0;
+  CafeShifts.ensure(G); G.ponta=G.day>=2;
   const accounting=CafeFinance.beginDay(G); lastResultHtml='';
   customers = []; particles = []; furs = []; jobs = []; checkoutSeq = 0; registerFlash = 0;
   cats.forEach(k => { if (k.clean || k.carry || k.dish) { k.clean = null; k.carry = false; k.dish = null; k.carryDish = false; k.state = 'idle'; k.t = 30; } });
   seats.forEach(s => { s.cleaner = null; });
-  ponta = G.ponta ? makePonta() : null;
+  ponta = null; spawnCats();
   seats.forEach(s => { s.cust = null; s.dirty = false; });
   weather = Math.random() < 0.25 ? 'rain' : 'sun';
   dayLog = { served: accounting.customers, angry: 0, sales: accounting.sales, tips: accounting.tips, cashSales: accounting.cashSales, cardSales: accounting.cardSales, reviews: [], popStart: G.pop, cost: 0, nyaimee: accounting.expenses.tempStaff || 0 };
@@ -1630,6 +1696,7 @@ function startDay() {
   dayFlags = {}; rushUntil = 0; vipNext = false;
   G.todayEvent = G.day >= 2 && Math.random() < 0.55 ? pick(['rush', 'vip', 'toy']) : null;
   if (G.day === 2) event('day2');
+  updateShiftAttendance();
   bgmOn = true;
   beginFirstGuide();
   toast(weather === 'rain' ? `${G.day}日目 雨の日。お客さんは少なめかも` : `${G.day}日目 カフェ、オープン！`);
@@ -1644,7 +1711,7 @@ function endDay() {
   const popDiff = Math.round(G.pop - dayLog.popStart);
   const revs = dayLog.reviews.slice().sort(() => Math.random() - 0.5).slice(0, 3).map(reviewText);
   cats = cats.filter(k => !k.temp);
-  G.cats = cats.map(k => ({ name: k.name, pal: k.pal, mood: Math.round(k.mood), hunger: Math.round(k.hunger) }));
+  syncCatRoster();
   const finished = G.day;
   clearTimeout(toastTimer); $('toast').hidden = true;
   const gpost = grioDailyPost(finished, dayLog);
@@ -1663,7 +1730,7 @@ function endDay() {
     <p class="sub">ぐりおが ニャックスに ポストしました</p>
     <div class="nx-tl"><div class="nx-post"><div class="nx-av" style="background:#e9dcc0"><canvas width="64" height="64" data-face="1"></canvas></div><div class="nx-body"><div class="nx-who"><b>ぐりおのねこカフェ</b> <span>@guriocafe</span></div><p>${gpost.text.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</p><img src="${gpost.img}" alt="閉店後のお店" style="max-width:160px"></div></div></div>
     ${revs.length ? '<p class="sub">お客さんの声</p>' + revs.join('') : '<p class="sub">きょうはお客さんが来ませんでした。</p>'}
-    <div class="actions-row"><button type="button" id="mStock">あすの仕入れ</button><button type="button" id="mShop">ショップ</button><button type="button" id="mFinance">帳簿</button><button type="button" id="mNext">つぎの日へ</button></div>
+    <div class="actions-row"><button type="button" id="mStock">あすの仕入れ</button><button type="button" id="mShop">ショップ</button><button type="button" id="mFinance">帳簿</button><button type="button" id="mShift">あすのシフト</button><button type="button" id="mNext">つぎの日へ</button></div>
   `;
   showDayResult();
   updateHud();
@@ -1691,6 +1758,7 @@ function update() {
     const base = 560 - G.pop * 3.2 - (G.menu.length - 2) * 25 - decor() * 10;
     spawnTimer = Math.round(clamp(base, 140, 620) * rnd(0.7, 1.3) * (weather === 'rain' ? 1.4 : 1) * (G.time < rushUntil ? 0.4 : 1) * (cats.some(k => k.temp && k.skill === 'charm' && k.state !== 'leaving') ? 0.7 : 1) * (1 - Math.min(0.3, (G.sns ? G.sns.followers : 0) / 2500)));
   }
+  if(tick%10===0)updateShiftAttendance();
   if (staffBusy > 0) staffBusy--;
   updateJobs(); updatePonta(); updateKitchenFx();
   customers.forEach(updateCustomer);
@@ -1698,6 +1766,7 @@ function update() {
   customers = customers.filter(c => !c.gone);
   for (const s of seats) if (s.dirty) { s.dirtyT++; if (G.staff && s.dirtyT > 160 && !staffBusy) { s.dirty = false; staffBusy = 30; } }
   cats.forEach(updateCat);
+  if(cats.some(k=>k.gone&&!k.temp))syncCatRoster();
   cats = cats.filter(k => !k.gone);
   for (const p of particles) { p.t++; p.y += p.vy; }
   for (const c of customers) if (c.say && ++c.say.t > 170) c.say = null;
@@ -2214,7 +2283,7 @@ function actPose(k) {
   return 'sit0';
 }
 function drawPonta() {
-  const p = ponta, moving = p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
+  const p = ponta, moving = p.state === 'arrive' || p.state === 'leaving' || p.state === 'toCounter' || p.state === 'toTable' || (p.state === 'idle' && Math.hypot(p.x - PONTA_HOME.x, p.y - PONTA_HOME.y) > 1);
   const pose = p.state === 'nap' ? sleepPose(p) : p.state === 'slack' ? groomPose() : moving ? walkPose(p) : sitPose(p);
   const img = catImg('ponta', pose, p.face, Object.assign(p, { pal: 'ponta' }));
   const size = catDisplaySize('ponta', img);
@@ -2727,12 +2796,11 @@ function openShop(tab = 'furniture', fromReport = false) {
     }).join('');
   } else {
     rows = ADOPT.map(a => {
-      const has = cats.some(c => c.pal === a.pal), locked = stars() < a.star;
+      const has = G.cats.some(c => c.pal === a.pal), locked = stars() < a.star;
       return row(`${a.name}をむかえる`, locked ? `ひょうばん ★${a.star} で会える` : a.desc, has ? 'なかま' : `¥${a.price.toLocaleString()}`, has || locked || G.money < a.price, `buy-c-${a.pal}`);
     }).join('');
     const locked = stars() < STAFF.star;
-    rows += row('ぽんた（ぐりおの弟）をやとう', stars() < 2 ? 'ひょうばん ★2 で やとえる' : 'できた料理を 席まで はこんでくれる。お給料はおやつ。でも よくサボる',
-      G.ponta ? 'なかま' : '¥6,000', G.ponta || stars() < 2 || G.money < 6000, 'buy-p-x');
+    rows += '<div class="row"><span class="name">ぽんた（ぐりおの弟）のおてつだい</span><span class="desc">2日目から無料。希望は2・4・6日目…の隔日。できた料理をはこんでくれる。シフトはオーナーが調整できます</span><button type="button" id="mPontaShift">シフトを見る</button></div>';
     rows += row('アルバイトをやとう', locked ? `ひょうばん ★${STAFF.star} でやとえる` : `注文出しと片づけを手伝ってくれる。日給 ¥${STAFF.wage.toLocaleString()}`,
       G.staff ? 'やとった' : `¥${STAFF.price.toLocaleString()}`, G.staff || locked || G.money < STAFF.price, 'buy-s-x');
   }
@@ -2745,6 +2813,7 @@ function openShop(tab = 'furniture', fromReport = false) {
   `);
   $('panel').querySelectorAll('[data-tab]').forEach(b => { b.onclick = () => openShop(b.dataset.tab, fromReport); });
   $('panel').querySelectorAll('[data-buy]').forEach(b => { b.onclick = () => { buy(b.dataset.buy); openShop(tab, fromReport); }; });
+  if($('mPontaShift'))$('mPontaShift').onclick=()=>openShifts(fromReport);
   $('mClose').onclick = () => { closeModal(); if (fromReport) startDay(); };
 }
 function buy(id) {
@@ -2762,20 +2831,18 @@ function buy(id) {
     const recipe = Object.entries(m.need).map(([id, n]) => ingr(id).name + (n > 1 ? `×${n}` : '')).join('・');
     say([['happy', `${m.name}が メニューに くわわったにゃ！`], ['normal', `材料は ${recipe}。「仕入れ」で 買っておいてね。`]]);
   } else if (kind === 'c') {
-    const a = ADOPT.find(x => x.pal === key); if (G.money < a.price || cats.some(c => c.pal === key)) return;
+    const a = ADOPT.find(x => x.pal === key); if (G.money < a.price || G.cats.some(c => c.pal === key)) return;
     CafeFinance.spend(G,'catWelcome',a.price,a.name);
     const k = { name: a.name, pal: a.pal, mood: 60, hunger: 30 };
-    G.cats.push(k); cats.push(makeCat(k, ENTRANCE.x, 282)); if (dayLog) dayLog.newCat = a.name;
+    G.cats.push(k); CafeShifts.ensure(G); CafeShifts.welcome(G,k.pal,G.time); updateShiftAttendance(); if (dayLog) dayLog.newCat = a.name;
     toast(`${a.name}がカフェのなかまになりました`); setTimeout(sfx.meow, 300);
     say([['happy', `${a.name}、ようこそ！ なかよく しようにゃ。`]]);
   } else if (kind === 'p') {
-    if (G.money < 6000 || G.ponta) return;
-    CafeFinance.spend(G,'catWelcome',6000,'ぽんた'); G.ponta = true; ponta = makePonta(); G.flags.pontaJoin = true;
-    toast('ぽんたが 従業員に なりました'); say(TALKS.pontaJoin);
+    openShifts(mode==='report'); return;
   } else if (kind === 's') {
     if (G.money < STAFF.price || G.staff) return; CafeFinance.spend(G,'recruitment',STAFF.price,'アルバイト採用'); G.staff = true; toast('アルバイトさんが来てくれました');
   }
-  sfx.buy(); G.cats = cats.filter(k => !k.temp).map(k => ({ name: k.name, pal: k.pal, mood: Math.round(k.mood), hunger: Math.round(k.hunger) })); save(); updateHud();
+  sfx.buy(); save(); updateHud();
 }
 function openStock(fromReport = false) {
   const open = mode === 'open' || mode === 'closing';
@@ -2858,30 +2925,103 @@ function hireStray(id) {
   toast(`${st.name}が ${o.hours}時間 はたらきに来ました`);
   save(); updateHud();
 }
+
+function shiftHours(start,end) {
+  return start===null?'休み':`${Math.floor(start/60)}:00〜${Math.floor(end/60)}:00`;
+}
+function openShifts(fromReport=false,month=null,selectedDay=G.day) {
+  syncCatRoster();CafeShifts.ensure(G);save();
+  const length=CafeShifts.daysPerMonth,currentMonth=Math.floor((G.day-1)/length)+1;
+  month=month===currentMonth+1?month:currentMonth;
+  const first=(month-1)*length+1,days=Array.from({length},(_,i)=>first+i),workers=CafeShifts.workers(G);
+  if(!days.includes(selectedDay))selectedDay=Math.max(G.day,first);
+  const changed=row=>row.start!==row.wishStart||row.end!==row.wishEnd;
+  const options=(value,min,max)=>Array.from({length:max-min+1},(_,i)=>{
+    const time=(min+i)*60;return `<option value="${time}" ${time===value?'selected':''}>${min+i}:00</option>`;
+  }).join('');
+  const cells=workers.map(({pal,name})=>`<tr><th scope="row">${financeEscape(name)}</th>${days.map(day=>{
+    const row=CafeShifts.entry(G,pal,day),hours=shiftHours(row.start,row.end);
+    return `<td><button type="button" data-shift-day="${day}" ${day===selectedDay?'aria-current="date"':''} title="希望：${shiftHours(row.wishStart,row.wishEnd)}">${hours}${changed(row)?'<small>調整ずみ</small>':''}</button></td>`;
+  }).join('')}</tr>`).join('');
+  const cards=workers.map(({pal,name})=>{
+    const row=CafeShifts.entry(G,pal,selectedDay),off=row.start===null;
+    const locked=selectedDay<G.day||(pal==='ponta'&&(G.day<2||selectedDay<2)),disabled=locked?'disabled':'';
+    return `<div class="shift-card" data-shift-card="${pal}">
+      <strong>${financeEscape(name)}</strong>
+      <p class="sub">希望：${shiftHours(row.wishStart,row.wishEnd)} ／ 予定：${shiftHours(row.start,row.end)}${changed(row)?'（オーナー調整）':''}</p>
+      ${pal==='ponta'&&G.day<2?'<p class="sub">2日目から無料のおてつだい。シフトの変更も2日目からできます。</p>':''}
+      ${selectedDay<G.day?'<p class="sub">過去の日の予定です。</p>':''}
+      <div class="shift-controls">
+        <label>勤務 <select id="shift-${pal}-work" ${disabled}><option value="on" ${!off?'selected':''}>出勤</option><option value="off" ${off?'selected':''}>休み</option></select></label>
+        <label>開始 <select id="shift-${pal}-start" ${disabled}>${options(row.start??OPEN,10,18)}</select></label>
+        <label>終了 <select id="shift-${pal}-end" ${disabled}>${options(row.end??CLOSE,11,19)}</select></label>
+        <button type="button" data-shift-save="${pal}" ${disabled}>保存</button>
+        <button type="button" data-shift-reset="${pal}" ${disabled}>希望に戻す</button>
+      </div>
+    </div>`;
+  }).join('');
+  openModal(`
+    <h2>ねこたちのシフト</h2>
+    <p class="sub">みんなが好きに希望を出してきたにゃ。オーナーが調整してね！ 1か月は10日。今月と来月の予定を決められます。</p>
+    <p class="sub">ぐりおは毎日10:00〜19:00の店長勤務。ぽんたは2日目から無料・希望は隔日。迎えた猫も対象です。ニャイミーはその日の募集から雇えます。</p>
+    <div class="tabs"><button type="button" id="shiftThis" class="${month===currentMonth?'on':''}">今月（${currentMonth}月）</button><button type="button" id="shiftNext" class="${month===currentMonth+1?'on':''}">来月（${currentMonth+1}月）</button></div>
+    <div class="shift-scroll" tabindex="0" role="region" aria-label="10日間のシフト表。横にスクロールできます"><table class="shift-table"><caption>${month}月の予定（横にスクロール）</caption><thead><tr><th scope="col">なまえ</th>${days.map(day=>`<th scope="col">${(day-1)%length+1}日<small>通算${day}日目</small></th>`).join('')}</tr></thead><tbody>${cells}</tbody></table></div>
+    <label class="shift-day-label">調整する日 <select id="shiftDay">${days.map(day=>`<option value="${day}" ${day===selectedDay?'selected':''}>${(day-1)%length+1}日（通算${day}日目）${day<G.day?'・過去':''}</option>`).join('')}</select></label>
+    <p class="sub">10:00〜19:00、1時間単位。時間を変えたら「保存」。休みにする場合は「勤務」を休みにして保存します。当日の変更も反映され、時間が終わると猫は退勤します。</p>
+    ${cards}
+    <div class="actions-row"><button type="button" id="mClose">${fromReport?'リザルトに戻る':'とじる'}</button></div>
+  `);
+  $('shiftThis').onclick=()=>openShifts(fromReport,currentMonth,G.day);
+  $('shiftNext').onclick=()=>openShifts(fromReport,currentMonth+1,currentMonth*length+1);
+  $('shiftDay').onchange=()=>openShifts(fromReport,month,Number($('shiftDay').value));
+  $('panel').querySelectorAll('[data-shift-day]').forEach(b=>b.onclick=()=>openShifts(fromReport,month,Number(b.dataset.shiftDay)));
+  const apply=(pal,reset)=>{
+    const off=$(`shift-${pal}-work`).value==='off';
+    const result=reset?CafeShifts.reset(G,pal,selectedDay):CafeShifts.edit(G,pal,selectedDay,off?null:Number($(`shift-${pal}-start`).value),off?null:Number($(`shift-${pal}-end`).value));
+    if(!result.ok){toast(result.error);return;}
+    updateShiftAttendance();save();updateHud();
+    toast(`${workers.find(w=>w.pal===pal).name}のシフトを${reset?'希望に戻しました':'保存しました'}`);
+    openShifts(fromReport,month,selectedDay);
+  };
+  $('panel').querySelectorAll('[data-shift-save]').forEach(b=>b.onclick=()=>apply(b.dataset.shiftSave,false));
+  $('panel').querySelectorAll('[data-shift-reset]').forEach(b=>b.onclick=()=>apply(b.dataset.shiftReset,true));
+  $('mClose').onclick=()=>{if(fromReport)showDayResult();else closeModal();};
+}
+
 function openCats() {
+  syncCatRoster();
   const pontaRow = `
     <div class="row catrow">
       <canvas width="52" height="47" data-cat="ponta"></canvas>
-      <span class="name">ぽんた（従業員・ぐりおの弟）</span>
-      <span class="desc">できた料理を はこんでくれる。よく寝る。寝ていたらタップで起こそう</span>
-      <span class="desc">いまのようす：${!ponta ? '-' : ponta.state === 'nap' ? 'ねてる（サボり中）' : ponta.state === 'slack' ? '毛づくろい（サボり中）' : ponta.carry ? 'はこんでる' : 'まじめに待機'}</span>
+      <span class="name">ぽんた（無料のおてつだい・ぐりおの弟）</span>
+      <span class="desc">2日目から希望は隔日。料理をはこんでくれる。よく寝るので、寝ていたらタップで起こそう</span>
+      <span class="desc">きょうの予定：${shiftHours(CafeShifts.entry(G,'ponta').start,CafeShifts.entry(G,'ponta').end)} ／ いま：${!ponta?'お休み・勤務時間外':ponta.state==='leaving'?'退勤中':ponta.state==='arrive'?'出勤中':ponta.state==='nap'?'ねてる（サボり中）':ponta.state==='slack'?'毛づくろい（サボり中）':ponta.carry?'はこんでる':'まじめに待機'}</span>
     </div>`;
-  const list = (G.ponta ? pontaRow : '') + cats.map(k => `
+  const roster=G.cats.map(stored=>cats.find(k=>!k.temp&&k.pal===stored.pal&&!k.gone)||stored).concat(cats.filter(k=>k.temp&&!k.gone));
+  const list = pontaRow + roster.map(k => {
+    const row=k.pal!=='grio'&&!k.temp?CafeShifts.entry(G,k.pal):null;
+    const plan=k.pal==='grio'?'毎日勤務':k.temp?'ニャイミーの勤務':row?shiftHours(row.start,row.end):'お休み';
+    const present=cats.includes(k)&&k.state!=='leaving';
+    return `
     <div class="row catrow">
       <canvas width="52" height="47" data-cat="${k.pal}"></canvas>
-      <span class="name">${k.name}${k.pal === 'grio' ? '（店長）' : ''}</span>
+      <span class="name">${financeEscape(k.name)}${k.pal==='grio'?'（店長）':''}</span>
+      <span class="desc">きょう：${plan} ／ ${present?'勤務中':k.state==='leaving'?'退勤中':'お休み・勤務時間外'}</span>
       <span class="desc">ごきげん</span><div class="bar"><i style="width:${Math.round(k.mood)}%"></i></div>
-      <span class="desc">おなか（へると元気がなくなる）</span><div class="bar hunger"><i style="width:${Math.round(100 - k.hunger)}%"></i></div>
-    </div>`).join('');
+      <span class="desc">おなか（へると元気がなくなる）</span><div class="bar hunger"><i style="width:${Math.round(100-k.hunger)}%"></i></div>
+    </div>`;
+  }).join('');
   openModal(`
     <h2>ねこたち</h2>
-    <p class="sub">ねこをタップするとなでられます。ごきげんなねこが多いほど、お客さんがよろこびます。</p>
+    <p class="sub">ねこをタップするとなでられます。ごきげんなねこが多いほど、お客さんがよろこびます。お休みの猫も、カフェのなかまです。</p>
     <div class="list">${list}</div>
-    <div class="actions-row"><button type="button" id="mClose">とじる</button></div>
+    <div class="actions-row"><button type="button" id="mCatShift">シフトを調整</button><button type="button" id="mClose">とじる</button></div>
   `);
-  $('panel').querySelectorAll('[data-cat]').forEach(c => drawCatThumb(c, c.dataset.cat));
-  $('mClose').onclick = closeModal;
+  $('panel').querySelectorAll('[data-cat]').forEach(c=>drawCatThumb(c,c.dataset.cat));
+  $('mCatShift').onclick=()=>openShifts();
+  $('mClose').onclick=closeModal;
 }
+
 // ================= タイトルのキービジュアルを 動かす =================
 // kv-anim.webp に、看板の板・ロゴの文字・とじた目 が入っている。座標は キービジュアル（1248×1242）の ピクセル
 const KV_META = {"W":1248,"H":1242,"parts":{"board":[300,100,700,310,0,0],"ぐ":[360,125,115,129,702,0],"り":[476,132,104,122,819,0],"お":[588,126,137,125,925,0],"の":[726,174,86,77,1064,0],"paw":[834,120,149,131,0,312],"ね":[327,264,145,126,151,312],"こ":[474,270,110,120,298,312],"カ":[592,258,138,132,410,312],"フ":[733,267,127,125,550,312],"ェ":[861,315,94,77,679,312],"g_closed":[276,534,282,150,775,312],"p_closed":[786,696,264,144,0,464]},"glyphs":["ぐ","り","お","の","paw","ね","こ","カ","フ","ェ"]};
@@ -3031,6 +3171,7 @@ onCafeTap(e => {
   if (fi >= 0) { furs.splice(fi, 1); sfx.clean(); addFx('spark', x, y); }
 });
 $('btnRegister').onclick = () => { initAudio(); tapRegister(); };
+$('btnShift').onclick = () => { initAudio(); if(G)openShifts(mode==='report'); };
 $('btnFinance').onclick = () => { initAudio(); if(G)openFinance(mode==='report'); };
 $('btnFood').onclick = () => {
   initAudio(); if (!G) return;
@@ -3184,7 +3325,7 @@ const TALKS = {
   firstAngry: [['sad', 'あっ…… お客さん、おこって かえっちゃった……'], ['normal', 'ふきだしの ゲージが なくなる前に はこぼうね。']],
   fur: [['surprise', 'ゆかに ぼくたちの 毛が おちてる……！'], ['normal', '毛を タップすると おそうじ できるにゃ。']],
   hungry: [['sad', 'おなか すいたにゃ……'], ['normal', '下の「ごはん」ボタンで ごはんを 足してほしいにゃ。']],
-  star2: [['surprise', 'ひょうばんが ★2 に なったにゃ！'], ['happy', 'アルバイトさんや、弟の ぽんたを やとえるように なったよ。ショップの「ねこ・人」を 見てみてね。']],
+  star2: [['surprise', 'ひょうばんが ★2 に なったにゃ！'], ['happy', 'アルバイトさんや、新しい ねこを むかえられるよ。ショップの「ねこ・人」を 見てみてね。']],
   star3: [['surprise', '★3！ まちで うわさに なってきたにゃ。'], ['happy', 'シロも あそびに 来たいって。ショップを 見てみてね。']],
   star4: [['happy', '★4 だにゃ！ チャチャが なかまに なりたいって。']],
   star5: [['surprise', '★5！！ まちいちばんの ねこカフェ だにゃ！'], ['happy', 'あとは もちきん ¥100,000 を めざそう！']],
@@ -3204,8 +3345,9 @@ const TALKS = {
   ],
   pontaJoin: [
     ['happy', 'オーナーさん、しょうかいするね。弟の ぽんた だにゃ。'],
-    ['normal', 'きょうから 従業員として、できた料理を はこんでくれるよ。', 'grio'],
-    ['sleep', '……むにゃ。よろしく…… おねがいします……', 'ponta'],
+    ['normal', 'きょうから 無料で おてつだいに 来てくれるよ。できた料理を はこぶにゃ。', 'grio'],
+    ['sleep', '……むにゃ。2・4・6日目って、1日おきに 来るね……', 'ponta'],
+    ['normal', 'ほかの なかまも 好きな時間の希望を出すよ。「シフト」で オーナーさんが調整してね。'],
     ['sad', 'よく ねちゃうから、ねてたら タップして おこしてあげてね。'],
   ],
   pontaNap: [
