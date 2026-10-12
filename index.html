@@ -339,7 +339,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./cat-shifts.js?v=20261012-cat-shifts"></script>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./kitchen-wash.js?v=20261012-kitchen-sink"></script>
-<script src="./nyax-art.js?v=20261012-grio-photos"></script>
+<script src="./nyax-art.js?v=20261012-generated-grio-photos"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
 <script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./stray-art.js?v=20261012-single-pass"></script><script src="./rear-walk.js?v=20261012-single-pass"></script>
 <script src="./cafe-art.js?v=20261012-walk"></script>
@@ -1059,6 +1059,7 @@ function financeResultHtml(result) {
 function showDayResult() {
   if(!lastResultHtml){closeModal();return;}
   openModal(lastResultHtml);
+  drawNyaxPhotos($('panel'));
   $('panel').querySelectorAll('[data-face]').forEach(c=>c.getContext('2d').drawImage(FACES.grio.happy,0,0));
   $('mNext').onclick=()=>{closeModal();startDay();};
   $('mShop').onclick=()=>openShop('furniture',true);
@@ -1759,7 +1760,7 @@ function endDay() {
     ${waste.length ? `<p class="sub" style="color:var(--bad)">日もちが切れて すてた材料：${waste.map(([n, k]) => `${n}×${k}`).join('、')}</p>` : ''}
     ${legend}
     <p class="sub">ぐりおが ニャックスに ポストしました</p>
-    <div class="nx-tl"><div class="nx-post"><div class="nx-av" style="background:#e9dcc0"><canvas width="64" height="64" data-face="1"></canvas></div><div class="nx-body"><div class="nx-who"><b>ぐりおのねこカフェ</b> <span>@guriocafe</span></div><p>${gpost.text.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</p><img src="${gpost.img}" alt="閉店後のお店" style="max-width:160px"></div></div></div>
+    <div class="nx-tl"><div class="nx-post"><div class="nx-av" style="background:#e9dcc0"><canvas width="64" height="64" data-face="1"></canvas></div><div class="nx-body"><div class="nx-who"><b>ぐりおのねこカフェ</b> <span>@guriocafe</span></div><p>${gpost.text.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</p>${nyaxPhotoHtml(gpost)}</div></div></div>
     ${revs.length ? '<p class="sub">お客さんの声</p>' + revs.join('') : '<p class="sub">きょうはお客さんが来ませんでした。</p>'}
     <div class="actions-row"><button type="button" id="mStock">あすの仕入れ</button><button type="button" id="mShop">ショップ</button><button type="button" id="mFinance">帳簿</button><button type="button" id="mShift">あすのシフト</button><button type="button" id="mDishes">洗い物</button><button type="button" id="mNext">つぎの日へ</button></div>
   `;
@@ -3529,13 +3530,26 @@ function grioDailyPost(day, log) {
   sns.posts.unshift(post); sns.posts = sns.posts.slice(0, 40); sns.unread++;
   return post;
 }
+function nyaxPhotoHtml(p) {
+  const food = p.photo && MENU.find(m => m.id === p.photo.food);
+  const owner = p.mine && p.photo && Object.hasOwn(NyaxArt.ownerLabels, p.photo.kind) ? p.photo.kind : null;
+  return food ? `<figure class="nx-photo"><canvas width="192" height="144" data-food-photo="${food.id}" data-variant="${p.photo.variant === 1 ? 1 : 0}" role="img" aria-label="${financeEscape(food.name)}のドット絵写真"></canvas><figcaption>${financeEscape(food.name)} ・ ${p.mine ? 'ぐりおの一枚' : 'お客さんの一枚'}</figcaption></figure>` : owner ? `<figure class="nx-photo"><canvas width="192" height="144" data-owner-photo="${owner}" role="img" aria-label="${NyaxArt.ownerLabels[owner]}のドット絵写真"></canvas><figcaption>${NyaxArt.ownerLabels[owner]} ・ ぐりおの一枚</figcaption></figure>` : p.img ? `<img src="${p.img}" alt="お店の写真">` : '';
+}
+function drawNyaxPhotos(root) {
+  root.querySelectorAll('[data-food-photo]').forEach(c => {
+    const draw = () => NyaxArt.draw(c, c.dataset.foodPhoto, Number(c.dataset.variant));
+    draw(); NyaxArt.ready.then(() => { if (c.isConnected) draw(); });
+  });
+  root.querySelectorAll('[data-owner-photo]').forEach(c => {
+    const draw = () => NyaxArt.drawOwner(c, c.dataset.ownerPhoto, CHAR_SPR, FACES);
+    draw(); NyaxArt.ownerReady.then(() => { if (c.isConnected) draw(); });
+  });
+}
 function openNyax() {
   const sns = snsState(); sns.unread = 0; updateNyaxBadge();
   const esc = t => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const tl = sns.posts.map(p => {
-    const food = p.photo && MENU.find(m => m.id === p.photo.food);
-    const owner = p.mine && p.photo && Object.hasOwn(NyaxArt.ownerLabels, p.photo.kind) ? p.photo.kind : null;
-    const photo = food ? `<figure class="nx-photo"><canvas width="192" height="144" data-food-photo="${food.id}" data-variant="${p.photo.variant === 1 ? 1 : 0}" role="img" aria-label="${esc(food.name)}のドット絵写真"></canvas><figcaption>${esc(food.name)} ・ ${p.mine ? 'ぐりおの一枚' : 'お客さんの一枚'}</figcaption></figure>` : owner ? `<figure class="nx-photo"><canvas width="192" height="144" data-owner-photo="${owner}" role="img" aria-label="${NyaxArt.ownerLabels[owner]}のドット絵写真"></canvas><figcaption>${NyaxArt.ownerLabels[owner]} ・ ぐりおの一枚</figcaption></figure>` : p.img ? `<img src="${p.img}" alt="お店の写真">` : '';
+    const photo = nyaxPhotoHtml(p);
     return `
     <div class="nx-post${p.bad ? ' bad' : ''}">
       <div class="nx-av" style="background:${p.mine ? '#e9dcc0' : `hsl(${(p.handle.length * 47) % 360} 45% 55%)`}">${p.mine ? '<canvas width="64" height="64" data-face="1"></canvas>' : esc(p.name[0])}</div>
@@ -3556,11 +3570,7 @@ function openNyax() {
       <div class="actions-row"><button type="button" id="mClose">とじる</button></div>
     </div>`);
   $('panel').querySelectorAll('[data-face]').forEach(c => c.getContext('2d').drawImage(FACES.grio.happy, 0, 0));
-  $('panel').querySelectorAll('[data-food-photo]').forEach(c => {
-    const draw = () => NyaxArt.draw(c, c.dataset.foodPhoto, Number(c.dataset.variant));
-    draw(); NyaxArt.ready.then(() => { if (c.isConnected) draw(); });
-  });
-  $('panel').querySelectorAll('[data-owner-photo]').forEach(c => NyaxArt.drawOwner(c, c.dataset.ownerPhoto, CHAR_SPR, FACES));
+  drawNyaxPhotos($('panel'));
   $('mClose').onclick = closeModal;
   event('nyax');
 }

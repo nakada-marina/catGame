@@ -27,6 +27,7 @@ fs.mkdirSync(artifacts, { recursive: true });
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(base); await page.evaluate(() => artworkReady);
     assert.equal(await page.evaluate(() => NyaxArt.ready), true, 'authored food atlas loaded');
+    assert.equal(await page.evaluate(() => NyaxArt.ownerReady), true, 'generated Grio photo atlas loaded');
     await page.locator('#mNew').click();
     await page.evaluate(() => {
       finishFirstGuide(true); talking = null; talkQ.length = 0; $('talk').hidden = true;
@@ -161,13 +162,47 @@ fs.mkdirSync(artifacts, { recursive: true });
     await page.evaluate(() => { talking = null; talkQ.length = 0; $('talk').hidden = true; openNyax(); });
     assert.equal(await page.locator('[data-owner-photo]').count(), 4, 'owner photographs survive save and reload');
     console.log('PASS actual perfect dish capture, event-matched owner photos/text, six subjects, repeat avoidance, rendering and save/reload');
+    for (const [randomValue, subject] of [[0, 'paw'], [.18, 'selfie'], [.35, 'break'], [.51, 'cafe'], [.68, 'nap'], [.99, 'cake']]) {
+      const post = await page.evaluate(n => {
+        closeModal(); talking = null; talkQ.length = 0; $('talk').hidden = true;
+        G = newSave(); G.flags = { intro: true, firstCustomerDone: true }; buildSeats(); spawnCats(); startDay();
+        dayLog.perfectFoods = ['cake']; dayLog.pontaNaps = 1; G.sns.posts = [];
+        const random = Math.random;
+        try { Math.random = () => n; endDay(); return G.sns.posts[0]; }
+        finally { Math.random = random; }
+      }, randomValue);
+      assert.equal(post.photo?.kind || post.photo?.food || 'cafe', subject);
+      assert.equal(await page.locator('img[src="undefined"]').count(), 0, 'report never requests an absent snapshot');
+      const selector = subject === 'cafe' ? '.nx-body img' : '.nx-photo canvas';
+      if (subject === 'cafe') {
+        assert(await page.locator(selector).evaluate(image => image.complete && image.naturalWidth > 0));
+      } else {
+        const matched = await page.locator(selector).evaluate(canvas => {
+          const post = G.sns.posts[0];
+          const expected = post.photo.food ? NyaxArt.photo(post.photo.food, post.photo.variant) : NyaxArt.ownerPhoto(post.photo.kind, CHAR_SPR, FACES);
+          return canvas.toDataURL() === expected.toDataURL();
+        });
+        assert(matched, 'report renders the selected generated photo: ' + subject);
+      }
+      await page.locator('#mFinance').click(); await page.locator('#mClose').click();
+      assert.equal(await page.locator(selector).count(), 1, 'photo restored when returning to report');
+      if (subject !== 'cafe') assert(await page.locator(selector).evaluate(c => c.getContext('2d').getImageData(0, 0, c.width, c.height).data.some((v, i) => i % 4 === 3 && v)), 'returned report canvas is drawn');
+      if (subject === 'selfie') {
+        await page.locator(selector).scrollIntoViewIfNeeded();
+        await page.screenshot({ path: path.join(artifacts, 'grio-result-photo.png') });
+      }
+    }
+    console.log('PASS real closing results render all six photo subjects and redraw after finance round trips');
     assert.deepEqual(errors, []);
     // A missing asset still leaves usable food pictures and a working timeline.
     const fallback = await browser.newPage();
     const fallbackErrors = []; fallback.on('pageerror', e => fallbackErrors.push(e.message));
     await fallback.route('**/nyax-food-atlas.png*', route => route.abort());
+    await fallback.route('**/nyax-grio-atlas.png*', route => route.abort());
     await fallback.goto(base); await fallback.evaluate(() => artworkReady);
     assert.equal(await fallback.evaluate(() => NyaxArt.ready), false);
+    assert.equal(await fallback.evaluate(() => NyaxArt.ownerReady), false);
+    assert(await fallback.evaluate(() => Object.keys(NyaxArt.ownerLabels).every(kind => NyaxArt.ownerPhoto(kind, CHAR_SPR, FACES).getContext('2d').getImageData(0, 0, 192, 144).data.some((v, i) => i % 4 === 3 && v))), 'owner photo fallback remains readable');
     const fallbackPhotos = await fallback.evaluate(() => MENU.every(m => {
       const c = NyaxArt.photo(m.id);
       return c.getContext('2d').getImageData(0, 0, c.width, c.height).data.some((v, i) => i % 4 === 3 && v);
