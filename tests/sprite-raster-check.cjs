@@ -124,7 +124,10 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
     const draw=canvas(),ctx=draw.getContext('2d');
     const render=new Function('cv','ctx','FW','FH','G','drawWallAndFloor','OPEN',source('render')+';return render;')(
       cv,ctx,448,roomHeight*2,null,()=>{},600);
-    render();const m=ctx.getTransform();close(m.a,cv.width/448,'horizontal physical scale');close(m.a,m.d,'uniform physical scale');assert(Math.abs(m.d*roomHeight-cv.height)<=.5,'vertical pixel rounding stays within half a physical pixel');
+    render();const m=ctx.getTransform();close(m.a,cv.width/448,'horizontal physical scale');close(m.a,m.d,'uniform physical scale');
+    // Width and height each round by at most half a physical pixel. The
+    // width error propagates through the room aspect ratio as well.
+    assert(Math.abs(m.d*roomHeight-cv.height)<=.5*(1+roomHeight/448)+1e-8,'uniform drawing stays within the combined pixel rounding bounds');
     const oldWidth=cv.clientWidth;
     window.visualViewport.height=height-40;fit();assert(cv.clientWidth<=oldWidth,'toolbar expansion recomputes available height');
   }

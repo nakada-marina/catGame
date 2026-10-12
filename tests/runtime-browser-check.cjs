@@ -5,7 +5,7 @@ const fs = require('node:fs'), path = require('node:path'), http = require('node
 const root = path.join(__dirname, '..');
 (async () => {
   let server, browser;
-  const base = process.env.BASE_URL || 'http://127.0.0.1:8770/';
+  let base = process.env.BASE_URL || 'http://127.0.0.1/';
   const errors = [];
   try {
     if (!process.env.BASE_URL) {
@@ -18,7 +18,8 @@ const root = path.join(__dirname, '..');
           res.end(fs.readFileSync(file));
         } catch { res.writeHead(404); res.end(); }
       });
-      await new Promise(resolve => server.listen(8770, '127.0.0.1', resolve));
+      await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+      base = `http://127.0.0.1:${server.address().port}/`;
     }
     browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox', '--disable-gpu'] } : {}) });
     const page = await browser.newPage({ viewport: { width: 393, height: 852 } });
