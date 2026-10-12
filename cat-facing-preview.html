@@ -28,12 +28,13 @@ figcaption{padding-top:8px;font-size:14px}
 <p id="status" role="status">素材を読み込んでいます…</p>
 <div class="grid" id="cats"></div>
 <script src="./sprite-raster.js?v=20261012-service"></script>
-<script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./character-art.js?v=20261011-uniform"></script>
-<script src="./rear-walk.js?v=20261012-single-pass"></script>
+<script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./character-art.js?v=20261012-shop-cats"></script>
+<script src="./adopt-art.js?v=20261012-shop-cats"></script>
+<script src="./rear-walk.js?v=20261012-shop-cats"></script>
 <script>
 (async function(){
   try {
-    await RearWalk.load;
+    await Promise.all([RearWalk.load,AdoptArt.load]);
     document.getElementById('status').hidden=true;
     const actors=[['grio','ぐりお'],['ponta','ぽんた'],['mike','みけ'],['kuro','くろ'],['shiro','しろ'],['chacha','ちゃちゃ']];
     const views=[],source={width:128,height:144};
@@ -50,7 +51,7 @@ figcaption{padding-top:8px;font-size:14px}
     let paused=matchMedia('(prefers-reduced-motion: reduce)').matches,frame=0,last=0;
     const button=document.getElementById('toggle');
     function label(){button.textContent=paused?'歩行を再生する':'歩行を止める';}
-    function draw(){for(const {pal,facing,cv} of views){const g=SpriteRaster.prepare(cv,128,144);g.clearRect(0,0,128,144);g.imageSmoothingEnabled=false;const model=(pal==='grio'||pal==='ponta')?source:{width:76,height:53},im=RearWalk.cat(pal,frame,model,null,facing),size=CatArtwork.displaySize(pal,im);SpriteRaster.draw(g,im,Math.round((128-size.width)/2),144-size.height,size.width,size.height);}}
+    function draw(){for(const {pal,facing,cv} of views){const g=SpriteRaster.prepare(cv,128,144);g.clearRect(0,0,128,144);g.imageSmoothingEnabled=false;const model=source,im=RearWalk.cat(pal,frame,model,null,facing),size=CatArtwork.displaySize(pal,im);SpriteRaster.draw(g,im,Math.round((128-size.width)/2),144-size.height,size.width,size.height);}}
     button.onclick=()=>{paused=!paused;label();};label();draw();
     function animate(time){if(!paused&&time-last>=150){frame=(frame+1)%4;last=time;draw();}requestAnimationFrame(animate);}
     requestAnimationFrame(animate);

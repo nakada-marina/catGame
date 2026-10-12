@@ -42,6 +42,7 @@
   function displaySize(pal, image) {
     const scale = pal === 'grio' ? (image.width === 128 ? .55 : 1.05) :
       pal === 'ponta' ? (image.width === 128 ? .52 : .98) :
+      ['mike','kuro','shiro','chacha'].includes(pal) && image.width === 128 ? .52 :
       pal.startsWith('stray_') && image.width === 128 ? .52 : .78;
     return { width: Math.round(image.width * scale), height: Math.round(image.height * scale) };
   }

@@ -24,6 +24,7 @@ fs.mkdirSync(artifacts, { recursive: true });
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     await page.goto(base); await page.evaluate(() => artworkReady);
     assert.equal(await page.evaluate(() => StaffArt.load), true);
+    assert.deepEqual(await page.evaluate(() => Object.keys(CHAR_SPR).filter(pal => ['mike','kuro','shiro','chacha'].includes(pal)).sort()), ['chacha','kuro','mike','shiro']);
     const frames = await page.evaluate(() => StaffArt.poses.map(pose => {
       const c = StaffArt.frame(pose), data = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
       return { pose, scale: c.spriteScale, foot: c.footAnchor, transparent: data[3] === 0, rendered: data.some((v, i) => i % 4 === 3 && v), image: c.toDataURL() };
@@ -39,7 +40,7 @@ fs.mkdirSync(artifacts, { recursive: true });
     assert(await preview.evaluate(c => c.getContext('2d').getImageData(0, 0, c.width, c.height).data.some((v, i) => i % 4 === 3 && v)));
     for (const width of [320, 393, 1280]) {
       await page.setViewportSize({ width, height: 852 });
-      const bounds = await page.locator('.staffrow').evaluate(row => [...row.children].map(el => el.getBoundingClientRect().toJSON()));
+      const bounds = await page.locator('.staffrow').evaluateAll(rows => rows.flatMap(row => [...row.children].map(el => el.getBoundingClientRect().toJSON())));
       assert(bounds.every(r => r.left >= 0 && r.right <= width + 1), 'worker preview and hiring controls fit ' + width);
     }
     await page.setViewportSize({ width: 393, height: 852 });
@@ -62,11 +63,35 @@ fs.mkdirSync(artifacts, { recursive: true });
     });
     assert(poses.every(p => p.matches), 'real counter draws each pose from its original generated atlas');
     await page.screenshot({ path: path.join(artifacts, 'staff-cafe.png') });
+    const shopCats = await page.evaluate(() => {
+      G.money = 100000; G.pop = 80; talking = null; talkQ.length = 0; $('talk').hidden = true; openShop('family');
+      return ADOPT.map(a => ({ pal: a.pal, price: a.price }));
+    });
+    assert(!(await page.locator('#panel').textContent()).includes('ねこ・人'));
+    const previews = await page.locator('[data-adopt-preview]').evaluateAll(canvases => canvases.map(c => c.toDataURL()));
+    assert.equal(new Set(previews).size, 4, 'four distinct shop cat previews');
+    for (const cat of shopCats) {
+      const before = await page.evaluate(() => G.money);
+      await page.locator(`[data-buy="buy-c-${cat.pal}"]`).click();
+      assert.equal(await page.evaluate(() => G.money), before - cat.price);
+      assert(await page.evaluate(pal => G.cats.some(c => c.pal === pal), cat.pal));
+      const poses = await page.evaluate(pal => AdoptArt.poses.map(pose => {
+        const frame = AdoptArt.frame(pal, pose);
+        return { authored: frame.shopCat, scale: frame.spriteScale, foot: frame.footAnchor, size: CatArtwork.displaySize(pal, frame) };
+      }), cat.pal);
+      assert.equal(poses.length, 16); assert(poses.every(p => p.authored && p.foot === 142));
+      assert.equal(new Set(poses.map(p => p.scale)).size, 1);
+      assert(poses.every(p => p.size.width === 67 && p.size.height === 75), 'shop cats match the Nyaimee display size');
+    }
+    await page.locator('[data-staff-preview]').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(artifacts, 'cat-workers-shop.png') });
+    await page.evaluate(() => { closeModal(); talking = null; talkQ.length = 0; $('talk').hidden = true; render(); });
+    await page.screenshot({ path: path.join(artifacts, 'cat-workers-cafe.png') });
     await page.reload(); await page.evaluate(() => artworkReady); await page.locator('#mCont').click();
     assert.equal(await page.evaluate(() => G.staff), true);
-    console.log('PASS four generated poses, original-atlas rendering, shop preview/layout, real hiring price and saved worker');
+    console.log('PASS four feline helper poses, 64 authored shop cat poses, original-atlas rendering, all shop previews, real hiring prices and saved cats');
     const fallback = await browser.newPage(); fallback.on('pageerror', e => errors.push(e.message));
-    await fallback.route('**/staff-atlas.png*', route => route.abort());
+    await fallback.route('**/adopt-cats-shiro-chacha.png*', route => route.abort());
     await fallback.goto(base); await fallback.evaluate(() => artworkReady);
     assert.equal(await fallback.evaluate(() => StaffArt.load), false);
     await fallback.locator('#mNew').click();

@@ -85,8 +85,8 @@ function verify(frame) {
   const flipCode=html.slice(html.indexOf('function flipH('),html.indexOf('\n',html.indexOf('function flipH(')));
   const flipH=new Function('mk','SpriteRaster',flipCode+';return flipH;')(canvas,window.SpriteRaster);
   const errors=[],faces={grio:{},ponta:{}};
-  const native=new Function('mk','CatArtwork','GuestArt','RearWalk','StrayArt','CounterArt','StaffArt','flipH','FACES','console','$',initCode+';return {CHAR_SPR,artworkReady};')(
-    canvas,window.CatArtwork,{load:Promise.resolve()},window.RearWalk,window.StrayArt,{load:Promise.resolve(true)},{load:Promise.resolve(true)},flipH,faces,
+  const native=new Function('mk','CatArtwork','GuestArt','RearWalk','StrayArt','CounterArt','StaffArt','AdoptArt','flipH','FACES','console','$',initCode+';return {CHAR_SPR,artworkReady};')(
+    canvas,window.CatArtwork,{load:Promise.resolve()},window.RearWalk,window.StrayArt,{load:Promise.resolve(true)},{load:Promise.resolve(true)},{load:Promise.resolve({})},flipH,faces,
     {error:e=>errors.push(e)},()=>({}));
   await native.artworkReady;assert.equal(errors.length,0);assert.equal(Object.keys(native.CHAR_SPR).length,8,'brothers plus all six workers loaded');
   const selectorCode=html.slice(html.indexOf('function charPose('),html.indexOf('function catImg('));

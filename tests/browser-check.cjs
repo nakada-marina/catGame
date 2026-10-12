@@ -635,7 +635,7 @@ async function dismissTalks(page) {
     fs.writeFileSync(path.join(artifacts,'bow-motion.png'),Buffer.from(bowSheet,'base64'));
     await p.evaluate(()=>finishFirstGuide(true));
     // No manual serve(): the manager must walk to the guest and create a job,
-    // including while visiting/napping and while the human helper is hired.
+    // including while visiting/napping and while the cat helper is hired.
     const autoOrders=await p.evaluate(()=>{
       talking=null;talkQ.length=0;$('talk').hidden=true;const results=[];
       for(const state of ['idle','walk','visit','toVisit','toSpot','nap']) {
@@ -655,7 +655,7 @@ async function dismissTalks(page) {
       return results;
     });
     for(const r of autoOrders)assert(r.sawMove&&r.sawOrder&&r.received&&r.released,JSON.stringify(r));
-    console.log('PASS automatic cat orders from idle/walk/visit/nap, with human helper; reservation released');
+    console.log('PASS automatic cat orders from idle/walk/visit/nap, with cat helper; reservation released');
     // Exercise the live simulation, including ordering, kitchen, and delivery.
     const simulation=await p.evaluate(()=>{
       talking=null;talkQ.length=0;$('talk').hidden=true;G.flags.intro=true;

@@ -345,11 +345,12 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./nyax-art.js?v=20261012-white-paws"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
 <script src="./counter-art.js?v=20261012-seated"></script>
-<script src="./staff-art.js?v=20261012-cafe-worker"></script>
-<script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./stray-art.js?v=20261012-single-pass"></script><script src="./rear-walk.js?v=20261012-single-pass"></script>
+<script src="./adopt-art.js?v=20261012-shop-cats"></script>
+<script src="./staff-art.js?v=20261012-cat-helper"></script>
+<script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./stray-art.js?v=20261012-single-pass"></script><script src="./rear-walk.js?v=20261012-shop-cats"></script>
 <script src="./cafe-art.js?v=20261012-counter"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
-<script src="./character-art.js?v=20261011-nyaimee"></script>
+<script src="./character-art.js?v=20261012-shop-cats"></script>
 <script src="./title-scene.js?v=20261012-menu-clearance"></script>
 <script>
 'use strict';
@@ -760,7 +761,7 @@ function makePerson(look) {
 function randomLook() {
   return { guest: Math.floor(Math.random()*4), hair: pick(LOOKS.hair), skin: pick(LOOKS.skin), shirt: pick(LOOKS.shirt), pants: pick(LOOKS.pants), long: Math.random() < 0.45 };
 }
-const STAFF_SPR = makePersonFine({ hair: '#3a2a20', skin: '#f8dcc0', shirt: '#f4f0e8', pants: '#3a3a44', long: false }, 'a', true);
+const STAFF_SPR = CAT_SPR.shiro.sit0[0];
 
 // ================= ドット絵：メニューと小物 =================
 const ICON_DEFS = {
@@ -2022,9 +2023,7 @@ function drawCounter() {
 function drawStaff() {
   const pose = StaffArt.pose({ busy: staffBusy, washing: !!G.tableware?.wash, cooking: jobs.some(j => j.state === 'cook') });
   const image = StaffArt.frame(pose);
-  // The counter front covers the lower body, leaving the face and working
-  // hands visible instead of placing the worker's shoes on the countertop.
-  if (image) SpriteRaster.draw(ctx, image, 356 - 48, 156 - 108, 96, 108);
+  if (image) SpriteRaster.draw(ctx, image, 356 - 48, 134 - 108, 96, 108);
   else drawAt(STAFF_SPR, 356 - STAFF_SPR.width / 2, 116 - STAFF_SPR.height);
 }
 function drawLamps() {
@@ -2225,8 +2224,8 @@ function drawLighting() {
 // ぐりお と ぽんた は キャラクター設定画の 絵を つかう（chars.webp）
 
 const CHAR_SPR = {}, CHAR_PENDING = mk(81, 64);
-const artworkReady = Promise.all([CatArtwork.load(), GuestArt.load, RearWalk.load, StrayArt.load, CounterArt.load, StaffArt.load]).then(([originals, , , strays]) => {
-  const bodies = { ...originals, ...strays };
+const artworkReady = Promise.all([CatArtwork.load(), GuestArt.load, RearWalk.load, StrayArt.load, CounterArt.load, StaffArt.load, AdoptArt.load]).then(([originals, , , strays, , , adopted]) => {
+  const bodies = { ...originals, ...strays, ...adopted };
   for (const who of Object.keys(bodies)) {
     CHAR_SPR[who] = {};
     for (const [pose, frame] of Object.entries(bodies[who])) CHAR_SPR[who][pose] = [frame, flipH(frame)];
@@ -2876,7 +2875,8 @@ function row(name, desc, label, disabled, id, preview = '') {
 }
 function drawStaffPreview(canvas) {
   const draw = () => {
-    const g = SpriteRaster.prepare(canvas, 128, 144), image = StaffArt.frame('greet') || STAFF_SPR;
+    const pal = canvas.dataset.adoptPreview;
+    const g = SpriteRaster.prepare(canvas, 128, 144), image = pal ? AdoptArt.frame(pal,'idle') || CAT_SPR[pal].sit0[0] : StaffArt.frame('greet') || STAFF_SPR;
     g.clearRect(0, 0, 128, 144);
     const height = 136, width = height * image.width / image.height;
     SpriteRaster.draw(g, image, (128 - width) / 2, 144 - height, width, height);
@@ -2884,7 +2884,7 @@ function drawStaffPreview(canvas) {
   draw(); StaffArt.load.then(() => { if (canvas.isConnected) draw(); });
 }
 function openShop(tab = 'furniture', fromReport = false) {
-  const tabs = [['furniture', '家具'], ['kitchen', 'キッチン'], ['menu', 'メニュー'], ['family', 'ねこ・人'], ['tableware','食器']];
+  const tabs = [['furniture', '家具'], ['kitchen', 'キッチン'], ['menu', 'メニュー'], ['family', 'ねこ'], ['tableware','食器']];
   let rows = '';
   if(tab==='tableware'){
     const w=CafeService.init(G);rows=CafeService.keys.map(k=>row(CafeService.types[k].name+'（全部'+w.total[k]+'個）','清潔 '+w.clean[k]+'個・洗い待ち '+w.dirty[k]+'個','2個追加 ¥'+(CafeService.types[k].price*2).toLocaleString(),G.money<CafeService.types[k].price*2,'buy-w-'+k)).join('');
@@ -2907,12 +2907,12 @@ function openShop(tab = 'furniture', fromReport = false) {
   } else {
     rows = ADOPT.map(a => {
       const has = G.cats.some(c => c.pal === a.pal), locked = stars() < a.star;
-      return row(`${a.name}をむかえる`, locked ? `ひょうばん ★${a.star} で会える` : a.desc, has ? 'なかま' : `¥${a.price.toLocaleString()}`, has || locked || G.money < a.price, `buy-c-${a.pal}`);
+      return row(`${a.name}をむかえる`, locked ? `ひょうばん ★${a.star} で会える` : a.desc, has ? 'なかま' : `¥${a.price.toLocaleString()}`, has || locked || G.money < a.price, `buy-c-${a.pal}`, `<canvas class="staff-preview" width="128" height="144" data-adopt-preview="${a.pal}" role="img" aria-label="${a.name}の猫アルバイト"></canvas>`);
     }).join('');
     const locked = stars() < STAFF.star;
     rows += '<div class="row"><span class="name">ぽんた（ぐりおの弟）のおてつだい</span><span class="desc">2日目から無料。希望は2・4・6日目…の隔日。できた料理をはこんでくれる。シフトはオーナーが調整できます</span><button type="button" id="mPontaShift">シフトを見る</button></div>';
-    rows += row('アルバイトをやとう', locked ? `ひょうばん ★${STAFF.star} でやとえる` : `注文出しと片づけを手伝ってくれる。日給 ¥${STAFF.wage.toLocaleString()}`,
-      G.staff ? 'やとった' : `¥${STAFF.price.toLocaleString()}`, G.staff || locked || G.money < STAFF.price, 'buy-s-x', '<canvas class="staff-preview" width="128" height="144" data-staff-preview="1" role="img" aria-label="カフェエプロン姿のアルバイト"></canvas>');
+    rows += row('キッチンのねこをやとう', locked ? `ひょうばん ★${STAFF.star} でやとえる` : `調理・会計・片づけを手伝ってくれる。日給 ¥${STAFF.wage.toLocaleString()}`,
+      G.staff ? 'やとった' : `¥${STAFF.price.toLocaleString()}`, G.staff || locked || G.money < STAFF.price, 'buy-s-x', '<canvas class="staff-preview" width="128" height="144" data-staff-preview="1" role="img" aria-label="キッチンの猫アルバイト"></canvas>');
   }
   openModal(`
     <h2>ショップ</h2>
@@ -2924,6 +2924,7 @@ function openShop(tab = 'furniture', fromReport = false) {
   $('panel').querySelectorAll('[data-tab]').forEach(b => { b.onclick = () => openShop(b.dataset.tab, fromReport); });
   $('panel').querySelectorAll('[data-buy]').forEach(b => { b.onclick = () => { buy(b.dataset.buy); openShop(tab, fromReport); }; });
   $('panel').querySelectorAll('[data-staff-preview]').forEach(drawStaffPreview);
+  $('panel').querySelectorAll('[data-adopt-preview]').forEach(drawStaffPreview);
   if($('mPontaShift'))$('mPontaShift').onclick=()=>openShifts(fromReport);
   $('mClose').onclick = () => { closeModal(); if (fromReport) startDay(); };
 }
@@ -3360,7 +3361,7 @@ const TALKS = {
   firstAngry: [['sad', 'あっ…… お客さん、おこって かえっちゃった……'], ['normal', 'ふきだしの ゲージが なくなる前に はこぼうね。']],
   fur: [['surprise', 'ゆかに ぼくたちの 毛が おちてる……！'], ['normal', '毛を タップすると おそうじ できるにゃ。']],
   hungry: [['sad', 'おなか すいたにゃ……'], ['normal', '下の「ごはん」ボタンで ごはんを 足してほしいにゃ。']],
-  star2: [['surprise', 'ひょうばんが ★2 に なったにゃ！'], ['happy', 'アルバイトさんや、新しい ねこを むかえられるよ。ショップの「ねこ・人」を 見てみてね。']],
+  star2: [['surprise', 'ひょうばんが ★2 に なったにゃ！'], ['happy', 'アルバイトのねこや、新しい ねこを むかえられるよ。ショップの「ねこ」を 見てみてね。']],
   star3: [['surprise', '★3！ まちで うわさに なってきたにゃ。'], ['happy', 'シロも あそびに 来たいって。ショップを 見てみてね。']],
   star4: [['happy', '★4 だにゃ！ チャチャが なかまに なりたいって。']],
   star5: [['surprise', '★5！！ まちいちばんの ねこカフェ だにゃ！'], ['happy', 'あとは もちきん ¥100,000 を めざそう！']],

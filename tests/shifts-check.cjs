@@ -134,7 +134,7 @@ api.field('shift-mike-end',660);api.click('[data-shift-save]','mike');assert.equ
 api.click('[data-shift-reset]','mike');assert.equal(CafeShifts.entry(api.state().G,'mike').end,CafeShifts.entry(api.state().G,'mike').wishEnd,'original wish restored');
 api.plan('kuro',3,840,1140);saved=api.save();api.reload();assert.deepEqual(api.save().shifts.days[3],saved.shifts.days[3],'wishes and owner edits survive reload');
 api.end();const reportDay=api.state().G.day;api.modal(true);api.close();assert.equal(api.state().mode,'report');assert.equal(api.state().G.day,reportDay,'planner closing does not start next day');
-assert(api.state().html.includes('けっか'));assert.equal(api.state().G.finance.history.find(d=>d.day===2).expenses.wages,2000,'human payroll unchanged');
+assert(api.state().html.includes('けっか'));assert.equal(api.state().G.finance.history.find(d=>d.day===2).expenses.wages,2000,'cat helper payroll unchanged');
 assert.equal(api.state().G.finance.history.find(d=>d.day===2).expenses.staffInsurance,200);
 api.start();assert(api.state().G.cats.some(k=>k.pal==='kuro'));api.time(840);assert(api.state().cats.some(k=>k.pal==='kuro'&&k.state!=='leaving'));
 api.reset(2);api.time(780);api.buy('buy-c-mike');assert.equal(api.state().G.money,5000);assert(api.state().cats.some(k=>k.pal==='mike'));
