@@ -10,7 +10,8 @@
   function prepare(canvas,width=canvas.rasterLogicalWidth||canvas.width,height=canvas.rasterLogicalHeight||canvas.height){
     canvas.rasterLogicalWidth=width;canvas.rasterLogicalHeight=height;
     if(canvas.style)canvas.style.aspectRatio=width+' / '+height;
-    resize(canvas,canvas.clientWidth||width,canvas.clientHeight||height);
+    const box=canvas.getBoundingClientRect?.();
+    resize(canvas,box?.width||canvas.clientWidth||width,box?.height||canvas.clientHeight||height);
     const g=canvas.getContext('2d');g.setTransform(canvas.width/width,0,0,canvas.height/height,0,0);
     return g;
   }

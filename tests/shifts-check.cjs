@@ -4,7 +4,8 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8'),window={};
 new Function('window',fs.readFileSync(path.join(__dirname,'..','finance.js'),'utf8'))(window);
 new Function('window',fs.readFileSync(path.join(__dirname,'..','cat-shifts.js'),'utf8'))(window);
-const {CafeFinance,CafeShifts}=window;
+new Function('window',fs.readFileSync(path.join(__dirname,'..','cafe-service.js'),'utf8'))(window);
+const {CafeFinance,CafeShifts,CafeService}=window;
 const roster=()=>({day:1,time:600,cats:['grio','mike','kuro','shiro','chacha'].map(pal=>({pal,name:pal,mood:60,hunger:30}))});
 const g=roster();CafeShifts.ensure(g,()=>.5);
 assert.deepEqual(CafeShifts.workers(g).map(k=>k.pal),['ponta','mike','kuro','shiro','chacha'],'manager and spot workers excluded');
@@ -32,10 +33,10 @@ function source(name) {
 }
 const constants=['STAFF','TABLE_POS','STOOL_POS'].map(name=>html.match(new RegExp('const '+name+' = [^\\n]+'))[0]).join('\n')
   +'\n'+html.slice(html.indexOf('const ADOPT ='),html.indexOf('\n];',html.indexOf('const ADOPT ='))+3);
-const functions=['newSave','syncCatRoster','makeCat','spawnCats','makePonta','beginPontaExit','updateShiftAttendance','endShift','dropOrder','updateCat','updatePonta','moveTo','buildSeats','startDay','endDay','showDayResult','save','loadSave','event','buy','openShop','row','openCats','shiftHours','openShifts','financeResultHtml','financeRows','financeDate','financeYen','financeEscape'];
+const functions=['clearTable','refreshDishes','newSave','syncCatRoster','makeCat','spawnCats','makePonta','beginPontaExit','updateShiftAttendance','endShift','dropOrder','updateCat','updatePonta','moveTo','buildSeats','startDay','endDay','showDayResult','save','loadSave','event','buy','openShop','row','openCats','shiftHours','openShifts','financeResultHtml','financeRows','financeDate','financeYen','financeEscape'];
 const elements={},$=id=>elements[id]||(elements[id]={value:'',hidden:true,textContent:'',disabled:false,style:{}});
 
-const api=new Function('$','CafeFinance','CafeShifts',String.raw`
+const api=new Function('$','CafeFinance','CafeShifts','CafeService',String.raw`
 ${constants}
 
 let G,customers=[],jobs=[],cats=[],particles=[],furs=[],seats=[],ponta=null,mode='title',tick=0,speed=1,spawnTimer=100000,staffBusy=0,dayLog,weather,dayFlags,rushUntil,vipNext,bgmOn,firstGuide=null,toastTimer=0,lastResultHtml='',checkoutSeq=0,registerFlash=0;
@@ -97,7 +98,7 @@ return {
  showCats(){openCats();},showShop(){openShop('family');},
  temp(){const k=makeCat({name:'サビ',pal:'sabi',temp:true,until:720,skill:'serve',mood:75,hunger:0},90,250);cats.push(k);return k;}
 };
-`)($,CafeFinance,CafeShifts);
+`)($,CafeFinance,CafeShifts,CafeService);
 
 api.reset(1,{legacyPonta:true});assert.equal(api.state().ponta,null,'legacy flag cannot add day1 Ponta');assert.equal(api.state().G.money,8000);
 api.next();assert(api.state().ponta,'Ponta joins day2 at star1');assert.equal(api.state().G.money,6850,'only rent and utilities paid');

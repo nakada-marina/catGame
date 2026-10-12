@@ -76,7 +76,7 @@ assert.equal(g.finance.months[0].expenses.health,160);assert.equal(g.finance.mon
 assert(!g.finance.bills.some(b=>b.month<1));
 g.day=11;const beforePurchase=g.money;F.spend(g,'materials',200,'粉 ×5');
 assert.equal(F.today(g).cashStart,beforePurchase);
-F.beginDay(g);assert.equal(F.today(g).cashExpenses,200,'night purchase belongs to next day exactly once');
+F.beginDay(g);assert.equal(F.today(g).cashExpenses,0,'night purchase is payable, not a cash payment');assert.equal(F.view(g).payable,200);
 assert.equal(F.today(g).cashStart,beforePurchase);
 
 g=fresh();F.beginDay(g);F.sale(g,500,'card');F.closeDay(g);
@@ -116,5 +116,5 @@ assert.equal(F.view(g).cardNet,0);assert.equal(F.view(g).unpaid,0);
 assert.equal(g.money,100000+earned-operating-taxes-invested,'all four months settle to final money balance');
 
 for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(match[1].trim())new Function(match[1]);
-assert(html.includes('src="./finance.js?v=20261012-ten-day-month"'));
+assert(html.includes('src="./finance.js?v=20261012-payables"'));
 console.log('PASS ten-day calendar, card receivables/deposits/fees, accruals/tax/payroll, expenses/investment, cash equation, migration, closed-day and reload guards, result formatting and syntax');

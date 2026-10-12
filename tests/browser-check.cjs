@@ -202,6 +202,77 @@ fs.mkdirSync(artifacts, {recursive:true});
     await shiftsPage.close();
     console.log('PASS real shift controls, free day2 Ponta, owner override/reset, timed attendance, off-shift roster, save reload and report return');
 
+
+    const servicePage=await browser.newPage({viewport:{width:393,height:852}});
+    servicePage.on('pageerror',e=>errors.push(e.message));
+    await servicePage.goto(base);await servicePage.evaluate(()=>artworkReady);await servicePage.locator('#mNew').click();
+    await servicePage.evaluate(()=>{
+      finishFirstGuide(true);talking=null;talkQ.length=0;$('talk').hidden=true;closeModal();
+      G.money=0;for(const it of INGR)G.market[it.id]=1;customers=[];jobs=[];seats.forEach(s=>s.cust=null);spawnTimer=100000;save();
+    });
+    await servicePage.locator('#btnStock').click();
+    assert(await servicePage.locator('[data-add="beans:5"]').isEnabled(),'credit supplies need no immediate cash');
+    await servicePage.locator('[data-add="beans:5"]').click();
+    assert.equal(await servicePage.evaluate(()=>G.money),0);assert.equal(await servicePage.evaluate(()=>CafeFinance.view(G).payable),400);
+    await servicePage.locator('#mClose').click();
+    await servicePage.evaluate(()=>{G.day=2;startDay();spawnTimer=100000;talking=null;talkQ.length=0;$('talk').hidden=true;});
+    await servicePage.locator('#btnStock').click();assert(await servicePage.locator('[data-add="beans:5"]').isDisabled(),'only every third day');
+    assert((await servicePage.locator('#panel').innerText()).includes('通算4日目'));
+    await servicePage.locator('#mClose').click();await servicePage.locator('#btnFinance').click();
+    assert((await servicePage.locator('#panel').innerText()).includes('仕入れ買掛'));
+    assert((await servicePage.locator('#panel').innerText()).includes('1月10日'));
+    await servicePage.locator('#mClose').click();
+    const supplierPaid=await servicePage.evaluate(()=>{
+      G.day=10;G.money=5000;startDay();talking=null;talkQ.length=0;$('talk').hidden=true;customers=[];endDay();
+      return {money:G.money,payable:CafeFinance.view(G).payable,payments:G.finance.history.slice(-1)[0].payablePayments};
+    });
+    assert.equal(supplierPaid.money,3450);assert.equal(supplierPaid.payable,0);assert.equal(supplierPaid.payments,400);
+    await servicePage.locator('#mDishes').click();
+    await servicePage.evaluate(()=>{const n=CafeService.reserve(G,CafeService.bundle(MENU[0],MENU.find(m=>m.id==='cake')));CafeService.soil(G,n);openDishes(true);});
+    await servicePage.locator('#mWash').click();assert.equal(await servicePage.evaluate(()=>CafeService.sum(G.tableware.dirty)),0,'wash during report does not advance day');
+    assert.equal(await servicePage.evaluate(()=>G.day),11);
+    await servicePage.locator('#mWareShop').click();
+    await servicePage.locator('[data-buy="buy-w-cup"]').click();
+    assert.equal(await servicePage.evaluate(()=>G.tableware.total.cup),8);
+    assert.equal(await servicePage.evaluate(()=>G.money),2850);await servicePage.locator('#mClose').click();
+    await servicePage.evaluate(()=>{talking=null;talkQ.length=0;$('talk').hidden=true;save();});
+    await servicePage.reload();await servicePage.evaluate(()=>artworkReady);await servicePage.locator('#mCont').click();
+    assert.equal(await servicePage.evaluate(()=>G.tableware.total.cup),8);assert.equal(await servicePage.evaluate(()=>G.money),2850,'paid supplier and tableware purchase do not repeat');
+    const setSetup=await servicePage.evaluate(()=>{
+      talking=null;talkQ.length=0;$('talk').hidden=true;closeModal();cats=[];ponta=null;G.staff=false;customers=[];jobs=[];spawnTimer=100000;
+      seats.forEach(s=>{s.cust=null;clearTable(s);});
+      for(const id of ['beans','flour','egg','berry','cream'])G.stock[id]=[{n:20,day:G.day}];
+      G.menu.push('cake');spawnCustomer();const c=customers[0];c.state='order';c.t=31;c.order=CafeService.bundle(MENU[0],MENU.find(m=>m.id==='cake'));c.pat=c.maxPat=760;c.paymentMethod='cash';
+      render();return {clean:{...G.tableware.clean},seat:{...c.seat,cust:null}};
+    });
+    const orderPoint=await servicePage.evaluate(()=>{
+      const s=customers[0].seat,r=cv.getBoundingClientRect();return{x:r.left+3+s.x/VW*(r.width-6),y:r.top+3+(s.y/2-47)/(VH/2)*(r.height-6)};
+    });
+    await servicePage.mouse.click(orderPoint.x,orderPoint.y);
+    assert.equal(await servicePage.evaluate(()=>jobs.length),2,'one set creates two actual cooking jobs');
+    const setBill=await servicePage.evaluate(()=>{
+      talking=null;talkQ.length=0;$('talk').hidden=true;
+      const c=customers[0],a=jobs[0],b=jobs[1];a.state=b.state='ready';a.q=b.q='normal';deliver(a,false);
+      if(c.state!=='wait'||c.receivedItems.length!==1)throw Error('set completed before both dishes');
+      deliver(b,false);if(c.state!=='eat')throw Error('complete set never begins eating');
+      c.t=420;updateCustomer(c);updateCheckout();c.x=REGISTER.queueX;c.y=REGISTER.queueY;c.state='checkout';c.t=0;refreshRegister();render();
+      return{total:c.bill.total,money:G.money};
+    });
+    await servicePage.locator('#btnRegister').click();assert.equal(await servicePage.evaluate(()=>G.money),setBill.money+setBill.total);
+    const dirtyPoint=await servicePage.evaluate(()=>{
+      const s=seats.find(s=>s.dirty),r=cv.getBoundingClientRect();return{x:r.left+3+s.itemX/VW*(r.width-6),y:r.top+3+(s.itemY/2)/(VH/2)*(r.height-6)};
+    });
+    await servicePage.mouse.click(dirtyPoint.x,dirtyPoint.y);
+    assert.deepEqual(await servicePage.evaluate(()=>({...G.tableware.dirty})),{cup:1,plate:1,fork:1});
+    await servicePage.locator('#btnWash').click();await servicePage.locator('#mWash').click();
+    assert(await servicePage.locator('#modal').isHidden(),'washing starts after closing its panel');
+    await servicePage.waitForFunction(()=>!G.tableware.wash);
+    assert.deepEqual(await servicePage.evaluate(()=>({...G.tableware.clean})),setSetup.clean);
+    await servicePage.evaluate(()=>{Object.assign(G.furniture,{table:6,stool:3,cushion:4,plant:3,tower:1});buildSeats();render();});
+    await servicePage.screenshot({path:path.join(artifacts,'entrance-register-and-dishes.png'),fullPage:true});
+    await servicePage.close();
+    console.log('PASS supply-day and credit UI, month-end supplier payment, wash and extra tableware, persisted inventory, real set order tap and combined bill, plate clearing and washing');
+
     const straysPage=await browser.newPage({viewport:{width:393,height:852}});
     straysPage.on('pageerror',e=>errors.push(e.message));
     await straysPage.goto(base);await straysPage.evaluate(()=>artworkReady);

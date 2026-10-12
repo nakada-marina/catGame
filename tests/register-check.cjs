@@ -3,6 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 const financeWindow={};new Function('window',fs.readFileSync(path.join(__dirname,'..','finance.js'),'utf8'))(financeWindow);const CafeFinance=financeWindow.CafeFinance;
 new Function('window',fs.readFileSync(path.join(__dirname,'..','cat-shifts.js'),'utf8'))(financeWindow);const CafeShifts=financeWindow.CafeShifts;
+new Function('window',fs.readFileSync(path.join(__dirname,'..','cafe-service.js'),'utf8'))(financeWindow);const CafeService=financeWindow.CafeService;
 
 function source(name){
   const start=html.indexOf('function '+name+'('),lineEnd=html.indexOf('\n',start);
@@ -11,10 +12,10 @@ function source(name){
 }
 const controller=html.slice(html.indexOf('// ================= レジでのお会計 ================='),html.indexOf('// ================= レジでのお会計ここまで ================='));
 const constants=['TABLE_POS','STOOL_POS'].map(name=>html.match(new RegExp('const '+name+' = [^\\n]+'))[0]).join('\n');
-const functions=['syncCatRoster','makeCat','spawnCats','beginPontaExit','updateShiftAttendance','makePonta','newSave','buildSeats','startDay','moveTo','updateCustomer','pay','earn','update','endDay','save','loadSave','drawCustomer','drawSay','drawRegister','render','canvasPoint','financeResultHtml','financeRows','financeDate','financeYen','financeEscape','showDayResult'];
+const functions=['clearTable','refreshDishes','washDishes','syncCatRoster','makeCat','spawnCats','beginPontaExit','updateShiftAttendance','makePonta','newSave','buildSeats','startDay','moveTo','updateCustomer','pay','earn','update','endDay','save','loadSave','drawCustomer','drawSay','drawRegister','render','canvasPoint','financeResultHtml','financeRows','financeDate','financeYen','financeEscape','showDayResult'];
 const tapHandler=html.slice(html.indexOf('onCafeTap(e => {'),html.indexOf('\n});',html.indexOf('onCafeTap(e => {'))+4);
 const elements={},$=id=>elements[id]||(elements[id]={hidden:true,textContent:'',disabled:false,style:{},querySelectorAll:()=>[]});
-const api=new Function('$','CafeFinance','CafeShifts',`
+const api=new Function('$','CafeFinance','CafeShifts','CafeService',`
 let G,customers=[],jobs=[],cats=[],particles=[],furs=[],seats=[],ponta=null,mode='title',tick=0,speed=1,spawnTimer=100000,staffBusy=0,dayLog,weather,dayFlags,rushUntil,vipNext,bgmOn,firstGuide=null,toastTimer=0,lastResultHtml='';
 let moneySounds=0,reviewsSent=0,reports=0,hudCalls=0,ordersTaken=0,lastToast='',memory={},paint=[],cafeAction;
 const tone=()=>{},openFinance=()=>{},openShifts=()=>{};
@@ -30,8 +31,8 @@ const updateFirstGuide=()=>{throw Error('unexpected tutorial update');},updateHu
 const updateJobs=()=>{},updatePonta=()=>{},updateKitchenFx=()=>{},updateCat=()=>{},snsTick=()=>{},checkEvents=()=>{},spawnCustomer=()=>{},endShift=()=>{};
 const expireStock=()=>[],stars=()=>1,grioDailyPost=()=>({text:'閉店',img:''}),reviewText=()=>'声',say=()=>{};
 const sfx={coin:()=>moneySounds++,bell(){}},clearTimeout=()=>{},openModal=()=>{reports++;$('modal').hidden=false;},openShop=()=>{},openStock=()=>{},closeModal=()=>{};
-const cv={width:448,getBoundingClientRect:()=>({left:10,top:20,width:454,height:306})};
-const ctx={setTransform(){},save(){},restore(){},translate(){},scale(){},fillRect(...a){paint.push(a);},fillText(){},measureText:t=>({width:String(t).length*7})};
+const cv={width:448,height:300,getBoundingClientRect:()=>({left:10,top:20,width:454,height:306})};
+const ctx={drawImage(){},setTransform(){},save(){},restore(){},translate(){},scale(){},fillRect(...a){paint.push(a);},fillText(){},measureText:t=>({width:String(t).length*7})};
 const P=(color,x,y,w=1,h=1)=>{assertFinite(x,y,w,h);paint.push([x,y,w,h]);},ellipse=(...a)=>assertFinite(...a.slice(0,4));
 function assertFinite(...a){if(!a.every(Number.isFinite))throw Error('invalid drawing coordinates: '+a);}
 const drawAt=(im,x,y)=>{if(!im)throw Error('missing image');assertFinite(x,y);},floorShadow=()=>{},drawCrown=()=>{};
@@ -54,7 +55,7 @@ return {
  front(limit=1000){for(let i=0;i<limit;i++){if(checkoutLine()[0]?.state==='checkout')return checkoutLine()[0];update();}throw Error('front never reaches register');},
  close(){G.time=CLOSE;mode='closing';},cleanSeats(){seats.forEach(s=>{if(s.dirty)s.dirty=false;});},
  canvasTap(x,y){return cafeAction({preventDefault(){},clientX:13+x*2,clientY:23+y*2});},
- edgeOrder(){const seat=seats.find(s=>s.x===174);const c={seat,state:'order',order:MENU[0],pat:760,maxPat:760,t:31};seat.cust=c;customers.push(c);return c;},
+ edgeOrder(){const seat=seats.find(s=>s.ti===5&&s.side===1);const c={seat,state:'order',order:MENU[0],pat:760,maxPat:760,t:31};seat.cust=c;customers.push(c);return c;},
  snapshot(){return{G,customers,seats,dayLog,mode,moneySounds,ordersTaken,reviewsSent,reports,hudCalls,registerFlash,checkoutSeq,staffBusy,lastToast};},
  saved(){return loadSave();},reload(){G=loadSave();startDay();spawnTimer=100000;},
  render(){paint=[];render();return paint;},
@@ -62,7 +63,7 @@ return {
  staffBusy(n){staffBusy=n;},pause(v){$('modal').hidden=!v;},guide(v){firstGuide=v?{}:null;},
  position(c){return checkoutPosition(c);},bill(c){return makeBill(c);}
 };
-`)($,CafeFinance,CafeShifts);
+`)($,CafeFinance,CafeShifts,CafeService);
 api.reset();
 const [one]=api.diners(),seat=one.seat;
 assert.equal(api.receive(one),false,'cannot collect while seated');
@@ -119,13 +120,13 @@ assert.equal(api.snapshot().dayLog.tips,bill.tip);assert.equal(api.snapshot().da
 api.reset();api.diners();api.step();api.front();api.pause(true);
 assert.equal(api.tap(),false,'modal blocks tap');api.pause(false);api.guide(true);
 assert.equal(api.tap(),false,'intro blocks tap');api.guide(false);assert(api.tap());
-assert(api.hit(158,64));assert(api.hit(158,68));assert(!api.hit(112,100));
-const pt=api.point({clientX:13+158*2,clientY:23+64*2});
-assert.equal(pt.x,158);assert.equal(pt.y,64);assert(api.hit(pt.x,pt.y),'visible register and tap coordinates match');
+assert(api.hit(204,140));assert(api.hit(204,145));assert(!api.hit(112,100));
+const pt=api.point({clientX:13+204*2,clientY:23+140*2});
+assert.equal(pt.x,204);assert.equal(pt.y,140);assert(api.hit(pt.x,pt.y),'visible register and tap coordinates match');
 
-api.reset({tables:5});api.diners();api.step();api.front();const edge=api.edgeOrder();
-api.canvasTap(174,60);assert.equal(edge.state,'wait','overlapping order keeps tap priority');assert.equal(api.snapshot().ordersTaken,1);assert.equal(api.snapshot().G.money,8000);
-api.canvasTap(158,64);assert.equal(api.snapshot().G.money,8400,'visible register tap pays');
+api.reset({tables:6});api.diners();api.step();api.front();const edge=api.edgeOrder();
+api.canvasTap(188,120);assert.equal(edge.state,'wait','overlapping order keeps tap priority');assert.equal(api.snapshot().ordersTaken,1);assert.equal(api.snapshot().G.money,8000);
+api.canvasTap(204,140);assert.equal(api.snapshot().G.money,8400,'visible register tap pays');
 
 api.reset();const [card]=api.diners(1,{paymentMethod:'card'});api.step();api.front();
 assert(elements.btnRegister.textContent.includes('カード会計'));assert(api.receive(card));
@@ -135,7 +136,7 @@ assert.equal(api.saved().finance.cards[0].fee,12);assert.equal(api.receive(card)
 
 api.reset({tables:6,stools:3});api.diners(15);api.step();
 assert.equal(api.line().length,3);assert.equal(api.waiting().length,12);
-for(const c of api.line()){const p=api.position(c);assert(p.y<=238&&p.x>=0&&p.x<=224);}
+for(const c of api.line()){const p=api.position(c);assert.equal(p.y,286);assert(p.x>=0&&p.x<=224);}
 api.render();api.close();api.step(8000);s=api.snapshot();
 assert.equal(s.G.served,15);assert.equal(s.dayLog.served,15);assert.equal(s.dayLog.sales,6000);
 assert.equal(s.G.money,12850,'all cash payments collected before rent and utilities');assert.equal(s.reports,1,'day closes only after queue and exit');

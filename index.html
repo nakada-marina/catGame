@@ -299,7 +299,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .shift-controls select,.shift-day-label select { min-height:44px; max-width:100%; padding:6px; border:1px solid #b6a28c; border-radius:6px; font:inherit; background:#fffdf6; color:#3b2c21; }
 .shift-controls button { font-size:13px; min-height:44px; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261012-single-pass">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261012-service">
 </head>
 <body>
 <div id="wrap">
@@ -329,14 +329,15 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
   <div id="sub">
     <button type="button" id="btnNyax" class="nyax-btn">ニャックス<span id="nyaxBadge" class="badge" hidden>0</span></button>
     <span>ふきだし＝注文・設備＝調理・レジ＝会計</span>
-    <span class="tools"><button type="button" id="btnShift">シフト</button><button type="button" id="btnFinance">帳簿</button><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
+    <span class="tools"><button type="button" id="btnWash">洗い物</button><button type="button" id="btnShift">シフト</button><button type="button" id="btnFinance">帳簿</button><button type="button" id="btnSpeed">はやさ <span id="speedLabel">×1</span></button><button type="button" id="btnMute">音 ON</button></span>
   </div>
   </div>
 </div>
 <div id="toast" hidden></div>
 <div id="modal" hidden><div class="panel" id="panel"></div></div>
-<script src="./sprite-raster.js?v=20261012-single-pass"></script>
-<script src="./finance.js?v=20261012-ten-day-month"></script>
+<script src="./sprite-raster.js?v=20261012-service"></script>
+<script src="./finance.js?v=20261012-payables"></script>
+<script src="./cafe-service.js?v=20261012-service"></script>
 <script src="./cat-shifts.js?v=20261012-cat-shifts"></script>
 <script src="./kitchen-art.js?v=20261012-walk"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
@@ -801,13 +802,12 @@ const INGR = [
   { id: 'rice', name: 'お米', base: 50, life: 0, icon: [['........', '..oooo..', '.owwwwo.', 'owwwwwwo', 'owwwwwwo', 'obbbbbbo', '.obbbbo.', '..oooo..'], { o: '#6a4a3a', w: '#ffffff', b: '#c86a3a' }] },
   { id: 'milk', name: '牛乳', base: 60, life: 3, icon: [['...oo...', '..owwo..', '.owwwwo.', '.obbbbo.', '.owwwwo.', '.owwwwo.', '.owwwwo.', '.oooooo.'], { o: '#5a6a7a', w: '#ffffff', b: '#5a8ad0' }] },
   { id: 'egg', name: 'たまご', base: 50, life: 4, icon: [['...oo...', '..owwo..', '.owwwwo.', '.owwwwo.', 'owwwwwwo', 'owwwwsso', '.owwsso.', '..oooo..'], { o: '#a08a6a', w: '#fff8ec', s: '#e8dcc4' }] },
-  { id: 'berry', name: 'いちご', base: 120, life: 2, icon: [['..g.g...', '...gg...', '.orrro..', 'orrwrro.', 'orrrrro.', '.orrro..', '..oro...', '...o....'], { o: '#801020', r: '#e02040', w: '#ffc0c8', g: '#3a8a3a' }] },
-  { id: 'cream', name: '生クリーム', base: 90, life: 2, icon: [['...w....', '..www...', '.owwwo..', 'owwwwwo.', 'oyyyyyo.', '.oyyyo..', '..ooo...', '........'], { o: '#a09070', w: '#ffffff', y: '#f0e0b0' }] },
+  { id: 'berry', name: 'いちご', base: 120, life: 3, icon: [['..g.g...', '...gg...', '.orrro..', 'orrwrro.', 'orrrrro.', '.orrro..', '..oro...', '...o....'], { o: '#801020', r: '#e02040', w: '#ffc0c8', g: '#3a8a3a' }] },
+  { id: 'cream', name: '生クリーム', base: 90, life: 3, icon: [['...w....', '..www...', '.owwwo..', 'owwwwwo.', 'oyyyyyo.', '.oyyyo..', '..ooo...', '........'], { o: '#a09070', w: '#ffffff', y: '#f0e0b0' }] },
 ];
 const INGR_IMG = {};
 const INGR_SPR = {};
 for (const it of INGR) { INGR_SPR[it.id] = sprite(it.icon[0], it.icon[1]); INGR_IMG[it.id] = INGR_SPR[it.id].toDataURL(); }
-const RUSH_RATE = 1.5;
 const STATIONS = {
   drink: { name: 'コーヒーマシン', price: 6000 },
   oven: { name: 'オーブン', price: 8000 },
@@ -836,12 +836,12 @@ const ADOPT = [
 const STAFF = { price: 10000, wage: 2000, star: 2 };
 const RENT = 1000, FOOD_PRICE = 500, FOOD_AMOUNT = 8;
 const OPEN = 600, CLOSE = 1140; // 10:00〜19:00
-const TABLE_POS = [[54, 140], [114, 140], [54, 206], [114, 206], [184, 156], [186, 230]];
-const CUSHION_POS = [[22, 270], [50, 288], [176, 288], [204, 270]];
-const PLANT_POS = [[70, 74], [124, 74], [214, 296]];
-const TOWER = { x: 12, base: 116, top: 58 };
+const TABLE_POS = [[54,156],[110,156],[54,232],[110,232],[166,196],[166,272]];
+const CUSHION_POS = [[18,180],[18,268],[205,164],[205,202]];
+const PLANT_POS = [[70,74],[98,74],[124,74]];
+const TOWER = {x:12,base:90,top:58};
 const BOWL = { x: 138, y: 112 };
-const STOOL_POS = [[166, 108], [188, 108], [210, 108]];
+const STOOL_POS = [[175,120],[193,120],[211,120]];
 const ENTRANCE = { x: 112, y: 312 };
 const SAVE_KEY = 'grio-cafe-v1';
 
@@ -865,7 +865,7 @@ function beginFirstGuide() {
 function refreshFirstGuide() {
   const panel = $('firstGuide');
   panel.hidden = !firstGuide;
-  for (const id of ['btnFood','btnStock','btnShop','btnNyaimee','btnNyax','btnSpeed','btnFinance','btnShift']) $(id).disabled = !!firstGuide;
+  for (const id of ['btnFood','btnStock','btnShop','btnNyaimee','btnNyax','btnSpeed','btnFinance','btnShift','btnWash']) $(id).disabled = !!firstGuide;
   if (!firstGuide || firstGuide.shown === firstGuide.step) return;
   firstGuide.shown = firstGuide.step;
   const hints = {
@@ -930,7 +930,7 @@ $('firstGuideSkip').onclick = () => finishFirstGuide(true);
 // ================= 最初のお客さんの操作案内ここまで =================
 
 // ================= レジでのお会計 =================
-const REGISTER = { x: 158, y: 128, queueX: 146, queueY: 154, spacing: 42, capacity: 3, autoAfter: 240, staffAfter: 90, paymentTime: 36 };
+const REGISTER = { x:204,y:281,queueX:184,queueY:286,spacing:25,capacity:3, autoAfter: 240, staffAfter: 90, paymentTime: 36 };
 let checkoutSeq = 0, registerFlash = 0;
 const customerOnFloor = c => ['enter','toRegister','checkout','paying','leave'].includes(c.state);
 function checkoutLine() {
@@ -941,7 +941,7 @@ function checkoutWaiting() {
 }
 function checkoutPosition(c) {
   const index = checkoutLine().indexOf(c);
-  return { x: REGISTER.queueX, y: REGISTER.queueY + Math.max(0,index) * REGISTER.spacing };
+  return {x:REGISTER.queueX-Math.max(0,index)*REGISTER.spacing,y:REGISTER.queueY};
 }
 function makeBill(c) {
   const item = c.order, wait = 1 - c.patAtServe / c.maxPat;
@@ -967,6 +967,7 @@ function admitCheckout(c) {
   if (!s || s.cust !== c) return false;
   c.x = s.x; c.y = s.y + 2;
   s.cust = null; s.dirty = true; s.dirtyT = 0;
+  s.tableware=c.tableware||null;c.tableware=null;
   c.seat = null; c.state = 'toRegister'; c.t = 0;
   return true;
 }
@@ -1006,7 +1007,7 @@ function tapRegister() {
   return pay(head);
 }
 function registerHit(x,y) {
-  return x >= REGISTER.x - 17 && x <= REGISTER.x + 17 && y >= REGISTER.y / 2 - 27 && y <= REGISTER.y / 2 + 8;
+  return Math.abs(x-REGISTER.x)<=17&&y>=REGISTER.y/2-26&&y<=REGISTER.y/2+9;
 }
 // ================= レジでのお会計ここまで =================
 
@@ -1045,11 +1046,11 @@ function financeResultHtml(result) {
     <p class="sub">カード手数料は入金時に相殺。保険料・年金と税金は月次で支払います。</p>
     <h3>実際のお金の増減</h3><div class="stat">${financeRows([
       ['一日の開始残高',d.cashStart],['現金売上',d.cashSales],['カード入金（手数料控除後）',d.cardDeposits],
-      ['現金で払った経費',-d.cashExpenses],['設備・家具への投資',-d.investments],['税金・保険料の月次支払い',-d.liabilityPayments],
+      ['現金で払った経費',-d.cashExpenses],['設備・家具への投資',-d.investments],['仕入れ買掛の月末支払い',-(d.payablePayments||0)],['税金・保険料の月次支払い',-(d.liabilityPayments-(d.payablePayments||0))],
       ['きょうのお金の増減',d.cashEnd-d.cashStart,true],['使えるお金（閉店時）',d.cashEnd,true],
-      ['カード売掛（未入金の売上）',v.cardGross],['手数料を引いた入金予定額',v.cardNet]
+      ['仕入れ買掛（未払いの材料）',v.payable],['きょう買掛で仕入れた材料',d.payablePurchases||0],['カード売掛（未入金の売上）',v.cardGross],['手数料を引いた入金予定額',v.cardNet]
     ])}</div>
-    <p class="sub">きょうのカード売上 ${financeYen(d.cardSales)} は入金まで仕入れに使えません。${next?'次の入金：'+financeDate(next.dueDay)+' '+financeYen(next.gross-next.fee):''}</p>
+    <p class="sub">きょうのカード売上 ${financeYen(d.cardSales)} は入金まで使えるお金に入りません。仕入れは買掛で、月末に支払います。${next?'次の入金：'+financeDate(next.dueDay)+' '+financeYen(next.gross-next.fee):''}</p>
     ${d.cardDeposits||d.liabilityPayments?'<details><summary>入金・月次支払いの内訳</summary><div class="stat">'+financeRows([
       ...(d.cardDeposits?[['カード売上の入金元額',d.cardDepositGross],['相殺された手数料',-d.cardDepositFees],['実際のカード入金',d.cardDeposits,true]]:[]),
       ...Object.entries(d.payments).map(([key,n])=>[key==='tax'?'税金':CafeFinance.labels[key],-n])
@@ -1060,7 +1061,7 @@ function financeResultHtml(result) {
       [m.closed?'確定した税金':'税金の見込み（利益の10%）',-tax],
       ['今月の保険料・年金',-(m.expenses.health||0)-(m.expenses.pension||0)-(m.expenses.staffInsurance||0)]
     ])}</div><p class="sub">保険料・年金は上の経費に含まれます。${m.closed?'月末締め済み':'税金は月末に確定'}。${financeDate(m.month*CafeFinance.rules.daysPerMonth+CafeFinance.rules.monthlyPaymentDelay)}に税金・保険料を支払います。</p>
-    <details><summary>ゲームの経理ルール</summary><p class="sub">10日で1か月。カード利用40%、手数料3%（会計ごとに円単位へ四捨五入）。月末締め・翌月2日入金。税金は月の黒字の10%、店長の健康保険400円・年金600円／月、スタッフ社会保険は給与の10%をお店が負担。税金・保険料は翌月3日払い。仕入れは買った日に経費へ、設備投資は資金の増減へ反映します。実際の税制・保険制度を再現した計算ではありません。</p></details>
+    <details><summary>ゲームの経理ルール</summary><p class="sub">10日で1か月。カード利用40%、手数料3%（会計ごとに円単位へ四捨五入）。月末締め・翌月2日入金。税金は月の黒字の10%、店長の健康保険400円・年金600円／月、スタッフ社会保険は給与の10%をお店が負担。税金・保険料は翌月3日払い。仕入れは3日ごと。購入日に経費と買掛へ、10日ごとの月末に支払い。設備投資は資金の増減へ反映します。実際の税制・保険制度を再現した計算ではありません。</p></details>
     </section>`;
 }
 function showDayResult() {
@@ -1072,6 +1073,7 @@ function showDayResult() {
   $('mStock').onclick=()=>openStock(true);
   $('mFinance').onclick=()=>openFinance(true);
   $('mShift').onclick=()=>openShifts(true);
+  $('mDishes').onclick=()=>openDishes(true);
 }
 function openFinance(fromReport=false) {
   const v=CafeFinance.view(G),f=CafeFinance.init(G),active=f.active;
@@ -1079,11 +1081,13 @@ function openFinance(fromReport=false) {
   const taxPreview=Math.round(Math.max(0,(v.month?.profit||0)+runningProfit)*CafeFinance.rules.taxRate);
   const unpaidInsurance=v.month&&!v.month.closed?(v.month.expenses.health||0)+(v.month.expenses.pension||0)+(v.month.expenses.staffInsurance||0):0;
   const cards=v.cards.slice().sort((a,b)=>a.dueDay-b.dueDay).map(b=>'<div class="review">'+b.month+'月のカード売上 '+financeYen(b.gross)+'<br>手数料 '+financeYen(b.fee)+' ／ 入金 '+financeYen(b.gross-b.fee)+'<br>'+financeDate(b.dueDay)+' 入金予定</div>').join('');
+  const supplies=v.payables.map(b=>'<div class="review">'+b.month+'月の仕入れ買掛 '+financeYen(b.amount)+'<br>'+financeDate(b.dueDay)+' 閉店時に支払い</div>').join('');
   const bills=v.bills.slice().sort((a,b)=>a.dueDay-b.dueDay).map(b=>'<div class="review">'+b.month+'月 '+(b.key==='tax'?'税金':CafeFinance.labels[b.key])+' '+financeYen(b.amount)+'<br>'+financeDate(b.dueDay)+' 支払い予定</div>').join('');
   const months=f.months.slice(-6).reverse().map(m=>'<div class="review">'+m.month+'月（'+m.days+'営業日） 売上 '+financeYen(m.sales)+' ／ 営業利益 '+financeYen(m.profit)+'<br>'+(m.closed?'税金 '+financeYen(m.tax)+'・締め済み':'月末まで集計中')+'</div>').join('');
   openModal(`<h2>お店の帳簿</h2><p class="sub">${financeDate(G.day)}（通算${G.day}日）・10日で1か月</p>
-    <div class="stat">${financeRows([['使えるお金',v.cash,true],['カード売掛',v.cardGross],['手数料控除後の入金予定',v.cardNet],['未払の税金・保険料',v.unpaid],['今月の税金見込み（確定前）',taxPreview]])}</div>
+    <div class="stat">${financeRows([['使えるお金',v.cash,true],['カード売掛',v.cardGross],['手数料控除後の入金予定',v.cardNet],['仕入れ買掛',v.payable],['未払の税金・保険料',v.unpaid-v.payable],['今月の税金見込み（確定前）',taxPreview]])}</div>
     <h3>カード会社からの入金予定</h3>${cards||'<p class="sub">未入金のカード売上はありません。</p>'}
+    <h3>仕入れ買掛・月末払い</h3>${supplies||'<p class="sub">未払いの仕入れはありません。</p>'}
     <h3>税金・保険料の支払い予定</h3>${bills||'<p class="sub">月末に金額が確定し、翌月3日に支払います。</p>'}
     ${unpaidInsurance?'<p class="sub">今月の保険料・年金の積立 '+financeYen(unpaidInsurance)+'</p>':''}
     <h3>月ごとの集計</h3>${months||'<p class="sub">閉店すると最初の集計が出ます。</p>'}
@@ -1111,8 +1115,8 @@ const ingr = id => INGR.find(i => i.id === id);
 const stockOf = id => (G.stock[id] || []).reduce((n, l) => n + l.n, 0);
 const capOf = cold => cold ? 30 + G.furniture.fridge * 30 : 60 + G.furniture.rack * 60;
 const usedOf = cold => INGR.filter(i => (i.life > 0) === cold).reduce((n, i) => n + stockOf(i.id), 0);
-const unitPrice = id => Math.round(ingr(id).base * G.market[id] * (mode === 'open' || mode === 'closing' ? RUSH_RATE : 1));
-const canMake = item => Object.entries(item.need).every(([id, n]) => stockOf(id) >= n);
+const unitPrice = id => Math.round(ingr(id).base * G.market[id]);
+const canMake = item => Object.entries(item.need).every(([id,n])=>stockOf(id)>=n)&&CafeService.available(G,item);
 const makeCount = item => Math.min(...Object.entries(item.need).map(([id, n]) => Math.floor(stockOf(id) / n)));
 function consume(item) {
   for (const [id, n] of Object.entries(item.need)) {
@@ -1121,9 +1125,10 @@ function consume(item) {
   }
 }
 function addStock(id, n) {
+  if(!CafeService.supplyDay(G.day))return 0;
   const it = ingr(id), room = capOf(it.life > 0) - usedOf(it.life > 0);
   n = Math.min(n, room); if (n <= 0) return 0;
-  const cost = unitPrice(id) * n; if (G.money < cost) return 0;
+  const cost = unitPrice(id) * n;
   CafeFinance.spend(G,'materials',cost,ingr(id).name+' ×'+n);
   const lots = G.stock[id] || (G.stock[id] = []);
   const last = lots[lots.length - 1];
@@ -1170,7 +1175,7 @@ function buildSeats() {
     const [x, y] = STOOL_POS[i];
     const prev = old.find(s => s.counter && s.ci === i);
     seats.push(prev || { ti: -1, ci: i, counter: true, side: 1, tx: x, ty: y, x, y, cust: null, dirty: false, dirtyT: 0,
-      itemX: x, itemY: 61, catX: x + 11, catY: y + 6 });
+      itemX:x,itemY:92,catX:x+5,catY:y+6 });
   }
 }
 function makeCat(c, x, y) {
@@ -1300,6 +1305,8 @@ function spawnCustomer() {
 }
 function chooseOrder() {
   const items = MENU.filter(m => G.menu.includes(m.id));
+  const drinks=items.filter(m=>['coffee','tea'].includes(m.id)),sweets=items.filter(m=>['cookie','cake','pancake','parfait'].includes(m.id));
+  if(drinks.length&&sweets.length&&Math.random()<.3)return CafeService.bundle(pick(drinks),pick(sweets));
   const weights = items.map((m, i) => 1 + i * 0.6);
   let r = Math.random() * weights.reduce((a, b) => a + b, 0);
   for (let i = 0; i < items.length; i++) { r -= weights[i]; if (r <= 0) return items[i]; }
@@ -1319,22 +1326,24 @@ function moveTo(e, tx, ty, sp) {
 }
 const catNear = seat => cats.some(k => k.visit === seat && k.state === 'visit');
 function serve(c, byStaff) {
-  if (firstGuide && byStaff) return false;
-  if (c.state !== 'order') return;
-  if (!canMake(c.order)) {
-    if (!byStaff) {
-      const miss = Object.entries(c.order.need).filter(([id, n]) => stockOf(id) < n).map(([id]) => ingr(id).name).join('・');
-      toast(`${miss}が足りない！「仕入れ」で買おう`); sfx.angry(); event('stockout');
-    }
-    return false;
+  if(firstGuide&&byStaff)return false;
+  if(c.state!=='order')return false;
+  if(!canMake(c.order)){
+    if(!byStaff){
+      const miss=Object.entries(c.order.need).filter(([id,n])=>stockOf(id)<n).map(([id])=>ingr(id).name).join('・');
+      toast(miss?miss+'が足りない！仕入れ日を確認しよう':'洗った食器が足りません。「洗い物」で洗うか、ショップで増やそう');
+      sfx.angry();if(miss)event('stockout');
+    }return false;
   }
-  consume(c.order); updateStockInfo();
-  const job = { id: ++jobSeq, c, item: c.order, st: c.order.st, state: 'queue', t: 0, dur: c.order.time, q: 'normal', missed: false, readyT: 0 };
-  jobs.push(job); c.job = job; c.state = 'wait'; c.patAtServe = c.pat;
-  addFx('text', c.seat.x, c.seat.y - 40, { text: '注文うけたよ', color: '#ffffff', life: 40 }); job.waitT = 0;
-  if (firstGuide) { firstGuide.job = job; firstGuide.step = 'start'; refreshFirstGuide(); }
-  if (!byStaff) { tone(988, 0.08, 'triangle', 0.5); if (!firstGuide) event('cook'); }
-  return true;
+  const ware=CafeService.reserve(G,c.order);if(!ware)return false;
+  c.tableware=ware;c.receivedItems=[];c.qualities=[];
+  consume(c.order);updateStockInfo();
+  const requested=CafeService.items(c.order).map(item=>({id:++jobSeq,c,item,st:item.st,state:'queue',t:0,dur:item.time,q:'normal',missed:false,readyT:0,waitT:0}));
+  jobs.push(...requested);c.job=requested[0];c.state='wait';c.patAtServe=c.pat;
+  addFx('text',c.seat.x,c.seat.y-40,{text:requested.length>1?'セット注文うけたよ':'注文うけたよ',color:'#ffffff',life:40});
+  if(firstGuide){firstGuide.job=c.job;firstGuide.step='start';refreshFirstGuide();}
+  if(!byStaff){tone(988,.08,'triangle',.5);if(!firstGuide)event('cook');}
+  refreshDishes();return true;
 }
 function cookTap(job, u) {
   if (job.state === 'ready') { deliver(job, false); return; }
@@ -1356,15 +1365,17 @@ function cookTap(job, u) {
   if (firstGuide && job.state === 'ready') { firstGuide.step = 'deliver'; refreshFirstGuide(); }
 }
 function deliver(job, byStaff) {
-  if (firstGuide && byStaff) return;
-  const c = job.c;
-  jobs = jobs.filter(j => j !== job); c.job = null;
-  if (job.readyT > COLD_AFTER && job.q !== 'perfect') job.q = 'cold';
-  c.quality = job.q; c.state = 'eat'; c.t = 0;
-  chat(c, job.q === 'perfect' ? ['できたて！', 'うわぁ、おいしそう！', 'きれい〜！'] : job.q === 'cold' ? ['あれ、ぬるい…'] : ['いただきます！', 'わーい', 'ありがとう'], job.q === 'normal' ? 0.5 : 1);
-  addFx('spark', c.seat.x, c.seat.y - 24);
-  if (!byStaff) sfx.serve();
-  if (firstGuide && job === firstGuide.job) finishFirstGuide();
+  if(firstGuide&&byStaff)return false;
+  if(!jobs.includes(job)||job.state!=='ready'||job.c.state!=='wait')return false;
+  const c=job.c;jobs=jobs.filter(j=>j!==job);
+  if(job.readyT>COLD_AFTER&&job.q!=='perfect')job.q='cold';
+  (c.receivedItems||(c.receivedItems=[])).push(job.item);(c.qualities||(c.qualities=[])).push(job.q);
+  c.job=jobs.find(j=>j.c===c)||null;
+  if(!c.job){c.quality=c.qualities.includes('cold')?'cold':c.qualities.every(q=>q==='perfect')?'perfect':'normal';c.state='eat';c.t=0;}
+  chat(c,c.job?['もうひとつ、待ってるね']:job.q==='perfect'?['できたて！','うわぁ、おいしそう！']:job.q==='cold'?['あれ、ぬるい…']:['いただきます！','ありがとう'],.7);
+  addFx('spark',c.seat.x,c.seat.y-24);if(!byStaff)sfx.serve();
+  if(firstGuide&&job===firstGuide.job)finishFirstGuide();
+  return true;
 }
 function makePonta(arriving = false) { return { x: arriving ? ENTRANCE.x : PONTA_HOME.x, y: arriving ? ENTRANCE.y : PONTA_HOME.y, state: arriving ? 'arrive' : 'idle', t: 0, face: -1, anim: 0, job: null, carry: null, napCool: 900 }; }
 function updatePonta() {
@@ -1471,7 +1482,8 @@ function leaveAngry(c) {
   const s = c.seat;
   chat(c, ['もう かえる！', 'おそい…！', 'またこんど…']);
   snsFromCustomer(c, 10, c.order ? c.order.name : '');
-  if (c.job) { jobs = jobs.filter(j => j !== c.job); c.job = null; }
+  jobs=jobs.filter(j=>j.c!==c);c.job=null;
+  CafeService.soil(G,c.tableware);c.tableware=null;refreshDishes();
   c.state = 'leave'; s.cust = null; dayLog.angry++;
   G.pop = clamp(G.pop - 2, 0, 100); sfx.angry(); addFx('anger', s.x, s.y - 26, { life: 70 });
   dayLog.reviews.push({ sat: 10, item: c.order.name, cat: false });
@@ -1623,7 +1635,7 @@ function updateCat(k) {
     case 'pickup':
       if (!k.clean.dirty) { k.clean.cleaner = null; k.clean = null; k.state = 'idle'; k.t = 30; break; }
       if (--k.t <= 0) {
-        k.clean.dirty = false; k.clean.cleaner = null; k.clean = null; k.carry = true;
+        clearTable(k.clean); k.clean = null; k.carry = true;
         k.state = 'toSink'; k.tx = SINK.x + rnd(-4, 4); k.ty = SINK.y;
         tone(1319, 0.05, 'square', 0.15); event('catClean');
       }
@@ -1683,6 +1695,7 @@ function startDay() {
   syncCatRoster();
   mode = 'open'; tick = 0; G.time = OPEN; spawnTimer = 120; staffBusy = 0;
   CafeShifts.ensure(G); G.ponta=G.day>=2;
+  CafeService.recover(G,G.day===1&&G.flags.firstCustomerGuide&&!G.flags.firstCustomerDone);seats.forEach(s=>s.tableware=null);
   const accounting=CafeFinance.beginDay(G); lastResultHtml='';
   customers = []; particles = []; furs = []; jobs = []; checkoutSeq = 0; registerFlash = 0;
   cats.forEach(k => { if (k.clean || k.carry || k.dish) { k.clean = null; k.carry = false; k.dish = null; k.carryDish = false; k.state = 'idle'; k.t = 30; } });
@@ -1704,6 +1717,7 @@ function startDay() {
   updateHud(); save();
 }
 function endDay() {
+  seats.forEach(clearTable);CafeService.recover(G);
   mode = 'report'; bgmOn = false; sfx.bell();
   const wage = G.staff ? STAFF.wage : 0;
   const accounting=CafeFinance.closeDay(G,{rent:RENT,wage});
@@ -1731,7 +1745,7 @@ function endDay() {
     <p class="sub">ぐりおが ニャックスに ポストしました</p>
     <div class="nx-tl"><div class="nx-post"><div class="nx-av" style="background:#e9dcc0"><canvas width="64" height="64" data-face="1"></canvas></div><div class="nx-body"><div class="nx-who"><b>ぐりおのねこカフェ</b> <span>@guriocafe</span></div><p>${gpost.text.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</p><img src="${gpost.img}" alt="閉店後のお店" style="max-width:160px"></div></div></div>
     ${revs.length ? '<p class="sub">お客さんの声</p>' + revs.join('') : '<p class="sub">きょうはお客さんが来ませんでした。</p>'}
-    <div class="actions-row"><button type="button" id="mStock">あすの仕入れ</button><button type="button" id="mShop">ショップ</button><button type="button" id="mFinance">帳簿</button><button type="button" id="mShift">あすのシフト</button><button type="button" id="mNext">つぎの日へ</button></div>
+    <div class="actions-row"><button type="button" id="mStock">あすの仕入れ</button><button type="button" id="mShop">ショップ</button><button type="button" id="mFinance">帳簿</button><button type="button" id="mShift">あすのシフト</button><button type="button" id="mDishes">洗い物</button><button type="button" id="mNext">つぎの日へ</button></div>
   `;
   showDayResult();
   updateHud();
@@ -1761,11 +1775,13 @@ function update() {
   }
   if(tick%10===0)updateShiftAttendance();
   if (staffBusy > 0) staffBusy--;
+  if(G.staff&&!staffBusy&&CafeService.startWash(G))staffBusy=180;
+  if(CafeService.tickWash(G)){refreshDishes();save();}
   updateJobs(); updatePonta(); updateKitchenFx();
   customers.forEach(updateCustomer);
   updateCheckout();
   customers = customers.filter(c => !c.gone);
-  for (const s of seats) if (s.dirty) { s.dirtyT++; if (G.staff && s.dirtyT > 160 && !staffBusy) { s.dirty = false; staffBusy = 30; } }
+  for (const s of seats) if (s.dirty) { s.dirtyT++; if (G.staff && s.dirtyT > 160 && !staffBusy) { clearTable(s); staffBusy = 30; } }
   cats.forEach(updateCat);
   if(cats.some(k=>k.gone&&!k.temp))syncCatRoster();
   cats = cats.filter(k => !k.gone);
@@ -1773,7 +1789,7 @@ function update() {
   for (const c of customers) if (c.say && ++c.say.t > 170) c.say = null;
   particles = particles.filter(p => p.t < p.life);
   checkEvents();
-  if (mode === 'closing' && customers.length === 0) { seats.forEach(s => { s.dirty = false; }); endDay(); }
+  if (mode === 'closing' && customers.length === 0) { seats.forEach(clearTable); endDay(); }
 }
 
 // ================= 描画（すべて 2倍の細かさ：論理座標 ×2 で描く） =================
@@ -1981,6 +1997,19 @@ function drawLamps() {
     P(evening ? '#fff6b0' : '#f0e0a0', lx - 4, 34, 9, 3);
   }
 }
+
+function drawWashStation() {
+  const w=CafeService.init(G),X=272,Y=82;
+  P('#765339',X,Y+8,56,38);P('#ab845e',X+2,Y+9,52,35);P('#dfd6be',X,Y+6,56,9);
+  P('#627d80',X+7,Y+9,41,16);P('#9bb5b5',X+9,Y+10,37,13);P('#d6e5df',X+11,Y+12,33,1);
+  P('#8a9c9e',X+33,Y-1,3,15);P('#d8e2dc',X+27,Y-2,9,3);P('#8a9c9e',X+26,Y,3,7);
+  if(w.wash){for(let i=0;i<3;i++)P('#b6e0e5',X+27,Y+8+((tick+i*3)%9),2,3);}
+  const dirty=CafeService.sum(w.dirty),washing=!!w.wash;
+  for(let i=0;i<Math.min(3,dirty);i++){P('#f0e4c9',X+2,Y-i*3,17,3);P('#bfa580',X+3,Y+2-i*3,15,1);}
+  ctx.font='9px "DotGothic16",monospace';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillStyle='#493624';
+  ctx.fillText(washing?'洗い中':'洗い場 '+dirty,X+28,Y+47);
+}
+
 function drawRoom() {
   drawWallAndFloor(G.time);
   sceneAsset(.85,0,0,drawChalkboard);
@@ -1993,6 +2022,7 @@ function drawRoom() {
   }
   sceneAsset(.68,FW*(1-.68),0,drawPantry);
   sceneAsset(.68,FW*(1-.68),0,drawCounter);
+  drawWashStation();
   if(G.furniture.lamp)sceneAsset(.85,0,0,drawLamps);
 }
 
@@ -2084,7 +2114,7 @@ function drawTower() {
   ctx.drawImage(b.img, b.x0, b.y0);
 }
 // ---- 床の小物（いつも置いてある）
-const SIGN = { x: 146, y: 290 }, UMBRELLA = { x: 74, y: 292 }, BOX = { x: 26, y: 238 };
+const SIGN={x:94,y:296},UMBRELLA={x:74,y:296},BOX={x:16,y:236};
 function rawSign(x, y) {
   const X = x * 2, Y = y * 2;
   P('#5a3a22', X - 13, Y - 34, 3, 34); P('#5a3a22', X + 10, Y - 34, 3, 34);
@@ -2351,12 +2381,16 @@ function drawCustomer(c) {
   } else {
     const f = customerPose(c), bob = 0;
     const img = c.seat.counter ? c.spr.back : c.spr[f], top = c.seat.y * 2 - (c.seat.counter ? 22 : 0) - (img.logicalHeight || img.height) + (img.guestDetail && !c.seat.counter ? 4 : 0) + bob;
-    drawAt(img, c.seat.x * 2 - (img.logicalWidth || img.width) / 2, top);
+    if(c.seat.counter){
+      const width=img.logicalWidth||img.width,height=img.logicalHeight||img.height,visible=Math.max(0,Math.min(height,76+c.seat.y-top));
+      if(visible)ctx.drawImage(img,0,0,img.width,img.height*visible/height,c.seat.x*2-width/2,top,width,visible);
+    }else drawAt(img,c.seat.x*2-(img.logicalWidth||img.width)/2,top);
     if (c.vip && c.state !== 'order') drawCrown(c.seat.x * 2, top - 8);
   }
 }
 function drawRegister() {
   const X = REGISTER.x * 2, Y = REGISTER.y * 2, head = checkoutLine()[0];
+  ctx.save();ctx.translate(X,Y);ctx.scale(.7,.7);ctx.translate(-X,-Y);
   const ready = head?.state === 'checkout', paying = head?.state === 'paying';
   // A walnut checkout counter and a sage cash register, at the same scale as the cafe.
   ellipse(X,Y+2,35,5,'rgba(60,35,20,.18)');
@@ -2390,6 +2424,7 @@ function drawRegister() {
     const receipt=Math.round(p*12); P('#fffaf0',X+13,Y-67-receipt,8,receipt+4);
     for (let k=2;k<receipt;k+=3) P('#c3bba6',X+15,Y-67-k,4,1);
   }
+  ctx.restore();
 }
 
 function drawCrown(X, Y) {
@@ -2399,9 +2434,16 @@ function drawCrown(X, Y) {
   P('#e84a5a', X - 1, Y + 3, 3, 2); P('#4a9ae8', X - 6, Y + 3, 2, 2); P('#4a9ae8', X + 5, Y + 3, 2, 2);
 }
 function drawTableItems(s) {
-  const IX = s.itemX * 2 - 8, IY = s.itemY * 2 - 16;
-  if (s.cust && s.cust.state === 'eat') drawAt(ICON2[s.cust.order.id], IX - 4, s.counter ? IY - 8 : s.ty * 2 - 32, 24);
-  if (s.dirty || s.cust?.state === 'checkoutSeat') { drawAt(PLATE2, IX - 1, s.counter ? IY + 6 : s.ty * 2 - 13); if ((tick >> 4) & 1) { P('#ffffff', IX + 15, IY + 1, 1, 3); P('#ffffff', IX + 14, IY + 2, 3, 1); } }
+  const y=s.counter?76:s.ty*2-32;
+  if(s.cust){
+    const food=s.cust.receivedItems||(s.cust.state==='eat'?CafeService.items(s.cust.order):[]);
+    const x=s.counter?s.itemX*2-15:s.tx*2+(s.side<0?-38:7);
+    food.forEach((item,i)=>drawAt(ICON2[item.id],x+i*16,y,food.length>1?14:24));
+  }
+  if(s.dirty||s.cust?.state==='checkoutSeat'){
+    const x=s.counter?s.itemX*2-8:s.itemX*2-9,plateY=s.counter?88:s.ty*2-13;
+    drawAt(PLATE2,x,plateY);if((tick>>4)&1){P('#fff',x+15,plateY-5,1,3);P('#fff',x+14,plateY-4,3,1);}
+  }
 }
 function bubbleBox(X, Y, bg) {
   P('#3a3030', X + 2, Y, 32, 32); P('#3a3030', X, Y + 2, 36, 28);
@@ -2415,10 +2457,11 @@ function gauge(X, Y, f, col, zone) {
   P(col, X + 1, Y + 2, Math.max(1, Math.round(26 * Math.min(1, f))), zone ? 2 : 3);
 }
 function drawBubble(c) {
-  const s = c.seat, X = s.x * 2 - 18, Y = s.y * 2 - (s.counter ? 102 : 110);
+  const s = c.seat, X = s.x * 2 - 18, Y = s.y * 2 - (s.counter ? 120 : 110);
   if (c.state === 'wait' && c.job) { drawCookBubble(c, c.job, X, Y); return; }
   bubbleBox(X, Y, '#ffffff');
-  drawAt(ICON2[c.order.id], X + 6, Y + 1, 24);
+  const ordered=CafeService.items(c.order);
+  ordered.forEach((item,i)=>drawAt(ICON2[item.id],X+(ordered.length>1?3+i*16:6),Y+(ordered.length>1?4:1),ordered.length>1?16:24));
   if (c.vip) drawCrown(X + 18, Y - 8);
   if (!canMake(c.order)) { ellipse(X + 30, Y + 5, 6, 6, '#ffffff'); ellipse(X + 30, Y + 5, 5, 5, '#e8483a'); for (let i = -2; i <= 2; i++) { P('#ffffff', X + 30 + i, Y + 5 + i, 1, 1); P('#ffffff', X + 30 + i, Y + 5 - i, 1, 1); } }
   const f = c.pat / c.maxPat;
@@ -2445,20 +2488,21 @@ const sayBoxes = [];
 function drawSay(c) {
   const walking = customerOnFloor(c);
   const s = c.seat, X = Math.round((walking ? c.x : s.x) * 2);
+  const anchor=Math.round(walking?c.y:s.y);
   let Y;
   if (walking) Y = Math.round(c.y * 2 - (c.spr.a.logicalHeight || c.spr.a.height)) - 6;
   else if (c.state === 'order' || c.state === 'wait') Y = s.y * 2 - (s.counter ? 102 : 110) - 4;
-  else Y = s.y * 2 - (s.counter ? 18 : 10) - c.spr.sit.height - 6;
+  else {const img=s.counter?c.spr.back:c.spr.sit;Y=s.y*2-(s.counter?22:0)-(img.logicalHeight||img.height)-6;}
   ctx.font = '13px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   const w = Math.ceil(ctx.measureText(c.say.text).width) + 12, h = 19, bx = clamp(X - w / 2, 2, FW - w - 2);
   let by = Y - h - 6;
   // ほかのふきだしと重なったら 上にずらす
   for (let tries = 0; tries < 4; tries++) {
-    const hit = sayBoxes.find(b => bx < b.x + b.w && bx + w > b.x && by < b.y + b.h + 2 && by + h + 2 > b.y);
-    if (!hit) break; by = hit.y - h - 4;
+    const hit = sayBoxes.find(b => bx < b.x + b.w && bx + w > b.x && by-anchor < b.y + b.h + 2 && by-anchor + h + 2 > b.y);
+    if (!hit) break; by = hit.y+anchor-h-4;
   }
-  if (by < 2) by = 2;
-  sayBoxes.push({ x: bx, y: by, w, h });
+  if(by<anchor+2)by=anchor+2;
+  sayBoxes.push({x:bx,y:by-anchor,w,h});
   const pop = Math.min(1, c.say.t / 6), fade = c.say.t > 150 ? (170 - c.say.t) / 20 : 1;
   ctx.globalAlpha = fade;
   P('#4a3a30', bx + 2, by, w - 4, h); P('#4a3a30', bx, by + 2, w, h - 4);
@@ -2505,7 +2549,8 @@ function compactAt(y, draw) {
   ctx.save(); ctx.translate(0, -Math.round(y)); draw(); ctx.restore();
 }
 function render() {
-  ctx.setTransform(cv.width/FW,0,0,cv.height/(FH/2),0,0); ctx.imageSmoothingEnabled=false;
+  const unit=cv.width/FW;
+  ctx.setTransform(unit,0,0,unit,0,0);ctx.imageSmoothingEnabled=false;
   if (!G) { drawWallAndFloor(OPEN); return; }
   drawRoom();
   drawSunbeam();
@@ -2523,6 +2568,7 @@ function render() {
     list.push({ y, d: () => { drawTable(x, y); seats.filter(s => s.ti === i).forEach(drawTableItems); } });
   }
   for (let i = 0; i < (G.furniture.stool || 0); i++) { const [x, y] = STOOL_POS[i]; list.push({ y: y - 0.5, d: () => drawStool(x, y) }); }
+  for(const seat of seats.filter(s=>s.counter))list.push({y:128,anchor:0,d:()=>drawTableItems(seat)});
   for (const c of customers) list.push({ y: customerOnFloor(c) ? c.y : c.seat.y - 0.2, anchor: customerOnFloor(c) ? c.y : c.seat.y, d: () => drawCustomer(c) });
   if (ponta) list.push({ y: ponta.y, d: drawPonta });
   for (const k of cats) list.push({ y: k.spot === TOWER && k.state === 'nap' ? TOWER.base + 1 : k.y, d: () => drawCat(k) });
@@ -2758,8 +2804,37 @@ function updateHud() {
   $('hudReceivable').textContent=balance.cardGross?'売掛 '+financeYen(balance.cardGross):'使えるお金';
   const st = stars();
   $('hudStars').innerHTML = '★'.repeat(st) + `<span class="off">${'★'.repeat(5 - st)}</span>`;
-  updateFoodLabel(); refreshRegister();
+  updateFoodLabel(); refreshRegister(); refreshDishes();
 }
+
+function clearTable(s) {
+  if(!s)return;
+  CafeService.soil(G,s.tableware);s.tableware=null;s.dirty=false;s.cleaner=null;
+}
+function refreshDishes() {
+  if(!G)return;const w=CafeService.init(G);
+  $('btnWash').textContent=w.wash?'洗い中…':'洗い物 '+CafeService.sum(w.dirty);
+  $('btnWash').title='清潔なコップ '+w.clean.cup+'・皿 '+w.clean.plate+'・フォーク '+w.clean.fork;
+}
+function washDishes() {
+  const w=CafeService.init(G);
+  if(mode==='report'){
+    if(!w.wash&&!CafeService.startWash(G)){toast('洗い物はありません');return;}
+    w.wash.t=w.wash.duration-1;CafeService.tickWash(G);
+  }else if(!CafeService.startWash(G)){toast(w.wash?'洗っているところです':'お皿を片付けると洗い物が届きます');return;}
+  toast(mode==='report'?'食器を洗いました':'3個ずつ洗っています');refreshDishes();save();updateStockInfo();
+}
+function openDishes(fromReport=false) {
+  const w=CafeService.init(G);
+  openModal(`<h2>食器と洗い物</h2><p class="sub">洗ってある食器だけを使えます。注文時に必要な数を確保し、食後に片付けると洗い物へ。コップ・皿・フォークを3個ずつ洗います。営業中は「洗う」で画面を閉じ、3秒で洗えます。閉店後はこの画面で洗えます。アルバイトは空き時間に洗います。</p>
+    <div class="stat">${CafeService.keys.map(k=>'<span>'+CafeService.types[k].name+'</span><span>清潔 '+w.clean[k]+' ／ 使用中 '+w.used[k]+' ／ 洗い待ち '+w.dirty[k]+' ／ 全部 '+w.total[k]+'</span>').join('')}</div>
+    <p class="sub">${w.wash?'洗っている食器 '+CafeService.sum(w.wash.items)+'個（あと'+Math.ceil((w.wash.duration-w.wash.t)/60)+'秒）':'洗い待ち '+CafeService.sum(w.dirty)+'個'}</p>
+    <div class="actions-row"><button type="button" id="mWash">洗う</button><button type="button" id="mWareShop">食器を増やす</button><button type="button" id="mClose">${fromReport?'リザルトへ戻る':'とじる'}</button></div>`);
+  $('mWash').onclick=()=>{washDishes();if(mode==='report')openDishes(fromReport);else closeModal();};
+  $('mWareShop').onclick=()=>openShop('tableware',fromReport);
+  $('mClose').onclick=()=>{if(fromReport)showDayResult();else closeModal();};
+}
+
 function updateFoodLabel() { if (G) $('foodLeft').textContent = `のこり${G.bowl}`; updateStockInfo(); }
 let toastTimer = 0;
 function toast(msg) {
@@ -2774,9 +2849,11 @@ function row(name, desc, label, disabled, id) {
   return `<div class="row"><span class="name">${name}</span><span class="desc">${desc}</span><button type="button" data-buy="${id}" ${disabled ? 'disabled' : ''}>${label}</button></div>`;
 }
 function openShop(tab = 'furniture', fromReport = false) {
-  const tabs = [['furniture', '家具'], ['kitchen', 'キッチン'], ['menu', 'メニュー'], ['family', 'ねこ・人']];
+  const tabs = [['furniture', '家具'], ['kitchen', 'キッチン'], ['menu', 'メニュー'], ['family', 'ねこ・人'], ['tableware','食器']];
   let rows = '';
-  if (tab === 'furniture') {
+  if(tab==='tableware'){
+    const w=CafeService.init(G);rows=CafeService.keys.map(k=>row(CafeService.types[k].name+'（全部'+w.total[k]+'個）','清潔 '+w.clean[k]+'個・洗い待ち '+w.dirty[k]+'個','2個追加 ¥'+(CafeService.types[k].price*2).toLocaleString(),G.money<CafeService.types[k].price*2,'buy-w-'+k)).join('');
+  } else if (tab === 'furniture') {
     rows = FURNITURE.map(f => {
       const n = G.furniture[f.id], full = n >= f.max;
       return row(f.name + (f.max > 1 ? `（${n}/${f.max}）` : n ? '（設置ずみ）' : ''), f.desc, full ? 'いっぱい' : `¥${f.price.toLocaleString()}`, full || G.money < f.price, `buy-f-${f.id}`);
@@ -2816,7 +2893,9 @@ function openShop(tab = 'furniture', fromReport = false) {
 }
 function buy(id) {
   const [, kind, key] = id.split('-');
-  if (kind === 'k') {
+  if(kind==='w'){
+    if(!CafeService.expand(G,key,2))return;toast(CafeService.types[key].name+'を2個増やしました');
+  } else if (kind === 'k') {
     const st = STATIONS[key]; if (G.money < st.price || G.kitchen[key] >= 2) return;
     CafeFinance.spend(G,'investment',st.price,st.name); G.kitchen[key]++; toast(`${st.name}をもう1台おきました`);
   } else if (kind === 'f') {
@@ -2843,8 +2922,7 @@ function buy(id) {
   sfx.buy(); save(); updateHud();
 }
 function openStock(fromReport = false) {
-  const open = mode === 'open' || mode === 'closing';
-  const cheapest = INGR.slice().sort((a, b) => G.market[a.id] - G.market[b.id])[0];
+  const scheduled=CafeService.supplyDay(G.day),balance=CafeFinance.view(G);
   const items = MENU.filter(m => G.menu.includes(m.id));
   const needed = new Set(items.flatMap(m => Object.keys(m.need)));
   const list = INGR.filter(it => needed.has(it.id) || stockOf(it.id) > 0).map(it => {
@@ -2854,13 +2932,14 @@ function openStock(fromReport = false) {
     const room = capOf(it.life > 0) - usedOf(it.life > 0);
     return `<div class="ingr"><img src="${INGR_IMG[it.id]}" alt=""><span class="name">${it.name}${tag}</span>
       <span class="desc">1こ ¥${price}・${life}</span><span class="qty">${stockOf(it.id)}こ</span>
-      <span class="btns"><button type="button" data-add="${it.id}:5" ${room < 1 || G.money < price ? 'disabled' : ''}>+5</button><button type="button" data-add="${it.id}:10" ${room < 1 || G.money < price ? 'disabled' : ''}>+10</button></span></div>`;
+      <span class="btns"><button type="button" data-add="${it.id}:5" ${room < 1 || !scheduled ? 'disabled' : ''}>+5</button><button type="button" data-add="${it.id}:10" ${room < 1 || !scheduled ? 'disabled' : ''}>+10</button></span></div>`;
   }).join('');
   const make = items.map(m => { const n = makeCount(m); return `<span>${m.name} <b class="${n ? '' : 'zero'}">${n}</b></span>`; }).join('');
   openModal(`
     <h2>仕入れ</h2>
     <p class="sub">もちきん ¥${G.money.toLocaleString()}　冷蔵庫 ${usedOf(true)}/${capOf(true)}　たな ${usedOf(false)}/${capOf(false)}</p>
-    ${open ? `<p class="sub" style="color:var(--bad)">営業中は おいそぎ便なので ${RUSH_RATE}ばいの値段です。閉店後に まとめて買うとおトク。</p>` : `<p class="sub">あしたの値段です。きょうは ${cheapest.name}が やすいみたい。</p>`}
+    <p class="sub">${scheduled?'きょうは仕入れ日です。材料はすぐ届きます。':'つぎの仕入れは通算'+CafeService.nextSupply(G.day)+'日目です。'} 1・4・7・10日目…の3日おき。買掛で購入し、月末（10日ごと）の閉店時にまとめて支払います。営業中も同じ価格です。</p>
+    <p class="sub">仕入れ買掛：${financeYen(balance.payable)} ／ 今月の支払い：${financeDate(CafeFinance.date(G.day).end)}</p>
     <p class="sub">いまの材料で つくれる数</p>
     <div class="make">${make}</div>
     <div class="list">${list}</div>
@@ -2871,17 +2950,19 @@ function openStock(fromReport = false) {
       const [id, n] = b.dataset.add.split(':');
       const got = addStock(id, +n);
       if (got) { sfx.buy(); if (got < +n) toast('おき場所がいっぱいです'); }
-      else toast(G.money < unitPrice(id) ? 'おかねがたりません' : 'おき場所がいっぱいです');
+      else toast(!scheduled?'きょうは仕入れ日ではありません':'おき場所がいっぱいです');
       save(); updateHud(); const st = $('panel').scrollTop; openStock(fromReport); $('panel').scrollTop = st;
     };
   });
   $('mClose').onclick = () => { closeModal(); if (fromReport) startDay(); };
 }
 function updateStockInfo() {
-  if (!G) return;
-  const out = MENU.filter(m => G.menu.includes(m.id) && !canMake(m)).length;
-  $('stockInfo').textContent = out ? `${out}品切れ` : 'OK';
-  $('stockInfo').style.color = out ? '#ffb0a0' : '';
+  if(!G)return;
+  const items=MENU.filter(m=>G.menu.includes(m.id));
+  const materials=items.filter(m=>Object.entries(m.need).some(([id,n])=>stockOf(id)<n)).length;
+  const dishes=items.filter(m=>!CafeService.available(G,m)).length;
+  $('stockInfo').textContent=materials?materials+'品材料不足':dishes?'食器不足':'OK';
+  $('stockInfo').style.color=materials||dishes?'#ffb0a0':'';
 }
 function openNyaimee() {
   event('nyaimee');
@@ -3150,12 +3231,13 @@ onCafeTap(e => {
   for (const c of customers) {
     if (c.state !== 'order' && c.state !== 'wait') continue;
     const s = c.seat;
-    if (x > s.x - 14 && x < s.x + 14 && y > s.y / 2 - (s.counter ? 52 : 56) && y < s.y / 2 - 2) { if (c.state === 'order') serve(c, false); else if (c.job && c.job.state === 'ready') deliver(c.job, false); else if (c.job) toast('下のキッチンで 設備をタップして 調理してね'); return; }
+    if (x > s.x - 14 && x < s.x + 14 && y > s.y / 2 - (s.counter ? 61 : 56) && y < s.y / 2 - 2) { if (c.state === 'order') serve(c, false); else if (c.job && c.job.state === 'ready') deliver(c.job, false); else if (c.job) toast('下のキッチンで 設備をタップして 調理してね'); return; }
   }
   if (!firstGuide && registerHit(x,y)) { tapRegister(); return; }
   for (const s of seats) {
-    if (s.dirty && Math.abs(x - s.itemX) < 12 && y > s.itemY / 2 - 13 && y < s.itemY / 2 + 9) { s.dirty = false; sfx.clean(); addFx('spark', s.itemX, s.itemY - 5); return; }
+    if (s.dirty && Math.abs(x - s.itemX) < 12 && y > s.itemY / 2 - 13 && y < s.itemY / 2 + 9) { clearTable(s); sfx.clean(); addFx('spark', s.itemX, s.itemY - 5); return; }
   }
+  if(x>=135&&x<=166&&y>=36&&y<=68){washDishes();return;}
   if (x >= 168 && y < 26) { openStock(); return; }
   if (ponta) { const py = ponta.state === 'nap' ? ponta.y / 2 - 9 : ponta.y / 2 - 20; if (Math.hypot(x - ponta.x, y - py) < 24) { wakePonta(); return; } }
   let best = null, bd = 26;
@@ -3169,6 +3251,7 @@ onCafeTap(e => {
   if (fi >= 0) { furs.splice(fi, 1); sfx.clean(); addFx('spark', x, y); }
 });
 $('btnRegister').onclick = () => { initAudio(); tapRegister(); };
+$('btnWash').onclick = () => { initAudio(); if(G)openDishes(mode==='report'); };
 $('btnShift').onclick = () => { initAudio(); if(G)openShifts(mode==='report'); };
 $('btnFinance').onclick = () => { initAudio(); if(G)openFinance(mode==='report'); };
 $('btnFood').onclick = () => {
@@ -3550,11 +3633,14 @@ function fitLayout() {
   // the action dock stays visible; the cafe uses the full available width.
   const sceneWidth = wrap.clientWidth;
   cv.style.width = sceneWidth + 'px';
-  cv.style.height = Math.floor(sceneWidth * VH / VW / 2) + 'px';
-  // Match the actual canvas content box to the device pixels. The browser
-  // no longer shrinks an oversized integer backing canvas a second time.
-  SpriteRaster.resize(cv,cv.clientWidth,cv.clientHeight);
-  SpriteRaster.resize(kcv,kcv.clientWidth,kcv.clientHeight);
+  const contentWidth=cv.clientWidth,contentHeight=contentWidth*VH/VW/2,cs=getComputedStyle(cv);
+  const borders=(parseFloat(cs.borderTopWidth)||0)+(parseFloat(cs.borderBottomWidth)||0);
+  cv.style.height=(contentHeight+borders)+'px';
+  // Match device pixels and preserve the content aspect ratio, including borders.
+  SpriteRaster.resize(cv,contentWidth,contentHeight);
+  const kitchenHeight=kcv.clientWidth*KH/KW,ks=getComputedStyle(kcv);
+  kcv.style.height=(kitchenHeight+(parseFloat(ks.borderTopWidth)||0)+(parseFloat(ks.borderBottomWidth)||0))+'px';
+  SpriteRaster.resize(kcv,kcv.clientWidth,kitchenHeight);
   positionDialogue();
 }
 function positionDialogue() {

@@ -2,7 +2,7 @@
 (function(){
   'use strict';
   const rules=Object.freeze({daysPerMonth:10,cardShare:.4,cardFeeRate:.03,cardDepositDelay:2,monthlyPaymentDelay:3,taxRate:.1,ownerHealth:400,ownerPension:600,staffInsuranceRate:.1,electricity:100,water:30,internet:20});
-  const labels={materials:'仕入れ代',catFood:'ねこのごはん',rent:'家賃',electricity:'電気代',water:'水道代',internet:'通信費',wages:'アルバイト給与',tempStaff:'ニャイミー報酬',recruitment:'採用費',menuDevelopment:'メニュー開発費',catWelcome:'ねこを迎える費用',cardFees:'カード手数料',health:'店長の健康保険',pension:'店長の年金',staffInsurance:'スタッフ社会保険（お店負担）'};
+  const labels={materials:'仕入れ代',tableware:'食器購入費',catFood:'ねこのごはん',rent:'家賃',electricity:'電気代',water:'水道代',internet:'通信費',wages:'アルバイト給与',tempStaff:'ニャイミー報酬',recruitment:'採用費',menuDevelopment:'メニュー開発費',catWelcome:'ねこを迎える費用',cardFees:'カード手数料',health:'店長の健康保険',pension:'店長の年金',staffInsurance:'スタッフ社会保険（お店負担）'};
   const amount=v=>Math.max(0,Math.round(Number(v)||0));
   const sum=o=>Object.values(o||{}).reduce((n,v)=>n+v,0);
   function date(day){
@@ -11,6 +11,7 @@
   }
   function init(g){
     if(!g.finance||g.finance.version!==1)g.finance={version:1,startedDay:g.day,cards:[],bills:[],months:[],history:[],active:null};
+    if(!g.finance.payables)g.finance.payables=[];
     return g.finance;
   }
   function today(g){
@@ -32,6 +33,12 @@
     return n;
   }
   function spend(g,key,value,label){
+    if(key==='materials'){
+      const n=expense(g,key,value,label,false);if(!n)return 0;
+      const f=init(g),when=date(g.day);let bill=f.payables.find(b=>b.month===when.month&&!b.paid);
+      if(!bill){bill={month:when.month,dueDay:when.end,amount:0,paid:false};f.payables.push(bill);}
+      bill.amount+=n;const d=today(g);d.payablePurchases=(d.payablePurchases||0)+n;return n;
+    }
     if(key!=='investment')return expense(g,key,value,label,true);
     const n=amount(value),d=today(g);if(d.closed)throw Error('This finance day is closed');
     g.money-=n;d.investments+=n;if(n)d.details.push({key,amount:n,label:String(label||'設備・家具')});return n;
@@ -46,6 +53,14 @@
     batch.gross+=n;batch.fee+=fee;d.cardSales+=n;expense(g,'cardFees',fee,null,false);
     return {method:'card',gross:n,fee,net:n-fee,dueDay:batch.dueDay};
   }
+  function settlePayables(g,includeToday=false){
+    const f=init(g),d=today(g);
+    for(const b of f.payables)if(!b.paid&&(b.dueDay<g.day||(includeToday&&b.dueDay===g.day))){
+      b.paid=true;g.money-=b.amount;d.liabilityPayments+=b.amount;
+      d.payablePayments=(d.payablePayments||0)+b.amount;d.payments.materials=(d.payments.materials||0)+b.amount;
+    }
+    return d;
+  }
   function settleDue(g){
     const f=init(g),d=today(g);
     for(const b of f.cards)if(!b.settled&&b.dueDay<=g.day){
@@ -56,6 +71,7 @@
       b.paid=true;g.money-=b.amount;d.liabilityPayments+=b.amount;
       d.payments[b.key]=(d.payments[b.key]||0)+b.amount;
     }
+    settlePayables(g);
     return d;
   }
   function beginDay(g){
@@ -85,19 +101,22 @@
       for(const [key,n]of [['tax',m.tax],['health',m.expenses.health||0],['pension',m.expenses.pension||0],['staffInsurance',m.expenses.staffInsurance||0]])
         if(n)f.bills.push({month:when.month,key,amount:n,dueDay,paid:false});
     }
+    if(when.day===rules.daysPerMonth)settlePayables(g,true);
     d.profit=d.sales-sum(d.expenses);d.cashEnd=g.money;d.closed=true;
     const f=init(g);f.history.push(JSON.parse(JSON.stringify(d)));f.history=f.history.slice(-30);
     // Keep recent summaries, while never removing unpaid money.
     f.cards=f.cards.filter(b=>!b.settled||b.month>=when.month-12);
     f.bills=f.bills.filter(b=>!b.paid||b.month>=when.month-12);
     f.months=f.months.filter(m=>m.month>=when.month-24);
+    f.payables=f.payables.filter(b=>!b.paid||b.month>=when.month-12);
     return {day:d,month:m};
   }
   function view(g){
-    const f=init(g),cards=f.cards.filter(b=>!b.settled),bills=f.bills.filter(b=>!b.paid);
+    const f=init(g),cards=f.cards.filter(b=>!b.settled),bills=f.bills.filter(b=>!b.paid),payables=f.payables.filter(b=>!b.paid);
+    const payable=payables.reduce((n,b)=>n+b.amount,0);
     const current=date(g.day),m=f.months.find(m=>m.month===current.month);
     const openInsurance=m&&!m.closed?(m.expenses.health||0)+(m.expenses.pension||0)+(m.expenses.staffInsurance||0):0;
-    return {cash:g.money,cardGross:cards.reduce((n,b)=>n+b.gross,0),cardFees:cards.reduce((n,b)=>n+b.fee,0),cardNet:cards.reduce((n,b)=>n+b.gross-b.fee,0),unpaid:bills.reduce((n,b)=>n+b.amount,0)+openInsurance,cards,bills,month:m||null,date:current};
+    return {cash:g.money,cardGross:cards.reduce((n,b)=>n+b.gross,0),cardFees:cards.reduce((n,b)=>n+b.fee,0),cardNet:cards.reduce((n,b)=>n+b.gross-b.fee,0),unpaid:bills.reduce((n,b)=>n+b.amount,0)+openInsurance+payable,payable,payables,cards,bills,month:m||null,date:current};
   }
   window.CafeFinance={rules,labels,sum,date,init,today,spend,sale,settleDue,beginDay,closeDay,view};
 })();

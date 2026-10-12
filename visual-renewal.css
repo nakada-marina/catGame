@@ -157,3 +157,5 @@ body {display:block;padding-inline:max(8px,env(safe-area-inset-left));padding-bo
 
 /* Canvas backing sizes now match device pixels; do not quantize them again in CSS. */
 #cafe,#kitchenCv,.catrow canvas,.nya-card canvas {image-rendering:auto}
+
+#sub .tools {flex-wrap:wrap;max-width:100%;min-width:0}

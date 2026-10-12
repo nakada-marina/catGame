@@ -91,9 +91,9 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
     const cv=canvas(),kcv=canvas();cv.style={};
     Object.defineProperties(cv,{clientWidth:{get:()=>parseFloat(cv.style.width)-6},clientHeight:{get:()=>parseFloat(cv.style.height)-6}});
     Object.defineProperties(kcv,{clientWidth:{get:()=>wrap.clientWidth-6},clientHeight:{get:()=>(wrap.clientWidth-6)*168/448}});
-    const fit=new Function('$','window','document','getComputedStyle','innerWidth','cv','kcv','VW','VH','SpriteRaster','positionDialogue',
+    const fit=new Function('$','window','document','getComputedStyle','innerWidth','cv','kcv','VW','VH','KW','KH','SpriteRaster','positionDialogue',
       source('fitLayout')+';return fitLayout;')(
-      ()=>wrap,window,{body:{}},()=>({paddingLeft:'8px',paddingRight:'8px'}),width,cv,kcv,224,300,raster,()=>{});
+      ()=>wrap,window,{body:{}},()=>({paddingLeft:'8px',paddingRight:'8px',borderTopWidth:'3px',borderBottomWidth:'3px'}),width,cv,kcv,224,300,448,168,raster,()=>{});
     fit();
     assert.equal(wrap.clientWidth,Math.floor(Math.min(width-16,640)),'full-width layout retained');
     assert.equal(cv.width,Math.round(cv.clientWidth*ratio),'backing matches content width in device pixels');
@@ -102,7 +102,7 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
     const draw=canvas(),ctx=draw.getContext('2d');
     const render=new Function('cv','ctx','FW','FH','G','drawWallAndFloor','OPEN',source('render')+';return render;')(
       cv,ctx,448,600,null,()=>{},600);
-    render();const m=ctx.getTransform();close(m.a,cv.width/448,'horizontal physical scale');close(m.d,cv.height/300,'vertical physical scale');
+    render();const m=ctx.getTransform();close(m.a,cv.width/448,'horizontal physical scale');close(m.a,m.d,'uniform physical scale');assert(Math.abs(m.d*300-cv.height)<=.5,'vertical pixel rounding stays within half a physical pixel');
   }
   const room=canvas(),ctx=room.getContext('2d'),drawArtwork=new Function('ctx','SpriteRaster',
     source('catBowAngle')+'\n'+source('drawCatArtwork')+';return drawCatArtwork;')(ctx,raster);
