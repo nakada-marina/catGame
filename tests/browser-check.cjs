@@ -44,7 +44,7 @@ fs.mkdirSync(artifacts, {recursive:true});
         cafe:cv.getBoundingClientRect().toJSON(),kitchen:kcv.getBoundingClientRect().toJSON(),field:$('playfield').getBoundingClientRect().toJSON(),
         bodyHeight:document.body.clientHeight,bodyScroll:document.body.scrollHeight,scrollY:scrollY,wide:$('playfield').classList.contains('side-by-side'),kitchenRatio:KH/KW}));
       assert(layout.scene<=layout.wrap,'drawing surfaces fit inside full-width controls');
-      assert(Math.abs((layout.sceneHeight-6)/(layout.scene-6)-300/448)<.01,'cafe retains aspect ratio');
+      assert(Math.abs((layout.sceneHeight-6)/(layout.scene-6)-(await page.evaluate(()=>VH))/448)<.01,'cafe retains aspect ratio');
       assert(Math.abs((layout.kitchen.height-6)/(layout.kitchen.width-6)-layout.kitchenRatio)<.01,'kitchen retains aspect ratio');
       for(const box of [layout.cafe,layout.kitchen])assert(box.top>=layout.field.top-1&&box.bottom<=layout.field.bottom+1&&box.left>=layout.field.left-1&&box.right<=layout.field.right+1,'both canvases visible together');
       assert(layout.bodyScroll<=layout.bodyHeight+1,'page content does not require scrolling');

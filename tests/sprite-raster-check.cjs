@@ -2,6 +2,7 @@
  * Checks the actual atlas-to-screen drawing path; no browser screenshot assertions. */
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8'),html=read('index.html');
+const roomHeight=Number(html.match(/VH = (\d+)/)[1]);
 const kitchenSize=html.match(/const KW = (\d+), KH = (\d+);/),KW=Number(kitchenSize[1]),KH=Number(kitchenSize[2]);
 function multiply(a,b){
   return [a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
@@ -105,7 +106,7 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
       :el===field?{rowGap:'7px',columnGap:'7px'}:{borderLeftWidth:'3px',borderRightWidth:'3px',borderTopWidth:'3px',borderBottomWidth:'3px'};
     const fit=new Function('$','window','document','getComputedStyle','innerWidth','innerHeight','cv','kcv','VW','VH','KW','KH','SpriteRaster','positionDialogue',
       source('fitLayout')+';return fitLayout;')(
-      id=>id==='wrap'?wrap:field,window,{body,documentElement:{style:{setProperty:(name,value)=>rootStyle[name]=value}}},styles,width,height,cv,kcv,224,300,KW,KH,raster,()=>{});
+      id=>id==='wrap'?wrap:field,window,{body,documentElement:{style:{setProperty:(name,value)=>rootStyle[name]=value}}},styles,width,height,cv,kcv,224,roomHeight,KW,KH,raster,()=>{});
     fit();
     assert.equal(wrap.clientWidth,Math.floor(Math.min(width-padding.left-padding.right,wide?1040:640)),'controls retain available width');
     assert.equal(wrap.clientHeight,height-padding.top-padding.bottom,'viewport height reserves safe areas');
@@ -114,7 +115,7 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
     const drawnWidth=wide?parseFloat(cv.style.width)+7+parseFloat(kcv.style.width):Math.max(parseFloat(cv.style.width),parseFloat(kcv.style.width));
     const drawnHeight=wide?Math.max(parseFloat(cv.style.height),parseFloat(kcv.style.height)):parseFloat(cv.style.height)+7+parseFloat(kcv.style.height);
     assert(drawnWidth<=field.clientWidth&&drawnHeight<=field.clientHeight,'both surfaces fit '+[width,height,guideHeight,dockHeight,drawnWidth,drawnHeight,field.clientWidth,field.clientHeight].join(','));
-    assert(Math.abs(cv.clientHeight/cv.clientWidth-300/448)<1e-8,'cafe keeps aspect ratio');
+    assert(Math.abs(cv.clientHeight/cv.clientWidth-roomHeight/448)<1e-8,'cafe keeps aspect ratio');
     assert(Math.abs(kcv.clientHeight/kcv.clientWidth-KH/KW)<1e-8,'kitchen and sink keep aspect ratio');
     assert.equal(cv.width,Math.round(cv.clientWidth*ratio),'cafe backing matches device pixels');
     assert.equal(cv.height,Math.round(cv.clientHeight*ratio),'cafe height matches device pixels');
@@ -122,8 +123,8 @@ const close=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,msg);
     assert.equal(kcv.height,Math.round(kcv.clientHeight*ratio),'kitchen height matches device pixels');
     const draw=canvas(),ctx=draw.getContext('2d');
     const render=new Function('cv','ctx','FW','FH','G','drawWallAndFloor','OPEN',source('render')+';return render;')(
-      cv,ctx,448,600,null,()=>{},600);
-    render();const m=ctx.getTransform();close(m.a,cv.width/448,'horizontal physical scale');close(m.a,m.d,'uniform physical scale');assert(Math.abs(m.d*300-cv.height)<=.5,'vertical pixel rounding stays within half a physical pixel');
+      cv,ctx,448,roomHeight*2,null,()=>{},600);
+    render();const m=ctx.getTransform();close(m.a,cv.width/448,'horizontal physical scale');close(m.a,m.d,'uniform physical scale');assert(Math.abs(m.d*roomHeight-cv.height)<=.5,'vertical pixel rounding stays within half a physical pixel');
     const oldWidth=cv.clientWidth;
     window.visualViewport.height=height-40;fit();assert(cv.clientWidth<=oldWidth,'toolbar expansion recomputes available height');
   }

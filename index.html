@@ -69,7 +69,7 @@ body {
   display: block;
   width: 100%;
   max-width: 100%;
-  aspect-ratio: 448 / 300;
+  aspect-ratio: 448 / 328;
   image-rendering: pixelated;
   border: 3px solid #0f1814;
   border-radius: 6px;
@@ -294,7 +294,7 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 .shift-controls select,.shift-day-label select { min-height:44px; max-width:100%; padding:6px; border:1px solid #b6a28c; border-radius:6px; font:inherit; background:#fffdf6; color:#3b2c21; }
 .shift-controls button { font-size:13px; min-height:44px; }
 </style>
-<link rel="stylesheet" href="./visual-renewal.css?v=20261012-fewer-buttons">
+<link rel="stylesheet" href="./visual-renewal.css?v=20261012-counter-seats">
 <link rel="stylesheet" href="./title-screen.css?v=20261012-menu-clearance">
 </head>
 <body>
@@ -340,15 +340,16 @@ button small { display: block; font-size: 11px; color: #e6d3b8; white-space: now
 <script src="./kitchen-wash.js?v=20261012-fewer-buttons"></script>
 <script src="./nyax-art.js?v=20261012-white-paws"></script>
 <script src="./guest-art.js?v=20261012-walk"></script>
+<script src="./counter-art.js?v=20261012-seated"></script>
 <script src="./cat-motions.js?v=20261012-single-pass"></script><script src="./stray-art.js?v=20261012-single-pass"></script><script src="./rear-walk.js?v=20261012-single-pass"></script>
-<script src="./cafe-art.js?v=20261012-walk"></script>
+<script src="./cafe-art.js?v=20261012-counter"></script>
 <script src="./touch-controls.js?v=20261011-tap-guard"></script>
 <script src="./character-art.js?v=20261011-nyaimee"></script>
 <script src="./title-scene.js?v=20261012-menu-clearance"></script>
 <script>
 'use strict';
 // ================= 画面 =================
-const VW = 224, VH = 300, S = 4;
+const VW = 224, VH = 328, S = 4;
 const cv = document.getElementById('cafe');
 cv.width = VW * S; cv.height = VH * S;
 let ctx = cv.getContext('2d');
@@ -836,12 +837,12 @@ const ADOPT = [
 const STAFF = { price: 10000, wage: 2000, star: 2 };
 const RENT = 1000, FOOD_PRICE = 500, FOOD_AMOUNT = 8;
 const OPEN = 600, CLOSE = 1140; // 10:00〜19:00
-const TABLE_POS = [[54,156],[110,156],[54,232],[110,232],[166,196],[166,272]];
+const TABLE_POS = [[54,156],[110,156],[54,232],[110,232],[54,308],[110,308]];
 const CUSHION_POS = [[18,180],[18,268],[205,164],[205,202]];
 const PLANT_POS = [[70,74],[98,74],[124,74]];
 const TOWER = {x:12,base:90,top:58};
 const BOWL = { x: 138, y: 112 };
-const STOOL_POS = [[175,120],[193,120],[211,120]];
+const STOOL_POS = [[164,218],[188,218],[212,218]];
 const ENTRANCE = { x: 112, y: 312 };
 const SAVE_KEY = 'grio-cafe-v1';
 
@@ -1167,7 +1168,7 @@ function buildSeats() {
     const [x, y] = STOOL_POS[i];
     const prev = old.find(s => s.counter && s.ci === i);
     seats.push(prev || { ti: -1, ci: i, counter: true, side: 1, tx: x, ty: y, x, y, cust: null, dirty: false, dirtyT: 0,
-      itemX:x,itemY:92,catX:x+5,catY:y+6 });
+      itemX:x,itemY:169,catX:x+5,catY:y+6 });
   }
 }
 function makeCat(c, x, y) {
@@ -2105,7 +2106,8 @@ function placeBaked(key, x, y, bx, by, l, t, w, h, raw) {
 function floorShadow(X, Y, rx, ry, a = 0.2) { ctx.globalAlpha = a; ellipse(Math.round(X), Math.round(Y), rx, ry, '#2a1808'); ctx.globalAlpha = 1; }
 function drawTable(x,y){const im=CafeArt.table();floorShadow(x*2,y*2+17,34,4,.14);drawAt(im,x*2-im.width/2,y*2-32);}
 function drawChair(x,y){const im=CafeArt.chair();floorShadow(x*2,y*2,14,3,.13);drawAt(im,x*2-im.width/2,y*2-56);}
-function drawStool(x,y){const im=CafeArt.stool();floorShadow(x*2,y*2,12,3,.13);drawAt(im,x*2-im.width/2,y*2-32);}
+function drawStool(x,y){const im=CafeArt.counterStool();floorShadow(x*2,y*2,12,3,.13);drawAt(im,x*2-im.width/2,y*2-im.height);}
+function drawDiningCounter(){ctx.drawImage(CafeArt.counter(),302,162);}
 
 function drawPlant(x, y) { floorShadow(x * 2, y * 2, 13, 3); placeBaked('plant', x, y, 60, 60, 24, 62, 48, 66, rawPlant); }
 function drawCushion(x, y) { floorShadow(x * 2, y * 2 + 3, 23, 5); placeBaked('cushion', x, y, 60, 60, 26, 14, 52, 22, rawCushion); }
@@ -2201,7 +2203,7 @@ function drawLighting() {
 // ぐりお と ぽんた は キャラクター設定画の 絵を つかう（chars.webp）
 
 const CHAR_SPR = {}, CHAR_PENDING = mk(81, 64);
-const artworkReady = Promise.all([CatArtwork.load(), GuestArt.load, RearWalk.load, StrayArt.load]).then(([originals, , , strays]) => {
+const artworkReady = Promise.all([CatArtwork.load(), GuestArt.load, RearWalk.load, StrayArt.load, CounterArt.load]).then(([originals, , , strays]) => {
   const bodies = { ...originals, ...strays };
   for (const who of Object.keys(bodies)) {
     CHAR_SPR[who] = {};
@@ -2383,11 +2385,9 @@ function drawCustomer(c) {
     if (c.vip) drawCrown(c.x * 2, Y - 8);
   } else {
     const f = customerPose(c), bob = 0;
-    const img = c.seat.counter ? c.spr.back : c.spr[f], top = c.seat.y * 2 - (c.seat.counter ? 22 : 0) - (img.logicalHeight || img.height) + (img.guestDetail && !c.seat.counter ? 4 : 0) + bob;
-    if(c.seat.counter){
-      const width=img.logicalWidth||img.width,height=img.logicalHeight||img.height,visible=Math.max(0,Math.min(height,76+c.seat.y-top));
-      if(visible)ctx.drawImage(img,0,0,img.width,img.height*visible/height,c.seat.x*2-width/2,top,width,visible);
-    }else drawAt(img,c.seat.x*2-(img.logicalWidth||img.width)/2,top);
+    const img = c.seat.counter ? (CounterArt.person(c.look) || c.spr.back) : c.spr[f], top = c.seat.y * 2 - (img.logicalHeight || img.height) + (img.guestDetail && !c.seat.counter ? 4 : 0) + bob;
+    if(c.seat.counter)SpriteRaster.draw(ctx,img,c.seat.x*2-(img.logicalWidth||img.width)/2,top,img.logicalWidth||img.width,img.logicalHeight||img.height);
+    else drawAt(img,c.seat.x*2-(img.logicalWidth||img.width)/2,top);
     if (c.vip && c.state !== 'order') drawCrown(c.seat.x * 2, top - 8);
   }
 }
@@ -2437,14 +2437,14 @@ function drawCrown(X, Y) {
   P('#e84a5a', X - 1, Y + 3, 3, 2); P('#4a9ae8', X - 6, Y + 3, 2, 2); P('#4a9ae8', X + 5, Y + 3, 2, 2);
 }
 function drawTableItems(s) {
-  const y=s.counter?76:s.ty*2-32;
+  const y=s.counter?152:s.ty*2-32;
   if(s.cust){
     const food=s.cust.receivedItems||(s.cust.state==='eat'?CafeService.items(s.cust.order):[]);
-    const x=s.counter?s.itemX*2-15:s.tx*2+(s.side<0?-38:7);
-    food.forEach((item,i)=>drawAt(ICON2[item.id],x+i*16,y,food.length>1?14:24));
+    const x=s.tx*2+(s.side<0?-38:7);
+    food.forEach((item,i)=>drawAt(ICON2[item.id],s.counter?s.itemX*2+(i?10:-24):x+i*16,y,s.counter?14:food.length>1?14:24));
   }
   if(s.dirty||s.cust?.state==='checkoutSeat'){
-    const x=s.counter?s.itemX*2-8:s.itemX*2-9,plateY=s.counter?88:s.ty*2-13;
+    const x=s.counter?s.itemX*2-24:s.itemX*2-9,plateY=s.counter?164:s.ty*2-13;
     drawAt(PLATE2,x,plateY);if((tick>>4)&1){P('#fff',x+15,plateY-5,1,3);P('#fff',x+14,plateY-4,3,1);}
   }
 }
@@ -2495,7 +2495,7 @@ function drawSay(c) {
   let Y;
   if (walking) Y = Math.round(c.y * 2 - (c.spr.a.logicalHeight || c.spr.a.height)) - 6;
   else if (c.state === 'order' || c.state === 'wait') Y = s.y * 2 - (s.counter ? 102 : 110) - 4;
-  else {const img=s.counter?c.spr.back:c.spr.sit;Y=s.y*2-(s.counter?22:0)-(img.logicalHeight||img.height)-6;}
+  else {const img=s.counter?(CounterArt.person(c.look)||c.spr.back):c.spr.sit;Y=s.y*2-(img.logicalHeight||img.height)-6;}
   ctx.font = '13px "DotGothic16", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   const w = Math.ceil(ctx.measureText(c.say.text).width) + 12, h = 19, bx = clamp(X - w / 2, 2, FW - w - 2);
   let by = Y - h - 6;
@@ -2570,8 +2570,12 @@ function render() {
     list.push({ y: y - 8.5, anchor: y, d: () => { drawChair(x - 10, y); drawChair(x + 10, y); } });
     list.push({ y, d: () => { drawTable(x, y); seats.filter(s => s.ti === i).forEach(drawTableItems); } });
   }
-  for (let i = 0; i < (G.furniture.stool || 0); i++) { const [x, y] = STOOL_POS[i]; list.push({ y: y - 0.5, d: () => drawStool(x, y) }); }
-  for(const seat of seats.filter(s=>s.counter))list.push({y:128,anchor:0,d:()=>drawTableItems(seat)});
+  if(G.furniture.stool)list.push({y:198,anchor:0,d:drawDiningCounter});
+  for (let i = 0; i < (G.furniture.stool || 0); i++) {
+    const [x, y] = STOOL_POS[i], seat=seats.find(s=>s.counter&&s.ci===i);
+    if(!seat?.cust || !CounterArt.person(seat.cust.look))list.push({ y: y - 0.5, d: () => drawStool(x, y) });
+  }
+  for(const seat of seats.filter(s=>s.counter))list.push({y:198.5,anchor:0,d:()=>drawTableItems(seat)});
   for (const c of customers) list.push({ y: customerOnFloor(c) ? c.y : c.seat.y - 0.2, anchor: customerOnFloor(c) ? c.y : c.seat.y, d: () => drawCustomer(c) });
   if (ponta) list.push({ y: ponta.y, d: drawPonta });
   for (const k of cats) list.push({ y: k.spot === TOWER && k.state === 'nap' ? TOWER.base + 1 : k.y, d: () => drawCat(k) });
